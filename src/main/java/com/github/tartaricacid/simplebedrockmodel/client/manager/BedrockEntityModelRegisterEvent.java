@@ -1,30 +1,16 @@
 package com.github.tartaricacid.simplebedrockmodel.client.manager;
 
 import com.github.tartaricacid.simplebedrockmodel.client.bedrock.AbstractBedrockEntityModel;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
-import net.fabricmc.fabric.api.event.Event;
-import net.fabricmc.fabric.api.event.EventFactory;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
+import net.minecraftforge.eventbus.api.Event;
+import net.minecraftforge.fml.event.IModBusEvent;
 
 import java.io.InputStream;
 import java.util.function.Function;
 
-@Environment(EnvType.CLIENT)
-public class BedrockEntityModelRegisterEvent<T extends AbstractBedrockEntityModel<? extends Entity>> {
+public class BedrockEntityModelRegisterEvent<T extends AbstractBedrockEntityModel<? extends Entity>> extends Event implements IModBusEvent {
     private final BedrockEntityModelSet<T> modelSet;
-
-    public static final Event<Callback> CALLBACK = EventFactory.createArrayBacked(Callback.class, callbacks -> event -> {
-        for (Callback callback : callbacks) {
-            callback.post(event);
-        }
-    });
-
-    public interface Callback {
-        @SuppressWarnings("rawtypes")
-        void post(BedrockEntityModelRegisterEvent event);
-    }
 
     public BedrockEntityModelRegisterEvent(BedrockEntityModelSet<T> modelSet) {
         this.modelSet = modelSet;
@@ -32,5 +18,10 @@ public class BedrockEntityModelRegisterEvent<T extends AbstractBedrockEntityMode
 
     public void register(ResourceLocation location, Function<InputStream, T> function) {
         this.modelSet.addModel(location, function);
+    }
+
+    @Override
+    public boolean isCancelable() {
+        return false;
     }
 }
