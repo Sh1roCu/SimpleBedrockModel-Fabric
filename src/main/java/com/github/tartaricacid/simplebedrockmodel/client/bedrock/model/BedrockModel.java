@@ -127,7 +127,7 @@ public class BedrockModel implements Skeleton {
 
     @ParametersAreNonnullByDefault
     public void renderToBuffer(PoseStack poseStack, VertexConsumer buffer, int packedLight, int packedOverlay) {
-        root.render(poseStack, buffer, packedLight, packedOverlay);
+        root.render(poseStack, buffer, packedOverlay, packedLight);
     }
 
     public AABB getRenderBoundingBox() {
