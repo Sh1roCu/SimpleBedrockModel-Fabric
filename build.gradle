@@ -63,7 +63,6 @@ repositories {
     flatDir {
         dirs 'libs'
     }
-    mavenLocal()
     maven {
         url = "https://api.modrinth.com/maven"
     }
@@ -73,11 +72,11 @@ dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
     runtimeOnly fg.deobf("maven.modrinth:embeddium:0.3.31+mc1.20.1")
     compileOnly fg.deobf("maven.modrinth:embeddium:0.3.31+mc1.20.1")
-    shade (minecraftLibrary("com.maydaymemory:mae:1.0.0")) {
+    shade (minecraftLibrary("com.maydaymemory:mae:1.0.0") {
         exclude group: 'com.google.code.findbugs', module: 'jsr305'
         exclude group: 'it.unimi.dsi', module: 'fastutil'
         exclude group: 'org.joml', module: 'joml'
-    }
+    })
 }
 
 shadowJar {
