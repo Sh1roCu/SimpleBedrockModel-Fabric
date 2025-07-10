@@ -31,12 +31,12 @@ public class FaceUVsItem {
     @Nullable
     public FaceItem getFace(Direction direction) {
         return switch (direction) {
-            case EAST -> west;
-            case WEST -> east;
+            case EAST -> east;
+            case WEST -> west;
             case NORTH -> north;
             case SOUTH -> south;
-            case UP -> down;
-            default -> up;
+            case UP -> up;
+            default -> down;
         };
     }
 }

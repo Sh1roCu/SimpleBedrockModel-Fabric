@@ -12,20 +12,20 @@ public class BedrockCubeBox implements BedrockCube {
     protected static final Vector3f EDGE_Y = new Vector3f();
     protected static final Vector3f EDGE_Z = new Vector3f();
     protected static final int[][] UV_ORDER_NO_MIRROR = new int[][]{
-            {1, 2, 6, 7},
             {2, 3, 7, 6},
+            {1, 2, 6, 7},
             {1, 2, 7, 8},
             {4, 5, 7, 8},
-            {0, 1, 7, 8},
             {2, 4, 7, 8},
+            {0, 1, 7, 8},
     };
     protected static final int[][] UV_ORDER_MIRRORED = new int[][]{
-            {2, 1, 6, 7},
             {3, 2, 7, 6},
+            {2, 1, 6, 7},
             {2, 1, 7, 8},
             {5, 4, 7, 8},
-            {4, 2, 7, 8},
             {1, 0, 7, 8},
+            {4, 2, 7, 8},
     };
     protected final float width;
     protected final float height;

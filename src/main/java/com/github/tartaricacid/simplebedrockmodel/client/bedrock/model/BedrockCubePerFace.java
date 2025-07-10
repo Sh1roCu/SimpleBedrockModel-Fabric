@@ -50,13 +50,15 @@ public class BedrockCubePerFace implements BedrockCube {
         if (face == null) {
             return;
         }
-        if (equalZero(face.getUvSize())) {
+        float[] uvSize = face.getUvSize();
+        float[] uv = face.getUv();
+        if (equalZero(uvSize)) {
             return;
         }
-        uvs[direction.ordinal()][0] = face.getUv()[0] / texWidth;
-        uvs[direction.ordinal()][1] = (face.getUv()[0] + face.getUvSize()[0]) / texWidth;
-        uvs[direction.ordinal()][2] = face.getUv()[1] / texHeight;
-        uvs[direction.ordinal()][3] = (face.getUv()[1] + face.getUvSize()[1]) / texHeight;
+        uvs[direction.ordinal()][0] = uv[0] / texWidth;
+        uvs[direction.ordinal()][1] = (uv[0] + uvSize[0]) / texWidth;
+        uvs[direction.ordinal()][2] = uv[1] / texHeight;
+        uvs[direction.ordinal()][3] = (uv[1] + uvSize[1]) / texHeight;
     }
 
     protected void prepareVertices(Matrix4f pose) {

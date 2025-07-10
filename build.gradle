@@ -4,6 +4,7 @@ plugins {
     id 'net.minecraftforge.gradle' version '[6.0.16,6.2)'
     id 'org.parchmentmc.librarian.forgegradle' version '1.+'
     id 'maven-publish'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
 group = mod_group_id
@@ -54,6 +55,10 @@ minecraft {
 
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
+configurations {
+    shade
+}
+
 repositories {
     flatDir {
         dirs 'libs'
@@ -68,7 +73,25 @@ dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
     runtimeOnly fg.deobf("maven.modrinth:embeddium:0.3.31+mc1.20.1")
     compileOnly fg.deobf("maven.modrinth:embeddium:0.3.31+mc1.20.1")
+    shade (minecraftLibrary("com.maydaymemory:mae:1.0.0")) {
+        exclude group: 'com.google.code.findbugs', module: 'jsr305'
+        exclude group: 'it.unimi.dsi', module: 'fastutil'
+        exclude group: 'org.joml', module: 'joml'
+    }
 }
+
+shadowJar {
+    configurations = [project.configurations.shade]
+    from sourceSets.main.output
+    exclude 'LICENSE.txt', 'META-INF/MANIFSET.MF', 'META-INF/maven/**', 'META-INF/*.RSA', 'META-INF/*.SF'
+}
+
+reobf {
+    shadowJar {}
+}
+tasks.build.dependsOn reobfShadowJar
+shadowJar.dependsOn('classes')
+shadowJar.finalizedBy(reobfShadowJar)
 
 tasks.named('processResources', ProcessResources).configure {
     var replaceProperties = [
