@@ -80,6 +80,9 @@ dependencies {
 }
 
 shadowJar {
+    // 取消 -all 后缀
+    archiveClassifier.set('')
+
     configurations = [project.configurations.shade]
     from sourceSets.main.output
     exclude 'LICENSE.txt', 'META-INF/MANIFSET.MF', 'META-INF/maven/**', 'META-INF/*.RSA', 'META-INF/*.SF'
@@ -116,6 +119,7 @@ tasks.named('processResources', ProcessResources).configure {
 }
 
 tasks.named('jar', Jar).configure {
+    archiveClassifier.set('min')
     manifest {
         attributes(["Specification-Title"     : mod_id,
                     "Specification-Vendor"    : mod_authors,
