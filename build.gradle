@@ -72,7 +72,7 @@ dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
     runtimeOnly fg.deobf("maven.modrinth:embeddium:0.3.31+mc1.20.1")
     compileOnly fg.deobf("maven.modrinth:embeddium:0.3.31+mc1.20.1")
-    shade (minecraftLibrary("com.maydaymemory:mae:1.0.0") {
+    shade(minecraftLibrary("com.maydaymemory:mae:1.0.0") {
         exclude group: 'com.google.code.findbugs', module: 'jsr305'
         exclude group: 'it.unimi.dsi', module: 'fastutil'
         exclude group: 'org.joml', module: 'joml'
@@ -87,7 +87,7 @@ shadowJar {
     from sourceSets.main.output
     exclude 'LICENSE.txt', 'META-INF/MANIFSET.MF', 'META-INF/maven/**', 'META-INF/*.RSA', 'META-INF/*.SF'
 
-    relocate 'com.maydaymemory.mae', 'com.github.tartaricacid.simplebedrockmodel.shadowed.mae'
+    relocate 'com.maydaymemory.mae', 'com.github.mcmodderanchor.simplebedrockmodel.v1.shadowed.mae'
 }
 
 reobf {
@@ -154,11 +154,11 @@ publishing {
             pom {
                 name = this.mod_name
                 description = this.mod_description
-                url = "https://github.com/TartaricAcid/SimpleBedrockModel"
+                url = "https://github.com/MCModderAnchor/SimpleBedrockModel"
                 licenses {
                     license {
                         name = this.mod_license
-                        url = "https://github.com/TartaricAcid/SimpleBedrockModel/blob/main/LICENSE"
+                        url = "https://github.com/MCModderAnchor/SimpleBedrockModel/blob/main/LICENSE"
                     }
                 }
                 withXml {
@@ -173,7 +173,7 @@ publishing {
     }
     repositories {
         maven {
-            url = uri("https://jitpack.io")
+            url = uri("https://api.modrinth.com/maven")
         }
     }
 }
