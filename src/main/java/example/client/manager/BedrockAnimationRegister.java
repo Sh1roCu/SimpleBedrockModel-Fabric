@@ -1,4 +1,4 @@
-package com.github.mcmodderanchor.simplebedrockmodel.v1.client.resource.manager;
+package example.client.manager;
 
 import com.github.mcmodderanchor.simplebedrockmodel.SimpleBedrockModel;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.bedrock.animation.BedrockAnimation;

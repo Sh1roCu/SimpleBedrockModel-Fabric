@@ -1,4 +1,4 @@
-package com.github.mcmodderanchor.simplebedrockmodel.v1.client.resource.manager;
+package example.client.manager;
 
 import com.github.mcmodderanchor.simplebedrockmodel.SimpleBedrockModel;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.bedrock.animation.BedrockAnimation;
@@ -35,7 +35,7 @@ public class BedrockAnimationSet extends SimplePreparableReloadListener<Void> {
         animations = Maps.newHashMap();
         this.knowLocations.forEach((animationLocation, function) -> {
             // 将 ID 转换成实际动画文件路径，默认是 <namespace>:animations/<path>.json
-            ResourceLocation path = ResourceLocation.fromNamespaceAndPath(animationLocation.getNamespace(), "animations/" + animationLocation.getPath() + ".json");
+            ResourceLocation path = new ResourceLocation(animationLocation.getNamespace(), "animations/" + animationLocation.getPath() + ".json");
             manager.getResource(path).ifPresentOrElse(resource -> {
                 SimpleBedrockModel.LOGGER.info("Loading bedrock animation file: {}", path);
                 try (InputStream stream = resource.open()) {
