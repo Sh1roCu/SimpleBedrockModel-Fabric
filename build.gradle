@@ -3,8 +3,7 @@ plugins {
     id 'idea'
     id 'net.minecraftforge.gradle' version '[6.0.16,6.2)'
     id 'org.parchmentmc.librarian.forgegradle' version '1.+'
-    id 'maven-publish'
-    id 'com.github.johnrengelman.shadow' version '8.1.1'
+    id "com.modrinth.minotaur" version "2.+"
 }
 
 group = mod_group_id
@@ -56,10 +55,8 @@ minecraft {
     }
 }
 
-sourceSets.main.resources { srcDir 'src/generated/resources' }
-
-configurations {
-    shade
+sourceSets.main.resources {
+    srcDir 'src/generated/resources'
 }
 
 repositories {
@@ -75,32 +72,13 @@ dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
     runtimeOnly fg.deobf("maven.modrinth:embeddium:0.3.31+mc1.20.1")
     compileOnly fg.deobf("maven.modrinth:embeddium:0.3.31+mc1.20.1")
-    shade(minecraftLibrary("com.maydaymemory:mae:1.0.0") {
+    jarJar minecraftLibrary("com.maydaymemory:mae:1.0.0") {
+        jarJar.ranged(it, "[1.0.0,)")
         exclude group: 'com.google.code.findbugs', module: 'jsr305'
         exclude group: 'it.unimi.dsi', module: 'fastutil'
         exclude group: 'org.joml', module: 'joml'
-    })
+    }
 }
-
-shadowJar {
-    // 取消 -all 后缀
-    archiveClassifier.set('')
-
-    configurations = [project.configurations.shade]
-    from sourceSets.main.output
-    exclude 'LICENSE.txt', 'META-INF/MANIFSET.MF', 'META-INF/maven/**', 'META-INF/*.RSA', 'META-INF/*.SF'
-    exclude 'example/**'
-    exclude 'assets/example/**'
-
-    relocate 'com.maydaymemory.mae', 'com.github.mcmodderanchor.simplebedrockmodel.v1.shadowed.mae'
-}
-
-reobf {
-    shadowJar {}
-}
-tasks.build.dependsOn reobfShadowJar
-shadowJar.dependsOn('classes')
-shadowJar.finalizedBy(reobfShadowJar)
 
 tasks.named('processResources', ProcessResources).configure {
     var replaceProperties = [
@@ -114,7 +92,8 @@ tasks.named('processResources', ProcessResources).configure {
             mod_license            : mod_license,
             mod_version            : mod_version,
             mod_authors            : mod_authors,
-            mod_description        : mod_description,]
+            mod_description        : mod_description
+    ]
 
     inputs.properties replaceProperties
 
@@ -123,63 +102,48 @@ tasks.named('processResources', ProcessResources).configure {
     }
 }
 
-tasks.named('jar', Jar).configure {
+modrinth {
+    token = System.getenv("MODRINTH_TOKEN")
+
+    projectId = mod_id
+    versionName = "${mod_id}-${version}"
+    versionNumber = mod_version
+    uploadFile = "${buildDir}/libs/${mod_id}-${version}.jar"
+    additionalFiles = ["${buildDir}/libs/${mod_id}-${version}-sources.jar"]
+    gameVersions = [minecraft_version]
+    //debugMode = true
+}
+
+jar {
     archiveClassifier.set('min')
     manifest {
-        attributes(["Specification-Title"     : mod_id,
-                    "Specification-Vendor"    : mod_authors,
-                    "Specification-Version"   : "1",
-                    "Implementation-Title"    : project.name,
-                    "Implementation-Version"  : project.jar.archiveVersion,
-                    "Implementation-Vendor"   : mod_authors,
-                    "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")])
+        attributes([
+                "Specification-Title"     : mod_id,
+                "Specification-Vendor"    : mod_authors,
+                "Specification-Version"   : version,
+                "Implementation-Title"    : project.name,
+                "Implementation-Version"  : project.jar.archiveVersion,
+                "Implementation-Vendor"   : mod_authors,
+                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+        ])
     }
     exclude 'example/**'
     exclude 'assets/example/**'
     finalizedBy 'reobfJar'
 }
 
+tasks.named('jarJar', Jar).configure {
+    // 取消 -all 后缀
+    archiveClassifier.set('')
+    exclude 'example/**'
+    exclude 'assets/example/**'
+}
+
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
-}
-// 禁用生成 module metadata 的任务
-tasks.withType(GenerateModuleMetadata).configureEach {
-    enabled = false
 }
 
 java {
     // 编译源码文件，方便发布 maven
     withSourcesJar()
-}
-
-publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            from components.java
-            artifactId = this.archivesBaseName
-            pom {
-                name = this.mod_name
-                description = this.mod_description
-                url = "https://github.com/MCModderAnchor/SimpleBedrockModel"
-                licenses {
-                    license {
-                        name = this.mod_license
-                        url = "https://github.com/MCModderAnchor/SimpleBedrockModel/blob/main/LICENSE"
-                    }
-                }
-                withXml {
-                    def node = asNode()
-                    def deps = node.dependencies
-                    if (deps != null) {
-                        node.remove(deps)
-                    }
-                }
-            }
-        }
-    }
-    repositories {
-        maven {
-            url = uri("https://api.modrinth.com/maven")
-        }
-    }
 }
