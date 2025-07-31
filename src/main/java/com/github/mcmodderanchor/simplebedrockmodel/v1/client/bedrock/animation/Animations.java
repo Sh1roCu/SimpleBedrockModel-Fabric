@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 public class Animations {
+    private static final float DEGREE_TO_ANGLE = (float) (Math.PI / 180);
     public static BedrockAnimation createAnimation(String name, BedrockAnimationPOJO pojo, BoneIndexProvider indexProvider) {
         BedrockAnimation animation = new BedrockAnimation(name);
         if (pojo.getBones() != null) {
@@ -21,10 +22,10 @@ public class Animations {
                 AnimationBone bone = entry1.getValue();
                 if (boneIndex >= 0) {
                     // 这里导出成基岩版模型之后位移 x 轴会逆转（yz 平面对称变成左手系等效位移），现在我们逆转回来
-                    ArrayInterpolatableChannel<Vector3fc> translationChannel = parseChannel(bone.getPosition(), false, -1, 1, 1);
+                    ArrayInterpolatableChannel<Vector3fc> translationChannel = parseChannel(bone.getPosition(), -1, 1, 1);
                     // 这里导出成基岩版模型之后旋转会 z 轴对称变成左手系等效旋转，现在我们逆转回来
-                    ArrayInterpolatableChannel<Vector3fc> rotationChannel = parseChannel(bone.getRotation(), true, -1, -1, 1);
-                    ArrayInterpolatableChannel<Vector3fc> scaleChannel = parseChannel(bone.getScale(), false, 1, 1, 1);
+                    ArrayInterpolatableChannel<Rotation> rotationChannel = parseRotationChannel(bone.getRotation(), -1, -1, 1);
+                    ArrayInterpolatableChannel<Vector3fc> scaleChannel = parseChannel(bone.getScale(), 1, 1, 1);
                     animation.setTranslationChannel(boneIndex, translationChannel);
                     animation.setRotationChannel(boneIndex, rotationChannel);
                     animation.setScaleChannel(boneIndex, scaleChannel);
@@ -44,20 +45,60 @@ public class Animations {
         return animations;
     }
 
-    private static ArrayInterpolatableChannel<Vector3fc> parseChannel(AnimationKeyframes keyframes, boolean toRadian,
+    private static ArrayInterpolatableChannel<Rotation> parseRotationChannel(AnimationKeyframes keyframes,
+                                                                             float x, float y, float z) {
+        if (keyframes == null) {
+            return null;
+        }
+        ArrayList<InterpolatableKeyframe<Rotation>> array = new ArrayList<>();
+        keyframes.getKeyframes().forEach((timeS, keyframe) -> {
+            array.add(parseRotationKeyframe((float) (double)timeS, keyframe, x, y, z));
+        });
+        return new ArrayInterpolatableChannel<>(array);
+    }
+
+    private static RotationKeyframe parseRotationKeyframe(float timeS, AnimationKeyframes.Keyframe keyframe,
+                                                  float x, float y, float z) {
+        Interpolator<Vector3fc> interpolator;
+        Vector3f pre, post;
+        if (keyframe.getData() != null) {
+            pre = post = keyframe.getData();
+        } else {
+            pre = keyframe.getPre() == null ? keyframe.getPost() : keyframe.getPre();
+            post = keyframe.getPost() == null ? keyframe.getPre() : keyframe.getPost();
+        }
+        if (pre == post) {
+            pre.mul(x, y, z).mul(DEGREE_TO_ANGLE);
+        } else {
+            pre.mul(x, y, z).mul(DEGREE_TO_ANGLE);
+            post.mul(x, y, z).mul(DEGREE_TO_ANGLE);
+        }
+        if ("catmullrom".equals(keyframe.getLerpMode())) {
+            interpolator = Vector3fCubicSplineInterpolator.INSTANCE;
+        } else {
+            interpolator = Vector3fLinearInterpolator.INSTANCE;
+        }
+        return new RotationKeyframe(
+                timeS,
+                new Rotation(pre),
+                new Rotation(post),
+                new EulerAnglesRotationInterpolator(interpolator));
+    }
+
+    private static ArrayInterpolatableChannel<Vector3fc> parseChannel(AnimationKeyframes keyframes,
                                                                       float x, float y, float z) {
         if (keyframes == null) {
             return null;
         }
         ArrayList<InterpolatableKeyframe<Vector3fc>> array = new ArrayList<>();
         keyframes.getKeyframes().forEach((timeS, keyframe) -> {
-            array.add(parseKeyframe((float)(double)timeS, keyframe, toRadian, x, y, z));
+            array.add(parseKeyframe((float)(double)timeS, keyframe, x, y, z));
         });
         return new ArrayInterpolatableChannel<>(array);
     }
 
 
-    private static Vector3fKeyframe parseKeyframe(float timeS, AnimationKeyframes.Keyframe keyframe, boolean toRadian,
+    private static Vector3fKeyframe parseKeyframe(float timeS, AnimationKeyframes.Keyframe keyframe,
                                                   float x, float y, float z) {
         Interpolator<Vector3fc> interpolator;
         Vector3f pre, post;
@@ -72,14 +113,6 @@ public class Animations {
         } else {
             pre.mul(x, y, z);
             post.mul(x, y, z);
-        }
-        if (toRadian) {
-            if (pre == post) {
-                pre = post = new Vector3f((float) Math.toRadians(pre.x()), (float) Math.toRadians(pre.y()), (float) Math.toRadians(pre.z()));
-            } else {
-                pre = new Vector3f((float) Math.toRadians(pre.x()), (float) Math.toRadians(pre.y()), (float) Math.toRadians(pre.z()));
-                post = new Vector3f((float) Math.toRadians(post.x()), (float) Math.toRadians(post.y()), (float) Math.toRadians(post.z()));
-            }
         }
         if ("catmullrom".equals(keyframe.getLerpMode())) {
             interpolator = Vector3fCubicSplineInterpolator.INSTANCE;

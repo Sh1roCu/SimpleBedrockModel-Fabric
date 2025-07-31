@@ -11,6 +11,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.world.phys.AABB;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import org.joml.Quaternionfc;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
 
@@ -63,7 +64,7 @@ public class BedrockModel implements Skeleton {
             BoneTransform boneTransform = transformFactory.createBoneTransform(
                     i,
                     new Vector3f(part.x, part.y, part.z),
-                    new Vector3f(part.xRot, part.yRot, part.zRot),
+                    part.rotation,
                     NORMAL_SCALE
             );
             poseBuilder.addBoneTransform(boneTransform);
@@ -170,9 +171,11 @@ public class BedrockModel implements Skeleton {
                 part.z = pivot[2];
             }
             if (rotation != null) {
-                part.xRot = (float) -Math.toRadians(rotation[0]);
-                part.yRot = (float) -Math.toRadians(rotation[1]);
-                part.zRot = (float) Math.toRadians(rotation[2]);
+                part.rotation.rotateZYX(
+                        (float) Math.toRadians(rotation[2]),
+                        (float) -Math.toRadians(rotation[1]),
+                        (float) -Math.toRadians(rotation[0])
+                );
             }
             part.mirror = bone.isMirror();
             part.index = boneIndex.size();
@@ -243,9 +246,7 @@ public class BedrockModel implements Skeleton {
                         cubeRenderer.x = cubePivot[0];
                         cubeRenderer.y = cubePivot[1];
                         cubeRenderer.z = cubePivot[2];
-                        cubeRenderer.xRot = cubeRotation[0];
-                        cubeRenderer.yRot = cubeRotation[1];
-                        cubeRenderer.zRot = cubeRotation[2];
+                        cubeRenderer.rotation.rotateZYX(cubeRotation[2], cubeRotation[1], cubeRotation[0]);
                         cubeRenderer.cubes.add(cubeInstance);
                         // 添加进父骨骼中
                         cubeRenderer.parent = part;
@@ -278,18 +279,33 @@ public class BedrockModel implements Skeleton {
         for (BoneTransform boneTransform : pose.getBoneTransforms()) {
             BedrockBone part = boneIndex.get(boneTransform.boneIndex());
             Vector3fc translation = boneTransform.translation();
-            Vector3fc rotation = boneTransform.rotation().asEulerAngle();
+            Quaternionfc rotation = boneTransform.rotation().asQuaternion();
             Vector3fc scale = boneTransform.scale();
             part.x = translation.x();
             part.y = translation.y();
             part.z = translation.z();
-            part.xRot = rotation.x();
-            part.yRot = rotation.y();
-            part.zRot = rotation.z();
+            part.rotation.set(rotation);
             part.xScale = scale.x();
             part.yScale = scale.y();
             part.zScale = scale.z();
         }
+    }
+
+    @Override
+    public Pose getPose() {
+        PoseBuilder poseBuilder = new ArrayPoseBuilder();
+        BoneTransformFactory transformFactory = new ZYXBoneTransformFactory();
+        for (int i = 0; i < boneIndex.size(); i++) {
+            BedrockBone part = boneIndex.get(i);
+            BoneTransform boneTransform = transformFactory.createBoneTransform(
+                    i,
+                    new Vector3f(part.x, part.y, part.z),
+                    part.rotation,
+                    new Vector3f(part.xScale, part.yScale, part.zScale)
+            );
+            poseBuilder.addBoneTransform(boneTransform);
+        }
+        return poseBuilder.toPose();
     }
 
     @Override

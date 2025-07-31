@@ -1,19 +1,16 @@
 package example.client.render.blockentity;
 
-import com.maydaymemory.mae.basic.Animation;
 import com.maydaymemory.mae.basic.ArrayPoseBuilder;
 import com.maydaymemory.mae.basic.Pose;
 import com.maydaymemory.mae.basic.ZYXBoneTransformFactory;
 import com.maydaymemory.mae.blend.AdditiveBlender;
 import com.maydaymemory.mae.blend.SimpleAdditiveBlender;
-import com.maydaymemory.mae.control.runner.AnimationContext;
-import com.maydaymemory.mae.control.runner.AnimationRunner;
-import com.maydaymemory.mae.control.runner.PlayingState;
-import com.maydaymemory.mae.control.runner.StopState;
-import com.maydaymemory.mae.util.MathUtil;
+import com.maydaymemory.mae.control.misc.RealtimeVelocityEstimatorNode;
+import com.maydaymemory.mae.control.statemachine.AnimationStateMachine;
 import com.mojang.blaze3d.vertex.PoseStack;
 import example.block.blockentity.TestBlockEntity;
-import example.client.resource.BedrockAnimationLoader;
+import example.client.animation.SelfTransferState;
+import example.client.animation.TestAnimationContext;
 import example.client.resource.BedrockModelLoader;
 import example.init.ExampleModRegister;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -34,21 +31,14 @@ public class TestBlockEntityRenderer extends BedrockModelBlockEntityRenderer<Tes
     @Override
     public void render(@NotNull TestBlockEntity blockEntity, float partialTick, @NotNull PoseStack poseStack,
                        @NotNull MultiBufferSource buffer, int packedLight, int packedOverlay) {
-        if (blockEntity.animationRunner == null) {
-            String currentAnimation = blockEntity.currentAnimation();
-            Animation animation = BedrockAnimationLoader.getAnimations(BedrockAnimationLoader.TEST_ANIMATION).get(currentAnimation);
-            blockEntity.animationRunner = new AnimationRunner(animation, new AnimationContext(MathUtil.toNanos(animation.getEndTimeS())));
-            blockEntity.animationRunner.getAnimationContext().setState(new PlayingState(System::nanoTime, StopState::new));
+        if (blockEntity.stateMachine == null) {
+            blockEntity.velocityEstimatorNode = new RealtimeVelocityEstimatorNode(ArrayPoseBuilder::new, System::nanoTime);
+            blockEntity.stateMachine = new AnimationStateMachine<>(SelfTransferState.INSTANCE, new TestAnimationContext(blockEntity.velocityEstimatorNode), System::nanoTime);
+            blockEntity.velocityEstimatorNode.getPoseSlot().connect(blockEntity.stateMachine.getOutputPort());
         }
-        if (blockEntity.animationRunner.getAnimationContext().isEnd()) {
-            String nextAnimation = blockEntity.nextAnimation();
-            Animation animation = BedrockAnimationLoader.getAnimations(BedrockAnimationLoader.TEST_ANIMATION).get(nextAnimation);
-            blockEntity.animationRunner = new AnimationRunner(animation, new AnimationContext(MathUtil.toNanos(animation.getEndTimeS())));
-            blockEntity.animationRunner.getAnimationContext().setState(new PlayingState(System::nanoTime, StopState::new));
-        }
-        blockEntity.animationRunner.tick();
+        blockEntity.tick();
         Pose bindPose = model.getBindPose();
-        Pose animationPose = blockEntity.animationRunner.evaluate();
+        Pose animationPose = blockEntity.stateMachine.getPose();
         Pose blended = BLENDER.blend(bindPose, animationPose);
         model.applyPose(blended);
         super.render(blockEntity, partialTick, poseStack, buffer, packedLight, packedOverlay);
