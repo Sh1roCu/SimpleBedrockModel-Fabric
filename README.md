@@ -141,7 +141,7 @@ public void test() {
 
 **Approach 2:** Control data loading and initialization yourself. There is a utility class "GsonUtil" to help you do this:
 
-```
+```java
 BedrockModel model = ...;
 BoneIndexProvider indexProvider = new BedrockModelBoneIndexProvider(model);
 InputStreamReader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
