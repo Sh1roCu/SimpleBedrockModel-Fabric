@@ -184,7 +184,7 @@ model.renderToBuffer(poseStack, buffer, packedLight, packedOverlay);
 
 ### How to use animation blending
 
-[See the documentation of Mayday Animation Engine]([286799714/MaydayAnimationEngine](https://github.com/286799714/MaydayAnimationEngine))
+[See the documentation of Mayday Animation Engine](https://github.com/286799714/MaydayAnimationEngine)
 
 ## 🏗️ Project Structure
 
