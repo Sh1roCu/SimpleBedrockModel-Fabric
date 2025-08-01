@@ -14,6 +14,9 @@ public class BedrockAnimationPOJO {
     @SerializedName("bones")
     private Map<String, AnimationBone> bones;
 
+    @SerializedName("sound_effects")
+    private SoundEffectKeyframes soundEffects;
+
     public boolean isLoop() {
         return loop;
     }
@@ -24,5 +27,9 @@ public class BedrockAnimationPOJO {
 
     public Map<String, AnimationBone> getBones() {
         return bones;
+    }
+
+    public SoundEffectKeyframes getSoundEffects() {
+        return soundEffects;
     }
 }

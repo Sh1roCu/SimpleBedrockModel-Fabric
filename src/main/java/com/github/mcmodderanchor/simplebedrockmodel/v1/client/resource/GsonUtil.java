@@ -2,7 +2,9 @@ package com.github.mcmodderanchor.simplebedrockmodel.v1.client.resource;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.bedrock.pojo.AnimationKeyframes;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.bedrock.pojo.CubesItem;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.client.bedrock.pojo.SoundEffectKeyframes;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.resource.serialize.AnimationKeyframesSerializer;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.client.resource.serialize.SoundEffectKeyframesSerializer;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.resource.serialize.Vector3fSerializer;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -15,5 +17,6 @@ public class GsonUtil {
             .registerTypeAdapter(CubesItem.class, new CubesItem.Deserializer())
             .registerTypeAdapter(Vector3f.class, new Vector3fSerializer())
             .registerTypeAdapter(AnimationKeyframes.class, new AnimationKeyframesSerializer())
+            .registerTypeAdapter(SoundEffectKeyframes.class, new SoundEffectKeyframesSerializer())
             .create();
 }
