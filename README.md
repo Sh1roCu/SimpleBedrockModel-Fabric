@@ -32,7 +32,7 @@ repositories {
 }
 
 dependencies {
-    jarJar(implementation(fg.deobf("maven.modrinth:simplebedrockmodel:1.20.1-1.5.0-forge"))) {
+    jarJar(implementation(fg.deobf("maven.modrinth:simplebedrockmodel:1.5.0-forge+1.20.1"))) {
         jarJar.ranged(it, "[1.5.0,)")
     }
     // The animation library is already included in jar (jar in jar), 

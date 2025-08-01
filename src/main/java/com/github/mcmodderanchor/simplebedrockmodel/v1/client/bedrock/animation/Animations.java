@@ -1,10 +1,9 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.client.bedrock.animation;
 
-import com.github.mcmodderanchor.simplebedrockmodel.v1.client.bedrock.pojo.AnimationBone;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.client.bedrock.pojo.AnimationKeyframes;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.client.bedrock.pojo.BedrockAnimationFile;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.client.bedrock.pojo.BedrockAnimationPOJO;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.client.bedrock.pojo.*;
 import com.maydaymemory.mae.basic.*;
+import it.unimi.dsi.fastutil.doubles.Double2ObjectMap;
+import net.minecraft.resources.ResourceLocation;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
 
@@ -17,9 +16,9 @@ public class Animations {
     public static BedrockAnimation createAnimation(String name, BedrockAnimationPOJO pojo, BoneIndexProvider indexProvider) {
         BedrockAnimation animation = new BedrockAnimation(name);
         if (pojo.getBones() != null) {
-            for (Map.Entry<String, AnimationBone> entry1 : pojo.getBones().entrySet()) {
-                int boneIndex = indexProvider.getIndex(entry1.getKey());
-                AnimationBone bone = entry1.getValue();
+            for (Map.Entry<String, AnimationBone> entry : pojo.getBones().entrySet()) {
+                int boneIndex = indexProvider.getIndex(entry.getKey());
+                AnimationBone bone = entry.getValue();
                 if (boneIndex >= 0) {
                     // 这里导出成基岩版模型之后位移 x 轴会逆转（yz 平面对称变成左手系等效位移），现在我们逆转回来
                     ArrayInterpolatableChannel<Vector3fc> translationChannel = parseChannel(bone.getPosition(), -1, 1, 1);
@@ -31,6 +30,14 @@ public class Animations {
                     animation.setScaleChannel(boneIndex, scaleChannel);
                 }
             }
+        }
+        SoundEffectKeyframes soundEffects = pojo.getSoundEffects();
+        if (soundEffects != null) {
+            ArrayList<Keyframe<ResourceLocation>> keyframes = new ArrayList<>();
+            for (Double2ObjectMap.Entry<ResourceLocation> entry : soundEffects.getKeyframes().double2ObjectEntrySet()) {
+                keyframes.add(new ResourceLocationKeyframe((float) entry.getDoubleKey(), entry.getValue()));
+            }
+            animation.setSoundChannel(new ArrayClipChannel<>(keyframes));
         }
         return animation;
     }

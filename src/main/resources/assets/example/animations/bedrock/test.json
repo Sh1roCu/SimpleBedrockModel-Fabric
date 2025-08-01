@@ -20695,7 +20695,18 @@
 						"0.5": [20, -90, 25]
 					}
 				}
-			}
+			},
+			"sound_effects": {
+				"0.0": {
+					"effect": "example:gugugaga"
+				},
+				"2.8333": {
+					"effect": "example:lingangu"
+				},
+				"5.0833": {
+					"effect": "example:cry"
+				}
+			},
 		},
 		"TEST2": {
 			"animation_length": 2,
