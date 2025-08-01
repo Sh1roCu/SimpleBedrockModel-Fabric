@@ -11,6 +11,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.world.phys.AABB;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import org.joml.Quaternionf;
 import org.joml.Quaternionfc;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
@@ -64,7 +65,7 @@ public class BedrockModel implements Skeleton {
             BoneTransform boneTransform = transformFactory.createBoneTransform(
                     i,
                     new Vector3f(part.x, part.y, part.z),
-                    part.rotation,
+                    new Quaternionf(part.rotation),
                     NORMAL_SCALE
             );
             poseBuilder.addBoneTransform(boneTransform);
