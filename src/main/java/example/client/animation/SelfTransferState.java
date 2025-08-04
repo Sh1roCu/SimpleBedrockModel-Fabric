@@ -1,6 +1,6 @@
 package example.client.animation;
 
-import com.maydaymemory.mae.basic.Animation;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.client.bedrock.animation.BedrockAnimation;
 import com.maydaymemory.mae.basic.DummyPose;
 import com.maydaymemory.mae.basic.Pose;
 import com.maydaymemory.mae.control.runner.AnimationContext;
@@ -77,8 +77,8 @@ public class SelfTransferState implements IAnimationState<TestAnimationContext> 
         @Override
         public void afterTrigger(TestAnimationContext testAnimationContext) {
             testAnimationContext.snapshotVelocity();
-            Animation animation = testAnimationContext.nextAnimation();
-            AnimationRunner runner = new AnimationRunner(animation, new AnimationContext(animation.getEndTimeS()));
+            BedrockAnimation animation = testAnimationContext.nextAnimation();
+            AnimationRunner runner = new AnimationRunner(animation, new AnimationContext(animation.getSpecifiedEndTimeS()));
             testAnimationContext.setRunner(runner);
         }
 

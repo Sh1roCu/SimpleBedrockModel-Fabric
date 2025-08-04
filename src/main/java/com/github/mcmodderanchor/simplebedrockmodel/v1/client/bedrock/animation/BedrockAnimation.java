@@ -8,6 +8,7 @@ import net.minecraft.resources.ResourceLocation;
 
 public class BedrockAnimation extends BasicAnimation {
     public static final int SOUND_CHANNEL_INDEX = 0;
+    private float specifiedEndTimeS = -1;
 
     public BedrockAnimation(String name) {
         super(name, new ZYXBoneTransformFactory(), ArrayPoseBuilder::new);
@@ -15,5 +16,13 @@ public class BedrockAnimation extends BasicAnimation {
 
     public void setSoundChannel(ClipChannel<ResourceLocation> channel) {
         this.setClipChannel(SOUND_CHANNEL_INDEX, channel);
+    }
+
+    public void setSpecifiedEndTimeS(float specifiedEndTimeS) {
+        this.specifiedEndTimeS = specifiedEndTimeS;
+    }
+
+    public float getSpecifiedEndTimeS() {
+        return specifiedEndTimeS;
     }
 }

@@ -39,6 +39,8 @@ public class Animations {
             }
             animation.setSoundChannel(new ArrayClipChannel<>(keyframes));
         }
+        float animationLength = (float) pojo.getAnimationLength();
+        animation.setSpecifiedEndTimeS(animationLength);
         return animation;
     }
 

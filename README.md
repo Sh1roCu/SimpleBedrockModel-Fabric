@@ -54,15 +54,15 @@ repositories {
 }
 
 dependencies {
-    implementation jarJar("maven.modrinth:simplebedrockmodel:1.4.0-neoforge+mc1.21.1") {
+    implementation jarJar("maven.modrinth:simplebedrockmodel:1.5.0-neoforge+mc1.21.1") {
         version {
-            prefer '1.4.0-neoforge+mc1.21.1'
+            prefer '1.5.0-neoforge+1.21.1'
         }
     }
     // The animation library is already included in jar (jar in jar), 
     // but since modrinth maven cannot handle transitive dependencies,
     // you need to include it to pass the compilation.
-    compileOnly("com.maydaymemory:mae:1.0.0")
+    compileOnly("com.maydaymemory:mae:1.0.2")
 }
 ```
 
@@ -70,28 +70,7 @@ dependencies {
 
 ### Loading a Bedrock Model
 
-**Approach 1:** You can listen to BedrockModelRegisterEvent and pass a Function<BedrockModelPOJO, ? extends BedrockModel> for initialization. This approach automatically handles resource bundle reloading.
-
-```java
-// Path: assets/modid/models/bedrock/block/test.json
-public static final ResourceLocation TEST_MODEL = new ResourceLocation("modid", "bedrock/block/test");
-
-@SubscribeEvent
-public static void onRegisterBedrockModelRenderers(BedrockModelRegisterEvent event) {
-    event.register(TEST_MODEL, BedrockModel::new);
-    event.register(TEST_MODEL, pojo -> {
-        // Construct your own BedrockModel instance
-        return model;
-    });
-}
-
-public void test() {
-    BedrockModel model = BedrockModelRegister.INSTANCE.getModel(TEST_MODEL);
-    // Do something
-}
-```
-
-**Approach 2:** Control data loading and initialization yourself. There is a utility class "GsonUtil" to help you do this:
+There is a utility class "GsonUtil" to help you create pojo from json:
 
 ```java
 InputStreamReader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
@@ -101,6 +80,15 @@ BedrockModel model = new BedrockModel(pojo);
 ```
 
 ### Loading a Bedrock Animations
+
+There is a utility class "GsonUtil" to help you create pojo from json:
+```java
+BedrockModel model = ...;
+BoneIndexProvider indexProvider = new BedrockModelBoneIndexProvider(model);
+InputStreamReader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
+Gson gson = GsonUtil.GSON;
+BedrockAnimationFile pojo = gson.fromJson(reader, BedrockAnimationFile.class);
+```
 
 **Animation Instance Construct:** A utility class "Animations" could help construct animation instance as long as you got the pojo.
 
@@ -116,46 +104,14 @@ List<BedrockAnimation> animations = Animations.createAnimation(animationFilePojo
 BedrockAnimation animation = Animations.createAnimation("animation_name", animationPojo, indexProvider);
 ```
 
-**Approach 1:** You can listen to BedrockAnimationRegisterEvent and pass a Function<BedrockAnimationFile, Map<String, BedrockAnimation>> for initialization. This approach automatically handles resource bundle reloading.
-
-```java
-// Path: assets/modid/animations/bedrock/test.json
-public static final ResourceLocation TEST_ANIMATION = new ResourceLocation("modid", "bedrock/test");
-
-@SubscribeEvent
-public static void onRegisterBedrockModelRenderers(BedrockAnimationRegisterEvent event) {
-    event.register(TEST_ANIMATION, pojo -> {
-        BedrockModel model = BedrockModelLoader.getModel(BedrockModelLoader.TEST_MODEL);
-        BoneIndexProvider indexProvider = new BedrockModelBoneIndexProvider(model);
-        List<BedrockAnimation> animations = Animations.createAnimation(pojo, indexProvider);
-        var map = animations.stream().collect(Collectors.toMap(BedrockAnimation::getName, a -> a));
-        return ImmutableMap.copyOf(map);
-    });
-}
-
-public void test() {
-	Map<String, BedrockAnimation> animations = BedrockAnimationRegister.INSTANCE.getAnimations(location);
-    // Do something
-}
-```
-
-**Approach 2:** Control data loading and initialization yourself. There is a utility class "GsonUtil" to help you do this:
-
-```java
-BedrockModel model = ...;
-BoneIndexProvider indexProvider = new BedrockModelBoneIndexProvider(model);
-InputStreamReader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
-Gson gson = GsonUtil.GSON;
-BedrockAnimationFile pojo = gson.fromJson(reader, BedrockAnimationFile.class);
-List<BedrockAnimation> animations = Animations.createAnimation(pojo, indexProvider);
-```
-
 ### Create Animation Runner
 
 Animation Runner can control the progress of animation according to time, and estimate Pose, Animation Events and Curves according to the progress.
 
 ```java
-AnimationContext animationContext = new AnimationContext(animation.getEndTimeS());
+BedrockAnimation animation = ...;
+// use getSpecifiedEndTimeS because bedrock animation has its own end time.
+AnimationContext animationContext = new AnimationContext(animation.getSpecifiedEndTimeS()); 
 animationContext.setState(new LoopingState(System::nanoTime));
 AnimationRunner animationRunner = new AnimationRunner(animation, animationContext);
 

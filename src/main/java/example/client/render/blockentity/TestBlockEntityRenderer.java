@@ -33,7 +33,7 @@ public class TestBlockEntityRenderer extends BedrockModelBlockEntityRenderer<Tes
                        @NotNull MultiBufferSource buffer, int packedLight, int packedOverlay) {
         if (blockEntity.stateMachine == null) {
             blockEntity.velocityEstimatorNode = new RealtimeVelocityEstimatorNode(ArrayPoseBuilder::new, System::nanoTime);
-            blockEntity.stateMachine = new AnimationStateMachine<>(SelfTransferState.INSTANCE, new TestAnimationContext(blockEntity.velocityEstimatorNode), System::nanoTime);
+            blockEntity.stateMachine = new AnimationStateMachine<>(SelfTransferState.INSTANCE, new TestAnimationContext(blockEntity.velocityEstimatorNode, blockEntity), System::nanoTime);
             blockEntity.velocityEstimatorNode.getPoseSlot().connect(blockEntity.stateMachine.getOutputPort());
         }
         blockEntity.tick();

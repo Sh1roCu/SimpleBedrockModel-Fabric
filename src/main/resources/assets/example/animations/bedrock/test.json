@@ -20687,7 +20687,7 @@
 		},
 		"TEST1": {
 			"loop": true,
-			"animation_length": 0.5,
+			"animation_length": 11,
 			"bones": {
 				"root": {
 					"rotation": {
@@ -20706,10 +20706,10 @@
 				"5.0833": {
 					"effect": "example:cry"
 				}
-			},
+			}
 		},
 		"TEST2": {
-			"animation_length": 2,
+			"animation_length": 11,
 			"bones": {
 				"root": {
 					"rotation": {

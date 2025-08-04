@@ -1,0 +1,20 @@
+{
+  "gugugaga": {
+    "subtitle": "sounds.subtitle.animation",
+    "sounds": [
+      "example:gugugaga"
+    ]
+  },
+  "cry": {
+    "subtitle": "sounds.subtitle.animation",
+    "sounds": [
+      "example:cry"
+    ]
+  },
+  "lingangu": {
+    "subtitle": "sounds.subtitle.animation",
+    "sounds": [
+      "example:lingangu"
+    ]
+  }
+}
