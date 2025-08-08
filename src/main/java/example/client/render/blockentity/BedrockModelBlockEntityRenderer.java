@@ -1,10 +1,11 @@
 package example.client.render.blockentity;
 
-import com.github.mcmodderanchor.simplebedrockmodel.v1.client.bedrock.model.BedrockModel;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.common.model.BedrockModel;
+import com.google.common.base.Suppliers;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
-import example.client.resource.BedrockModelLoader;
+import example.resource.BedrockModelRegister;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
@@ -18,17 +19,18 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Objects;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 public abstract class BedrockModelBlockEntityRenderer<T extends BlockEntity> implements BlockEntityRenderer<T> {
     private final Function<ResourceLocation, RenderType> renderTypeFunction;
     private final Material material;
-    protected BedrockModel model;
+    protected Supplier<BedrockModel> model;
 
     public BedrockModelBlockEntityRenderer(ResourceLocation modelLocation, Material material,
                                            Function<ResourceLocation, RenderType> renderTypeFunction) {
         this.material = material;
         this.renderTypeFunction = renderTypeFunction;
-        this.model = Objects.requireNonNull(BedrockModelLoader.getModel(modelLocation));
+        this.model = Suppliers.memoize(() -> Objects.requireNonNull(BedrockModelRegister.INSTANCE.getModel(modelLocation)));
     }
 
     @Override
@@ -43,7 +45,7 @@ public abstract class BedrockModelBlockEntityRenderer<T extends BlockEntity> imp
             Direction facing = blockState.getValue(BlockStateProperties.HORIZONTAL_FACING);
             poseStack.mulPose(Axis.YP.rotationDegrees(-facing.toYRot()));
         }
-        model.renderToBuffer(poseStack, buffer, packedLight, packedOverlay);
+        model.get().renderToBuffer(poseStack, buffer, packedLight, packedOverlay);
         poseStack.popPose();
     }
 }

@@ -16,7 +16,6 @@ java {
 
 minecraft {
     mappings channel: mapping_channel, version: mapping_version
-    accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
     copyIdeResources = true
     runs {
         configureEach {
@@ -73,11 +72,15 @@ dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
     runtimeOnly fg.deobf("maven.modrinth:embeddium:0.3.31+mc1.20.1")
     compileOnly fg.deobf("maven.modrinth:embeddium:0.3.31+mc1.20.1")
-    jarJar minecraftLibrary("com.maydaymemory:mae:1.0.3") {
-        jarJar.ranged(it, "[1.0.3,)")
+    jarJar minecraftLibrary("com.maydaymemory:mae:1.0.4") {
+        jarJar.ranged(it, "[1.0.4,)")
         exclude group: 'com.google.code.findbugs', module: 'jsr305'
         exclude group: 'it.unimi.dsi', module: 'fastutil'
         exclude group: 'org.joml', module: 'joml'
+    }
+    // 因为服务端环境没有 joml，需要单独 jar in jar
+    jarJar implementation("org.joml:joml:1.10.5") {
+        jarJar.ranged(it, "[1.10.1,)")
     }
 }
 
@@ -130,6 +133,7 @@ jar {
     }
     exclude 'example/**'
     exclude 'assets/example/**'
+    exclude 'data/example/**'
     finalizedBy 'reobfJar'
 }
 

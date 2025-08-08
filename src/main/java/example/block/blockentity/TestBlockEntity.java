@@ -1,34 +1,63 @@
 package example.block.blockentity;
 
-import com.maydaymemory.mae.control.misc.RealtimeVelocityEstimatorNode;
-import com.maydaymemory.mae.control.statemachine.AnimationStateMachine;
-import example.client.animation.TestAnimationContext;
+import example.animation.TestBlockAnimationInstance;
 import example.init.ExampleModRegister;
 import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.Connection;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
+import org.jetbrains.annotations.NotNull;
 
 public class TestBlockEntity extends BlockEntity {
-    @OnlyIn(Dist.CLIENT)
-    public AnimationStateMachine<TestAnimationContext> stateMachine;
-
-    @OnlyIn(Dist.CLIENT)
-    public RealtimeVelocityEstimatorNode velocityEstimatorNode;
+    private final TestBlockAnimationInstance animationInstance = new TestBlockAnimationInstance(this);
 
     public TestBlockEntity(BlockPos pos, BlockState state) {
         super(ExampleModRegister.TEST_BLOCK_ENTITY_TYPE, pos, state);
     }
 
-    @OnlyIn(Dist.CLIENT)
-    public void nextAnimation() {
-        stateMachine.getContext().needTransition = true;
+    public TestBlockAnimationInstance getAnimationInstance() {
+        return animationInstance;
     }
 
-    @OnlyIn(Dist.CLIENT)
-    public void tick() {
-        velocityEstimatorNode.tick();
-        stateMachine.tick();
+    public void tick(Level pLevel, BlockPos pPos, BlockState pState) {
+        animationInstance.tick();
+    }
+
+    public void replicateAnimationInstance() {
+        this.setChanged();
+        if (level != null) {
+            BlockState state = level.getBlockState(worldPosition);
+            level.sendBlockUpdated(worldPosition, state, state, Block.UPDATE_ALL);
+        }
+    }
+    @Override
+    public @NotNull CompoundTag getUpdateTag() {
+        CompoundTag tag = super.getUpdateTag();
+        tag.put("AnimationInstance", animationInstance.getUpdateTag());
+        return tag;
+    }
+
+    @Override
+    public void handleUpdateTag(CompoundTag tag) {
+        super.handleUpdateTag(tag);
+        animationInstance.handleUpdateTag(tag.getCompound("AnimationInstance"));
+    }
+
+    @Override
+    public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket pkt) {
+        super.onDataPacket(net, pkt);
+        CompoundTag tag = pkt.getTag();
+        if (tag != null) {
+            animationInstance.handleUpdateTag(tag.getCompound("AnimationInstance"));
+        }
+    }
+
+    @Override
+    public ClientboundBlockEntityDataPacket getUpdatePacket() {
+        return ClientboundBlockEntityDataPacket.create(this);
     }
 }

@@ -1,6 +1,7 @@
 package example.block;
 
 import example.block.blockentity.TestBlockEntity;
+import example.init.ExampleModRegister;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
@@ -13,12 +14,13 @@ import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public class TestBlock extends HorizontalDirectionalBlock implements EntityBlock {
@@ -32,6 +34,10 @@ public class TestBlock extends HorizontalDirectionalBlock implements EntityBlock
                 .ignitedByLava());
         this.registerDefaultState(this.stateDefinition.any().setValue(FACING, Direction.NORTH));
     }
+
+    private static final BlockEntityTicker<TestBlockEntity> ticker = (level, pos, state, blockEntity) -> {
+        blockEntity.tick(level, pos, state);
+    };
 
     @Override
     @Nullable
@@ -50,13 +56,33 @@ public class TestBlock extends HorizontalDirectionalBlock implements EntityBlock
         return new TestBlockEntity(blockPos, blockState);
     }
 
-    @OnlyIn(Dist.CLIENT)
     @Override
     public InteractionResult use(BlockState pState, Level pLevel, BlockPos pPos, Player pPlayer, InteractionHand pHand, BlockHitResult pHit) {
-        BlockEntity pBlockEntity = pLevel.getBlockEntity(pPos);
-        if (pBlockEntity instanceof TestBlockEntity blockEntity) {
-            blockEntity.nextAnimation();
+        if (pLevel.isClientSide) {
+            BlockEntity pBlockEntity = pLevel.getBlockEntity(pPos);
+            if (pBlockEntity instanceof TestBlockEntity blockEntity) {
+                pBlockEntity.setChanged();
+            }
+            return InteractionResult.SUCCESS;
+        } else {
+            BlockEntity pBlockEntity = pLevel.getBlockEntity(pPos);
+            if (pBlockEntity instanceof TestBlockEntity blockEntity) {
+                blockEntity.getAnimationInstance().triggerTransition();
+                blockEntity.replicateAnimationInstance();
+            }
+            return InteractionResult.CONSUME;
         }
-        return InteractionResult.sidedSuccess(pLevel.isClientSide);
+    }
+
+    @Nullable
+    @SuppressWarnings("unchecked")
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(@NotNull Level pLevel,
+                                                                   @NotNull BlockState pState,
+                                                                   @NotNull BlockEntityType<T> pBlockEntityType) {
+        if (pBlockEntityType == ExampleModRegister.TEST_BLOCK_ENTITY_TYPE) {
+            return (BlockEntityTicker<T>) ticker;
+        } else {
+            return null;
+        }
     }
 }

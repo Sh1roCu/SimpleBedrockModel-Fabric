@@ -5,14 +5,11 @@ import com.maydaymemory.mae.basic.Pose;
 import com.maydaymemory.mae.basic.ZYXBoneTransformFactory;
 import com.maydaymemory.mae.blend.AdditiveBlender;
 import com.maydaymemory.mae.blend.SimpleAdditiveBlender;
-import com.maydaymemory.mae.control.misc.RealtimeVelocityEstimatorNode;
-import com.maydaymemory.mae.control.statemachine.AnimationStateMachine;
 import com.mojang.blaze3d.vertex.PoseStack;
+import example.animation.TestBlockAnimationInstance;
 import example.block.blockentity.TestBlockEntity;
-import example.client.animation.SelfTransferState;
-import example.client.animation.TestAnimationContext;
-import example.client.resource.BedrockModelLoader;
 import example.init.ExampleModRegister;
+import example.resource.KnownResources;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
@@ -25,22 +22,18 @@ public class TestBlockEntityRenderer extends BedrockModelBlockEntityRenderer<Tes
     private static final AdditiveBlender BLENDER = new SimpleAdditiveBlender(new ZYXBoneTransformFactory(), ArrayPoseBuilder::new);
 
     public TestBlockEntityRenderer(BlockEntityRendererProvider.Context context) {
-        super(BedrockModelLoader.TEST_MODEL, MATERIAL, RenderType::entityCutout);
+        super(KnownResources.TEST, MATERIAL, RenderType::entityCutout);
     }
 
     @Override
     public void render(@NotNull TestBlockEntity blockEntity, float partialTick, @NotNull PoseStack poseStack,
                        @NotNull MultiBufferSource buffer, int packedLight, int packedOverlay) {
-        if (blockEntity.stateMachine == null) {
-            blockEntity.velocityEstimatorNode = new RealtimeVelocityEstimatorNode(ArrayPoseBuilder::new, System::nanoTime);
-            blockEntity.stateMachine = new AnimationStateMachine<>(SelfTransferState.INSTANCE, new TestAnimationContext(blockEntity.velocityEstimatorNode, blockEntity), System::nanoTime);
-            blockEntity.velocityEstimatorNode.getPoseSlot().connect(blockEntity.stateMachine.getOutputPort());
-        }
-        blockEntity.tick();
-        Pose bindPose = model.getBindPose();
-        Pose animationPose = blockEntity.stateMachine.getPose();
+        TestBlockAnimationInstance animationInstance = blockEntity.getAnimationInstance();
+        animationInstance.renderTick();
+        Pose animationPose = animationInstance.getStateMachine().getPose();
+        Pose bindPose = model.get().getBindPose();
         Pose blended = BLENDER.blend(bindPose, animationPose);
-        model.applyPose(blended);
+        model.get().applyPose(blended);
         super.render(blockEntity, partialTick, poseStack, buffer, packedLight, packedOverlay);
     }
 }
