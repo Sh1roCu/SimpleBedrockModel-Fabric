@@ -22,7 +22,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 
 import java.util.Map;
 
-public class TestAnimationContext implements Tickable {
+public class TestBlockAnimationContext implements Tickable {
     public static final CubicHermiteInterpolatorBlender blender = new CubicHermiteInterpolatorBlender(new ZYXBoneTransformFactory(), ArrayPoseBuilder::new);
 
     private static final String[] ANIMATIONS = new String[]{
@@ -45,7 +45,7 @@ public class TestAnimationContext implements Tickable {
     private AnimationRunner runner;
     private Pose velocitySnapshot;
 
-    public TestAnimationContext(RealtimeVelocityEstimatorNode velocityEstimatorNode, BlockEntity blockEntity) {
+    public TestBlockAnimationContext(RealtimeVelocityEstimatorNode velocityEstimatorNode, BlockEntity blockEntity) {
         this.velocityEstimatorNode = velocityEstimatorNode;
         this.targetVelocityEstimatorNode = new AnimationVelocityEstimatorNode(ArrayPoseBuilder::new);
         targetVelocityEstimatorNode.getAnimationSlot().connect(this::currentAnimation);

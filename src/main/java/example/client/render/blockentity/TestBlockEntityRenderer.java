@@ -31,9 +31,9 @@ public class TestBlockEntityRenderer extends BedrockModelBlockEntityRenderer<Tes
         TestBlockAnimationInstance animationInstance = blockEntity.getAnimationInstance();
         animationInstance.renderTick();
         Pose animationPose = animationInstance.getStateMachine().getPose();
-        Pose bindPose = model.get().getBindPose();
+        Pose bindPose = model.getBindPose();
         Pose blended = BLENDER.blend(bindPose, animationPose);
-        model.get().applyPose(blended);
+        model.applyPose(blended);
         super.render(blockEntity, partialTick, poseStack, buffer, packedLight, packedOverlay);
     }
 }

@@ -13,7 +13,7 @@ import net.minecraftforge.fml.loading.FMLLoader;
  * Animation Instance 一般统合了某个游戏对象的所有动画需要的上下文，并且统一负责同步动画状态
  */
 public class TestBlockAnimationInstance {
-    private final AnimationStateMachine<TestAnimationContext> stateMachine;
+    private final AnimationStateMachine<TestBlockAnimationContext> stateMachine;
 
     @OnlyIn(Dist.CLIENT)
     private RealtimeVelocityEstimatorNode velocityEstimatorNode;
@@ -21,10 +21,10 @@ public class TestBlockAnimationInstance {
     public TestBlockAnimationInstance(BlockEntity blockEntity) {
         if (FMLLoader.getDist() == Dist.CLIENT) {
             velocityEstimatorNode = new RealtimeVelocityEstimatorNode(ArrayPoseBuilder::new, System::nanoTime);
-            stateMachine = new AnimationStateMachine<>(SelfTransferState.INSTANCE, new TestAnimationContext(velocityEstimatorNode, blockEntity), System::nanoTime);
+            stateMachine = new AnimationStateMachine<>(TestBlockStateMachineState.INSTANCE, new TestBlockAnimationContext(velocityEstimatorNode, blockEntity), System::nanoTime);
             velocityEstimatorNode.getPoseSlot().connect(stateMachine.getOutputPort());
         } else {
-            stateMachine = new AnimationStateMachine<>(SelfTransferState.INSTANCE, new TestAnimationContext(null, blockEntity), System::nanoTime);
+            stateMachine = new AnimationStateMachine<>(TestBlockStateMachineState.INSTANCE, new TestBlockAnimationContext(null, blockEntity), System::nanoTime);
         }
     }
 
@@ -42,7 +42,7 @@ public class TestBlockAnimationInstance {
         stateMachine.getContext().needTransition = true;
     }
 
-    public AnimationStateMachine<TestAnimationContext> getStateMachine() {
+    public AnimationStateMachine<TestBlockAnimationContext> getStateMachine() {
         return stateMachine;
     }
 
