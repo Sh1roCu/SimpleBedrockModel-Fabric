@@ -170,11 +170,10 @@ public class BedrockModel implements Skeleton, BoneIndexProvider {
                 part.z = pivot[2];
             }
             if (rotation != null) {
-                part.rotation.rotateZYX(
-                        (float) Math.toRadians(rotation[2]),
-                        (float) -Math.toRadians(rotation[1]),
-                        (float) -Math.toRadians(rotation[0])
-                );
+                rotation[0] = (float) -Math.toRadians(rotation[0]);
+                rotation[1] = (float) -Math.toRadians(rotation[1]);
+                rotation[2] = (float) Math.toRadians(rotation[2]);
+                part.rotation.rotateZYX(rotation[2], rotation[1], rotation[0]);
                 part.rotationInEuler.set(rotation);
             }
             part.mirror = bone.isMirror();
