@@ -5,7 +5,7 @@ import com.google.gson.annotations.SerializedName;
 import java.util.Map;
 
 public class BedrockAnimationFile {
-    @SerializedName("version")
+    @SerializedName("format_version")
     private String version;
 
     @SerializedName("animations")

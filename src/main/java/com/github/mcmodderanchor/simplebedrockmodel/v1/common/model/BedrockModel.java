@@ -57,13 +57,12 @@ public class BedrockModel implements Skeleton, BoneIndexProvider {
 
     protected Pose initializeBindingPose() {
         PoseBuilder poseBuilder = new ArrayPoseBuilder();
-        BoneTransformFactory transformFactory = new ZYXBoneTransformFactory();
         for (int i = 0; i < boneIndex.size(); i++) {
             BedrockBone part = boneIndex.get(i);
-            BoneTransform boneTransform = transformFactory.createBoneTransform(
+            BoneTransform boneTransform = new BoneTransform(
                     i,
                     new Vector3f(part.x, part.y, part.z),
-                    new Quaternionf(part.rotation),
+                    new BindRotationView(part.rotation, part.rotationInEuler),
                     NORMAL_SCALE
             );
             poseBuilder.addBoneTransform(boneTransform);
@@ -176,6 +175,7 @@ public class BedrockModel implements Skeleton, BoneIndexProvider {
                         (float) -Math.toRadians(rotation[1]),
                         (float) -Math.toRadians(rotation[0])
                 );
+                part.rotationInEuler.set(rotation);
             }
             part.mirror = bone.isMirror();
             part.index = boneIndex.size();
@@ -294,15 +294,8 @@ public class BedrockModel implements Skeleton, BoneIndexProvider {
     @Override
     public Pose getPose() {
         PoseBuilder poseBuilder = new ArrayPoseBuilder();
-        BoneTransformFactory transformFactory = new ZYXBoneTransformFactory();
-        for (int i = 0; i < boneIndex.size(); i++) {
-            BedrockBone part = boneIndex.get(i);
-            BoneTransform boneTransform = transformFactory.createBoneTransform(
-                    i,
-                    new Vector3f(part.x, part.y, part.z),
-                    part.rotation,
-                    new Vector3f(part.xScale, part.yScale, part.zScale)
-            );
+        for (BedrockBone part : boneIndex) {
+            BoneTransform boneTransform = part.getBoneTransform();
             poseBuilder.addBoneTransform(boneTransform);
         }
         return poseBuilder.toPose();
@@ -317,5 +310,22 @@ public class BedrockModel implements Skeleton, BoneIndexProvider {
     public int getIndex(String boneName) {
         BedrockBone bone = boneMap.get(boneName);
         return bone == null ? -1 : bone.index;
+    }
+
+    private record BindRotationView(Quaternionfc quaternion, Vector3fc euler) implements RotationView {
+        private BindRotationView(Quaternionfc quaternion, Vector3fc euler) {
+            this.quaternion = new Quaternionf(quaternion);
+            this.euler = new Vector3f(euler);
+        }
+
+        @Override
+        public Vector3fc asEulerAngle() {
+            return euler;
+        }
+
+        @Override
+        public Quaternionfc asQuaternion() {
+            return quaternion;
+        }
     }
 }

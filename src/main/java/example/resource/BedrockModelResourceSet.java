@@ -41,7 +41,7 @@ public class BedrockModelResourceSet implements PreparableReloadListener {
             lock.lock();
             modelCache = null;
             lock.unlock();
-            Map<ResourceLocation, BedrockModelPOJO> pojoMap = Maps.newHashMap();
+            Map<ResourceLocation, BedrockModel> modelMap = Maps.newHashMap();
             knownLocations.forEach(location -> {
                 // 将 ID 转换成实际模型文件路径，默认是 <namespace>:models/bedrock/<path>.json
                 ResourceLocation path = new ResourceLocation(location.getNamespace(), "models/bedrock/" + location.getPath() + ".json");
@@ -50,17 +50,13 @@ public class BedrockModelResourceSet implements PreparableReloadListener {
                     try (InputStream stream = model.open()) {
                         Gson gson = dist == Dist.CLIENT ? GsonUtil.CLIENT_GSON : GsonUtil.SERVER_NORMAL_GSON;
                         BedrockModelPOJO pojo = gson.fromJson(new InputStreamReader(stream), BedrockModelPOJO.class);
-                        pojoMap.put(location, pojo);
+                        BedrockModel bedrockModel = new BedrockModel(pojo);
+                        modelMap.put(location, bedrockModel);
                     } catch (IOException e) {
                         SimpleBedrockModel.LOGGER.error("Failed to load model file: {}", path, e);
                     }
                 }, () -> SimpleBedrockModel.LOGGER.error("Not found model file: {}", path));
             });
-            Map<ResourceLocation, BedrockModel> modelMap = Maps.newHashMap();
-            for (Map.Entry<ResourceLocation, BedrockModelPOJO> entry : pojoMap.entrySet()) {
-                BedrockModel bedrockModel = new BedrockModel(entry.getValue());
-                modelMap.put(entry.getKey(), bedrockModel);
-            }
             // 通知所有等待线程 modelCache 已准备
             lock.lock();
             try {

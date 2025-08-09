@@ -43,34 +43,30 @@ public class BedrockAnimationResourceSet implements PreparableReloadListener {
             lock.lock();
             animationCache = null;
             lock.unlock();
-            Map<ResourceLocation, BedrockAnimationFile> pojoMap = Maps.newHashMap();
-            knownLocations.forEach(animationLocation -> {
+            Map<ResourceLocation, Map<String, BedrockAnimation>> animationCache = Maps.newHashMap();
+            knownLocations.forEach(location -> {
                 // 将 ID 转换成实际动画文件路径，默认是 <namespace>:animations/<path>.json
-                ResourceLocation path = new ResourceLocation(animationLocation.getNamespace(), "animations/" + animationLocation.getPath() + ".json");
+                ResourceLocation path = new ResourceLocation(location.getNamespace(), "animations/" + location.getPath() + ".json");
                 manager.getResource(path).ifPresentOrElse(resource -> {
                     SimpleBedrockModel.LOGGER.info("Loading bedrock animation file: {}", path);
                     try (InputStream stream = resource.open()) {
+                        BedrockModel model = BedrockModelRegister.INSTANCE.getModel(location);
+                        if (model == null) {
+                            return;
+                        }
                         Gson gson = dist == Dist.CLIENT ? GsonUtil.CLIENT_GSON : GsonUtil.SERVER_NORMAL_GSON;
                         BedrockAnimationFile pojo = gson.fromJson(new InputStreamReader(stream), BedrockAnimationFile.class);
-                        pojoMap.put(animationLocation, pojo);
+                        List<BedrockAnimation> animations = BedrockAnimation.createAnimation(pojo, model);
+                        Map<String, BedrockAnimation> animationMap = Maps.newHashMap();
+                        for (BedrockAnimation animation : animations) {
+                            animationMap.put(animation.getName(), animation);
+                        }
+                        animationCache.put(location, animationMap);
                     } catch (IOException e) {
                         SimpleBedrockModel.LOGGER.error("Failed to load animation file: {}", path, e);
                     }
                 }, () -> SimpleBedrockModel.LOGGER.error("Not found animation file: {}", path));
             });
-            Map<ResourceLocation, Map<String, BedrockAnimation>> animationCache = Maps.newHashMap();
-            for (Map.Entry<ResourceLocation, BedrockAnimationFile> entry : pojoMap.entrySet()) {
-                BedrockModel model = BedrockModelRegister.INSTANCE.getModel(entry.getKey());
-                if (model == null) {
-                    continue;
-                }
-                List<BedrockAnimation> animations = BedrockAnimation.createAnimation(entry.getValue(), model);
-                Map<String, BedrockAnimation> animationMap = Maps.newHashMap();
-                for (BedrockAnimation animation : animations) {
-                    animationMap.put(animation.getName(), animation);
-                }
-                animationCache.put(entry.getKey(), animationMap);
-            }
             // 通知所有等待线程 animationCache 已准备
             lock.lock();
             try {
