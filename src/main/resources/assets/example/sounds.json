@@ -1,20 +1,21 @@
 {
-  "gugugaga": {
-    "subtitle": "sounds.subtitle.animation",
+  "step": {
+    "subtitle": "sounds.subtitle.step",
     "sounds": [
-      "example:gugugaga"
+      "example:step1",
+      "example:step2"
     ]
   },
-  "cry": {
-    "subtitle": "sounds.subtitle.animation",
+  "deagle_shoot": {
+    "subtitle": "sounds.subtitle.deagle_shoot",
     "sounds": [
-      "example:cry"
+      "example:deagle_shoot"
     ]
   },
-  "lingangu": {
-    "subtitle": "sounds.subtitle.animation",
+  "deagle_draw": {
+    "subtitle": "sounds.subtitle.deagle_draw",
     "sounds": [
-      "example:lingangu"
+      "example:deagle_draw"
     ]
   }
 }

@@ -2,6 +2,7 @@ package example.init;
 
 import example.block.TestBlock;
 import example.block.blockentity.TestBlockEntity;
+import example.item.DeagleItem;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -25,6 +26,7 @@ public class ExampleModRegister {
     public static Block TEST_BLOCK;
     public static BlockEntityType<TestBlockEntity> TEST_BLOCK_ENTITY_TYPE;
     public static BlockItem TEST_BLOCK_ITEM;
+    public static DeagleItem DEAGLE_ITEM;
     public static CreativeModeTab TEST_TAB;
 
     @SubscribeEvent
@@ -43,7 +45,9 @@ public class ExampleModRegister {
 
         if (ForgeRegistries.ITEMS.equals(registry)) {
             TEST_BLOCK_ITEM = new BlockItem(TEST_BLOCK, new BlockItem.Properties());
+            DEAGLE_ITEM = new DeagleItem();
             event.register(ForgeRegistries.ITEMS.getRegistryKey(), modLoc("test_block_item"), () -> TEST_BLOCK_ITEM);
+            event.register(ForgeRegistries.ITEMS.getRegistryKey(), modLoc("deagle"), () -> DEAGLE_ITEM);
         }
 
         if (Registries.CREATIVE_MODE_TAB.equals(event.getRegistryKey())) {
@@ -51,6 +55,7 @@ public class ExampleModRegister {
                     .icon(() -> TEST_BLOCK_ITEM.getDefaultInstance())
                     .displayItems((parameters, output) -> {
                         output.accept(TEST_BLOCK_ITEM);
+                        output.accept(DEAGLE_ITEM);
                     }).build();
             event.register(Registries.CREATIVE_MODE_TAB, modLoc("test_tab"), () -> TEST_TAB);
         }

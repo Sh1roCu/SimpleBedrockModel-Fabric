@@ -9,6 +9,7 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.renderer.LightTexture;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix3f;
+import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -117,6 +118,18 @@ public class BedrockPart {
 
     public BedrockCube getRandomCube(Random random) {
         return this.cubes.get(random.nextInt(this.cubes.size()));
+    }
+
+    public Matrix4f getGlobalTransform() {
+        Matrix4f matrix = new Matrix4f();
+        BedrockBone bone = this;
+        while (bone != null) {
+            matrix.scaleLocal(bone.xScale, bone.yScale, bone.zScale);
+            matrix.rotateLocal(bone.rotation);
+            matrix.translateLocal(bone.x / 16.0F, bone.y / 16.0F, bone.z / 16.0F);
+            bone = bone.parent;
+        }
+        return matrix;
     }
 
     public boolean isEmpty() {

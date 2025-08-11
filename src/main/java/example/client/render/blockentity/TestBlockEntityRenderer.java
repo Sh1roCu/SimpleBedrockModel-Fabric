@@ -3,8 +3,8 @@ package example.client.render.blockentity;
 import com.maydaymemory.mae.basic.ArrayPoseBuilder;
 import com.maydaymemory.mae.basic.Pose;
 import com.maydaymemory.mae.basic.ZYXBoneTransformFactory;
-import com.maydaymemory.mae.blend.AdditiveBlender;
-import com.maydaymemory.mae.blend.SimpleAdditiveBlender;
+import com.maydaymemory.mae.blend.EulerAdditiveBlender;
+import com.maydaymemory.mae.blend.SimpleEulerAdditiveBlender;
 import com.mojang.blaze3d.vertex.PoseStack;
 import example.animation.TestBlockAnimationInstance;
 import example.block.blockentity.TestBlockEntity;
@@ -19,7 +19,7 @@ import org.jetbrains.annotations.NotNull;
 
 public class TestBlockEntityRenderer extends BedrockModelBlockEntityRenderer<TestBlockEntity> {
     private static final Material MATERIAL = new Material(InventoryMenu.BLOCK_ATLAS, ExampleModRegister.modLoc("block/test"));
-    private static final AdditiveBlender BLENDER = new SimpleAdditiveBlender(new ZYXBoneTransformFactory(), ArrayPoseBuilder::new);
+    private static final EulerAdditiveBlender BLENDER = new SimpleEulerAdditiveBlender(new ZYXBoneTransformFactory(), ArrayPoseBuilder::new);
 
     public TestBlockEntityRenderer(BlockEntityRendererProvider.Context context) {
         super(KnownResources.TEST, MATERIAL, RenderType::entityCutout);

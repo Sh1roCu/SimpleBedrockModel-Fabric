@@ -26,7 +26,7 @@ public class TestBlockAnimationContext implements Tickable {
     public static final CubicHermiteInterpolatorBlender blender = new CubicHermiteInterpolatorBlender(new ZYXBoneTransformFactory(), ArrayPoseBuilder::new);
 
     private static final String[] ANIMATIONS = new String[]{
-            "TEST1", "TEST2"
+            "走路", "跑步"
 //            "治疗魔法", "待机初始帧", "跑步", "抓取", "抓取 未命中", "跑步—>冲刺轻击",
 //            "走路", "待机", "待机—>防空技能", "待机—>蹲击", "待机—>推击", "待机—>轻击",
 //            "待机—>重击", "待机—>暗能量球", "待机—>格林爆破", "待机—>治疗魔法蓄力",
@@ -95,7 +95,7 @@ public class TestBlockAnimationContext implements Tickable {
             Level level = blockEntity.getLevel();
             if (level != null && !level.isClientSide) {
                 @SuppressWarnings("unchecked")
-                Iterable<Keyframe<ResourceLocation>> sounds = (Iterable<Keyframe<ResourceLocation>>) runner.clip(BedrockAnimation.SOUND_CHANNEL_INDEX);
+                Iterable<Keyframe<ResourceLocation>> sounds = runner.clip(BedrockAnimation.SOUND_CHANNEL_NAME);
                 if (sounds != null) {
                     for (Keyframe<ResourceLocation> keyframe : sounds) {
                         BlockPos pos = blockEntity.getBlockPos();

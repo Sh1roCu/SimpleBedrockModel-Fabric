@@ -311,6 +311,10 @@ public class BedrockModel implements Skeleton, BoneIndexProvider {
         return bone == null ? -1 : bone.index;
     }
 
+    public BedrockBone getBone(String boneName) {
+        return boneMap.get(boneName);
+    }
+
     private record BindRotationView(Quaternionfc quaternion, Vector3fc euler) implements RotationView {
         private BindRotationView(Quaternionfc quaternion, Vector3fc euler) {
             this.quaternion = new Quaternionf(quaternion);

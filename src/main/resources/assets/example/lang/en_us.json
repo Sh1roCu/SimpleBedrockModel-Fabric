@@ -1,5 +1,8 @@
 {
   "item_group.example.name": "Example",
   "block.example.test_block": "Example Block",
-  "sounds.subtitle.animation": "Animation Sound"
+  "item.example.deagle": "Deagle",
+  "sounds.subtitle.step": "Step",
+  "sounds.subtitle.deagle_shoot": "Deagle shoot",
+  "sounds.subtitle.deagle_draw": "Deagle draw"
 }

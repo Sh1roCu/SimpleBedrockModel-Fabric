@@ -15,7 +15,7 @@ import java.util.Map;
 
 public class BedrockAnimation extends BasicAnimation {
     private static final float DEGREE_TO_ANGLE = (float) (Math.PI / 180);
-    public static final int SOUND_CHANNEL_INDEX = 0;
+    public static final String SOUND_CHANNEL_NAME = "sound_effects";
 
     private float specifiedEndTimeS = -1;
 
@@ -55,7 +55,7 @@ public class BedrockAnimation extends BasicAnimation {
             for (Double2ObjectMap.Entry<ResourceLocation> entry : soundEffects.getKeyframes().double2ObjectEntrySet()) {
                 keyframes.add(new ResourceLocationKeyframe((float) entry.getDoubleKey(), entry.getValue()));
             }
-            animation.setClipChannel(SOUND_CHANNEL_INDEX, new ArrayClipChannel<>(keyframes));
+            animation.setClipChannel(SOUND_CHANNEL_NAME, new ArrayClipChannel<>(keyframes));
         }
         float animationLength = (float) pojo.getAnimationLength();
         animation.setSpecifiedEndTimeS(animationLength);
