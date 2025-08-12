@@ -1,6 +1,7 @@
 package example.animation;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.animation.BedrockAnimation;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.event.RegisterBedrockAnimationReloadListenerEvent;
 import com.maydaymemory.mae.basic.ArrayPoseBuilder;
 import com.maydaymemory.mae.basic.Keyframe;
 import com.maydaymemory.mae.basic.Pose;
@@ -10,7 +11,6 @@ import com.maydaymemory.mae.control.Tickable;
 import com.maydaymemory.mae.control.misc.AnimationVelocityEstimatorNode;
 import com.maydaymemory.mae.control.misc.RealtimeVelocityEstimatorNode;
 import com.maydaymemory.mae.control.runner.AnimationRunner;
-import example.resource.BedrockAnimationRegister;
 import example.resource.KnownResources;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -19,9 +19,12 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
 
-import java.util.Map;
+import java.util.List;
 
+@Mod.EventBusSubscriber(bus = Mod.EventBusSubscriber.Bus.MOD)
 public class TestBlockAnimationContext implements Tickable {
     public static final CubicHermiteInterpolatorBlender blender = new CubicHermiteInterpolatorBlender(new ZYXBoneTransformFactory(), ArrayPoseBuilder::new);
 
@@ -33,6 +36,20 @@ public class TestBlockAnimationContext implements Tickable {
 //            "治疗魔法蓄力ing", "治疗魔法蓄力—>被打断（待机）", "治疗魔法蓄力—>治疗魔法释放"
     };
     private static final BedrockAnimation[] ANIMATIONS_CACHE = new BedrockAnimation[ANIMATIONS.length];
+
+    @SubscribeEvent
+    public static void onAnimationReloadListenerRegister(RegisterBedrockAnimationReloadListenerEvent event) {
+        event.register(map -> {
+            List<BedrockAnimation> animations = map.get(KnownResources.TEST);
+            for (int i = 0; i < ANIMATIONS.length; i++) {
+                String animationName = ANIMATIONS[i];
+                ANIMATIONS_CACHE[i] = animations.stream()
+                        .filter(animation -> animation.getName().equals(animationName))
+                        .findFirst()
+                        .orElseThrow();
+            }
+        });
+    }
 
     private final BlockEntity blockEntity;
 
@@ -63,10 +80,6 @@ public class TestBlockAnimationContext implements Tickable {
     }
 
     private BedrockAnimation fromIndex(int index) {
-        if(ANIMATIONS_CACHE[index] == null) {
-            Map<String, BedrockAnimation> animations = BedrockAnimationRegister.INSTANCE.getAnimations(KnownResources.TEST);
-            ANIMATIONS_CACHE[index] = animations.get(ANIMATIONS[index]);
-        }
         return ANIMATIONS_CACHE[index];
     }
 

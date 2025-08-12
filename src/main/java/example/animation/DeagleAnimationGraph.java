@@ -2,11 +2,11 @@ package example.animation;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.animation.BedrockAnimation;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.model.BedrockModel;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.event.RegisterBedrockAnimationReloadListenerEvent;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.event.RegisterBedrockModelReloadListenerEvent;
 import com.maydaymemory.mae.basic.*;
 import com.maydaymemory.mae.blend.*;
 import com.maydaymemory.mae.control.montage.*;
-import example.resource.BedrockAnimationRegister;
-import example.resource.BedrockModelRegister;
 import example.resource.KnownResources;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
@@ -14,17 +14,36 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.loading.FMLLoader;
 
 import java.util.*;
 
+@Mod.EventBusSubscriber(bus = Mod.EventBusSubscriber.Bus.MOD)
 public class DeagleAnimationGraph implements GunAnimationGraph{
     private static final EulerAdditiveBlender eulerAdditiveBlender = new SimpleEulerAdditiveBlender(new ZYXBoneTransformFactory(), ArrayPoseBuilder::new);
 
-    private final FPGunAnimationInstance animationInstance;
+    private static Map<String, BedrockAnimation> animations;
+    private static BedrockModel model;
 
-    private final Map<String, BedrockAnimation> animations;
-    private final BedrockModel model;
+    @SubscribeEvent
+    public static void onRegisterModelReloadListener(RegisterBedrockModelReloadListenerEvent event) {
+        event.register(map -> model = map.get(KnownResources.DEAGLE));
+    }
+
+    @SubscribeEvent
+    public static void onRegisterAnimationReloadListener(RegisterBedrockAnimationReloadListenerEvent event) {
+        event.register(map -> {
+            animations = new HashMap<>();
+            List<BedrockAnimation> bedrockAnimations = Objects.requireNonNull(map.get(KnownResources.DEAGLE));
+            for (BedrockAnimation animation : bedrockAnimations) {
+                animations.put(animation.getName(), animation);
+            }
+        });
+    }
+
+    private final FPGunAnimationInstance animationInstance;
 
     private final Deque<AnimationMontageRunner<FPGunAnimationInstance>> shootMontageRunners = new LinkedList<>();
     private AnimationMontage<FPGunAnimationInstance> shootMontage;
@@ -33,14 +52,12 @@ public class DeagleAnimationGraph implements GunAnimationGraph{
     private SkeletonBaseLayerBlend handAndRootLayer;
     private LayerBlend noHandLayer;
 
+
     public DeagleAnimationGraph(FPGunAnimationInstance animationInstance) {
         this.animationInstance = animationInstance;
         // 动画资产在这里是每次创建 graph 都重新获取、构建一遍。生产环境中也许需要找个合适的地方将他们缓存起来。
-        animations = BedrockAnimationRegister.INSTANCE.getAnimations(KnownResources.DEAGLE);
-        model = BedrockModelRegister.INSTANCE.getModel(KnownResources.DEAGLE);
         // 初始化 layer，只参与混合，所以只需要客户端执行
         if (FMLLoader.getDist() == Dist.CLIENT) {
-            BedrockModel model = BedrockModelRegister.INSTANCE.getModel(KnownResources.DEAGLE);
             handAndRootLayer = new SkeletonBaseLayerBlend(new SkeletonDescendantAccessorAdapter(model));
             handAndRootLayer.addControlPoint(model.getIndex("root"), 0, 1f);
             handAndRootLayer.addControlPoint(model.getIndex("lefthand"), 1, 1f);

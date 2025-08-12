@@ -1,8 +1,10 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource;
 
+import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.exclusion.NullAdapter;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.exclusion.ServerExclusionStrategyForRootMotion;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.exclusion.ServerNormalExclusionStrategy;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.pojo.AnimationKeyframes;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.pojo.BedrockModelPOJO;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.pojo.CubesItem;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.pojo.SoundEffectKeyframes;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.serialize.AnimationKeyframesSerializer;
@@ -24,6 +26,7 @@ public class GsonUtil {
 
     public static final Gson SERVER_NORMAL_GSON = new GsonBuilder()
             .addDeserializationExclusionStrategy(new ServerNormalExclusionStrategy())
+            .registerTypeAdapter(BedrockModelPOJO.class, new NullAdapter<>()) // 常规情况下服务端无需加载模型
             .registerTypeAdapter(ResourceLocation.class, new ResourceLocation.Serializer())
             .registerTypeAdapter(SoundEffectKeyframes.class, new SoundEffectKeyframesSerializer())
             .create();

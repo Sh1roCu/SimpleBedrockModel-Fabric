@@ -2,6 +2,7 @@ package example.client.render.item;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.model.BedrockBone;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.model.BedrockModel;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.event.RegisterBedrockModelReloadListenerEvent;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -9,7 +10,6 @@ import com.mojang.math.Axis;
 import example.animation.GunAnimationGraph;
 import example.capability.ModCapability;
 import example.init.ExampleModRegister;
-import example.resource.BedrockModelRegister;
 import example.resource.KnownResources;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.geom.ModelPart;
@@ -38,33 +38,41 @@ import javax.annotation.ParametersAreNonnullByDefault;
 public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer {
     private static final Material material = new Material(TextureAtlas.LOCATION_BLOCKS, KnownResources.DEAGLE.withPrefix("item/"));
 
-    private final BedrockModel model;
+    private static BedrockModel model;
+
+    // 暂时只能想到这么丑的办法
+    @Mod.EventBusSubscriber(value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
+    public static class ModelReloadListenerRegister {
+        @SubscribeEvent
+        public static void onModelReloadListenerRegister(RegisterBedrockModelReloadListenerEvent event) {
+            event.register(map -> {
+                model = map.get(KnownResources.DEAGLE);
+                BedrockBone leftHandBone = model.getBone("lefthand_pos");
+                BedrockBone rightHandBone = model.getBone("righthand_pos");
+                if (leftHandBone != null) {
+                    leftHandBone.visible = false;
+                }
+                if (rightHandBone != null) {
+                    rightHandBone.visible = false;
+                }
+            });
+        }
+    }
 
     public DeagleWithoutLevelRenderer() {
         super(Minecraft.getInstance().getBlockEntityRenderDispatcher(), Minecraft.getInstance().getEntityModels());
-        model = BedrockModelRegister.INSTANCE.getModel(KnownResources.DEAGLE);
-        // 隐藏手臂分组里面的模型，因为要替换成玩家自己的手臂模型
-        BedrockBone leftHandBone = model.getBone("lefthand_pos");
-        BedrockBone rightHandBone = model.getBone("righthand_pos");
-        if (leftHandBone != null) {
-            leftHandBone.visible = false;
-        }
-        if (rightHandBone != null) {
-            rightHandBone.visible = false;
-        }
     }
 
     @SubscribeEvent
     public static void onFirstPersonRender(RenderHandEvent event) {
         if (event.getItemStack().getItem() == ExampleModRegister.DEAGLE_ITEM && event.getHand() == InteractionHand.MAIN_HAND) {
             Minecraft mc = Minecraft.getInstance();
-            BedrockModel bedrockModel = BedrockModelRegister.INSTANCE.getModel(KnownResources.DEAGLE);
             // 从 AnimationInstance 中获取 AnimationGraph，然后计算当前帧的 Pose，然后混合并 apply
             if (mc.getCameraEntity() instanceof Player player) {
                 player.getCapability(ModCapability.FPGUN_ANIMATION_CAPABILITY).ifPresent(capability -> {
                     GunAnimationGraph animationGraph = capability.getAnimationInstance().getAnimationGraph();
                     if (animationGraph != null) {
-                        bedrockModel.applyPose(animationGraph.getPose());
+                        model.applyPose(animationGraph.getPose());
                     }
                 });
             }
@@ -84,11 +92,11 @@ public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer 
                 poseStack.translate(0.125, -0.5, -1.03125);
                 // 执行渲染
                 VertexConsumer buffer = material.buffer(event.getMultiBufferSource(), RenderType::entityCutout);
-                bedrockModel.renderToBuffer(poseStack, buffer, event.getPackedLight(), OverlayTexture.NO_OVERLAY);
+                model.renderToBuffer(poseStack, buffer, event.getPackedLight(), OverlayTexture.NO_OVERLAY);
                 // 渲染手臂
                 if (mc.getCameraEntity() instanceof AbstractClientPlayer abstractClientPlayer) {
-                    BedrockBone leftHandBone = bedrockModel.getBone("lefthand_pos");
-                    BedrockBone rightHandBone = bedrockModel.getBone("righthand_pos");
+                    BedrockBone leftHandBone = model.getBone("lefthand_pos");
+                    BedrockBone rightHandBone = model.getBone("righthand_pos");
                     RenderSystem.setShaderTexture(0, abstractClientPlayer.getSkinTextureLocation());
                     PlayerRenderer playerrenderer = (PlayerRenderer)mc.getEntityRenderDispatcher().getRenderer(abstractClientPlayer);
                     if (leftHandBone != null) {
@@ -110,7 +118,7 @@ public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer 
             poseStack.popPose();
             event.setCanceled(true);
             // 恢复被动画影响的模型
-            bedrockModel.applyPose(bedrockModel.getBindPose());
+            model.applyPose(model.getBindPose());
         }
     }
 

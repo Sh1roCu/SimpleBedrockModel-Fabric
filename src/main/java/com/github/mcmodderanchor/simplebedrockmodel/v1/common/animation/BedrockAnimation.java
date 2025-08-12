@@ -9,6 +9,7 @@ import net.minecraft.resources.ResourceLocation;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -31,9 +32,9 @@ public class BedrockAnimation extends BasicAnimation {
         return specifiedEndTimeS;
     }
 
-    public static BedrockAnimation createAnimation(String name, BedrockAnimationPOJO pojo, BoneIndexProvider indexProvider) {
+    public static BedrockAnimation createAnimation(String name, BedrockAnimationPOJO pojo, @Nullable BoneIndexProvider indexProvider) {
         BedrockAnimation animation = new BedrockAnimation(name);
-        if (pojo.getBones() != null) {
+        if (pojo.getBones() != null && indexProvider != null) {
             for (Map.Entry<String, AnimationBone> entry : pojo.getBones().entrySet()) {
                 int boneIndex = indexProvider.getIndex(entry.getKey());
                 AnimationBone bone = entry.getValue();
@@ -62,7 +63,7 @@ public class BedrockAnimation extends BasicAnimation {
         return animation;
     }
 
-    public static List<BedrockAnimation> createAnimation(BedrockAnimationFile pojo, BoneIndexProvider indexProvider) {
+    public static List<BedrockAnimation> createAnimation(BedrockAnimationFile pojo, @Nullable BoneIndexProvider indexProvider) {
         List<BedrockAnimation> animations = new ArrayList<>();
         if (pojo.getAnimations() != null) {
             for (Map.Entry<String, BedrockAnimationPOJO> entry : pojo.getAnimations().entrySet()) {

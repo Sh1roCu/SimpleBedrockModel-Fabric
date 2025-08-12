@@ -4,7 +4,6 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.common.model.BedrockModel
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
-import example.resource.BedrockModelRegister;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
@@ -16,24 +15,17 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Objects;
-import java.util.function.Function;
 public abstract class BedrockModelBlockEntityRenderer<T extends BlockEntity> implements BlockEntityRenderer<T> {
-    private final Function<ResourceLocation, RenderType> renderTypeFunction;
-    private final Material material;
-    protected BedrockModel model;
+    protected abstract BedrockModel getModel();
 
-    public BedrockModelBlockEntityRenderer(ResourceLocation modelLocation, Material material,
-                                           Function<ResourceLocation, RenderType> renderTypeFunction) {
-        this.material = material;
-        this.renderTypeFunction = renderTypeFunction;
-        this.model = Objects.requireNonNull(BedrockModelRegister.INSTANCE.getModel(modelLocation));
-    }
+    protected abstract Material getMaterial();
+
+    protected abstract RenderType getRenderType(ResourceLocation textureLocation);
 
     @Override
     public void render(@NotNull T blockEntity, float partialTick, @NotNull PoseStack poseStack,
                        @NotNull MultiBufferSource bufferSource, int packedLight, int packedOverlay) {
-        VertexConsumer buffer = material.buffer(bufferSource, renderTypeFunction);
+        VertexConsumer buffer = getMaterial().buffer(bufferSource, this::getRenderType);
         BlockState blockState = blockEntity.getBlockState();
 
         poseStack.pushPose();
@@ -42,7 +34,7 @@ public abstract class BedrockModelBlockEntityRenderer<T extends BlockEntity> imp
             Direction facing = blockState.getValue(BlockStateProperties.HORIZONTAL_FACING);
             poseStack.mulPose(Axis.YP.rotationDegrees(-facing.toYRot()));
         }
-        model.renderToBuffer(poseStack, buffer, packedLight, packedOverlay);
+        getModel().renderToBuffer(poseStack, buffer, packedLight, packedOverlay);
         poseStack.popPose();
     }
 }
