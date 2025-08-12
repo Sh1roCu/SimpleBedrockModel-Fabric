@@ -16,7 +16,6 @@ import net.minecraftforge.fml.common.Mod;
 
 @Mod.EventBusSubscriber
 public class Ticker {
-    private static int oldHotBarSelected = -1;
 
     @SubscribeEvent
     public static void onServerTick(TickEvent.PlayerTickEvent event) {
@@ -25,21 +24,17 @@ public class Ticker {
             Inventory inventory = player.getInventory();
             // 需要先更新 animationGraph 再 tick，保持逻辑严密
             LazyOptional<IFPGunAnimationCapability> capabilityLazyOptional = player.getCapability(ModCapability.FPGUN_ANIMATION_CAPABILITY);
-            if (oldHotBarSelected != inventory.selected) {
-                ItemStack selected = inventory.getSelected();
-                if (selected.getItem() instanceof GunItem gunItem) {
-                    capabilityLazyOptional.ifPresent(capability -> {
+            capabilityLazyOptional.ifPresent(capability -> {
+                if (capability.getLastSelected() != inventory.selected) {
+                    ItemStack selected = inventory.getSelected();
+                    if (selected.getItem() instanceof GunItem gunItem) {
                         FPGunAnimationInstance animationInstance = capability.getAnimationInstance();
                         animationInstance.updateAnimationGraphAndDraw(gunItem.getAnimationGraph(animationInstance));
-                    });
-                } else {
-                    capabilityLazyOptional.ifPresent(capability -> {
+                    } else {
                         capability.getAnimationInstance().updateAnimationGraphAndDraw(null);
-                    });
+                    }
+                    capability.setLastSelected(inventory.selected);
                 }
-                oldHotBarSelected = inventory.selected;
-            }
-            capabilityLazyOptional.ifPresent(capability -> {
                 GunAnimationGraph animationGraph = capability.getAnimationInstance().getAnimationGraph();
                 if (animationGraph != null) {
                     animationGraph.tick();

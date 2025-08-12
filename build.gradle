@@ -29,14 +29,18 @@ minecraft {
             property 'mixin.env.remapRefMap', 'true'
             property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
             mods {
-                "${mod_id}" {
-                    source sourceSets.main
-                }
             }
         }
 
         client {
             property 'forge.enabledGameTestNamespaces', mod_id
+        }
+
+        client2 {
+            parent minecraft.runs.client
+            workingDirectory project.file('run/client_b')
+            // 设定用户名
+            args '--username', 'mayday_memory'
         }
 
         server {
