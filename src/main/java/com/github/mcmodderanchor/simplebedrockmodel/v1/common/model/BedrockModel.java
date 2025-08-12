@@ -74,41 +74,48 @@ public class BedrockModel implements Skeleton, BoneIndexProvider {
         assert pojo.getGeometryModelNew() != null;
         pojo.getGeometryModelNew().deco();
 
-        Description description = pojo.getGeometryModelNew().getDescription();
-        // 材质的长度、宽度
-        int texWidth = description.getTextureWidth();
-        int texHeight = description.getTextureHeight();
-
-        float[] offset = description.getVisibleBoundsOffset();
-        float offsetX = offset[0];
-        float offsetY = offset[1];
-        float offsetZ = offset[2];
-        float width = description.getVisibleBoundsWidth() / 2.0f;
-        float height = description.getVisibleBoundsHeight() / 2.0f;
-        renderBoundingBox = new AABB(offsetX - width, offsetY - height, offsetZ - width, offsetX + width, offsetY + height, offsetZ + width);
-
         BonesItem[] bones = pojo.getGeometryModelNew().getBones();
-        initialWithBoneItems(bones, texWidth, texHeight);
+        Description description = pojo.getGeometryModelNew().getDescription();
+        if (description != null) {
+            // 材质的长度、宽度
+            int texWidth = description.getTextureWidth();
+            int texHeight = description.getTextureHeight();
+
+            float[] offset = description.getVisibleBoundsOffset();
+            float offsetX = offset[0];
+            float offsetY = offset[1];
+            float offsetZ = offset[2];
+            float width = description.getVisibleBoundsWidth() / 2.0f;
+            float height = description.getVisibleBoundsHeight() / 2.0f;
+            renderBoundingBox = new AABB(offsetX - width, offsetY - height, offsetZ - width, offsetX + width, offsetY + height, offsetZ + width);
+            initialWithBoneItems(bones, texWidth, texHeight);
+        } else {
+            initialWithBoneItems(bones, 0, 0);
+        }
     }
 
     protected void loadLegacyModel(BedrockModelPOJO pojo) {
         assert pojo.getGeometryModelLegacy() != null;
         pojo.getGeometryModelLegacy().deco();
 
-        // 材质的长度、宽度
-        int texWidth = pojo.getGeometryModelLegacy().getTextureWidth();
-        int texHeight = pojo.getGeometryModelLegacy().getTextureHeight();
-
-        float[] offset = pojo.getGeometryModelLegacy().getVisibleBoundsOffset();
-        float offsetX = offset[0];
-        float offsetY = offset[1];
-        float offsetZ = offset[2];
-        float width = pojo.getGeometryModelLegacy().getVisibleBoundsWidth() / 2.0f;
-        float height = pojo.getGeometryModelLegacy().getVisibleBoundsHeight() / 2.0f;
-        renderBoundingBox = new AABB(offsetX - width, offsetY - height, offsetZ - width, offsetX + width, offsetY + height, offsetZ + width);
-
         BonesItem[] bones = pojo.getGeometryModelLegacy().getBones();
-        initialWithBoneItems(bones, texWidth, texHeight);
+        float[] offset = pojo.getGeometryModelLegacy().getVisibleBoundsOffset();
+        if (offset != null) {
+            // 材质的长度、宽度
+            int texWidth = pojo.getGeometryModelLegacy().getTextureWidth();
+            int texHeight = pojo.getGeometryModelLegacy().getTextureHeight();
+
+            float offsetX = offset[0];
+            float offsetY = offset[1];
+            float offsetZ = offset[2];
+            float width = pojo.getGeometryModelLegacy().getVisibleBoundsWidth() / 2.0f;
+            float height = pojo.getGeometryModelLegacy().getVisibleBoundsHeight() / 2.0f;
+            renderBoundingBox = new AABB(offsetX - width, offsetY - height, offsetZ - width, offsetX + width, offsetY + height, offsetZ + width);
+
+            initialWithBoneItems(bones, texWidth, texHeight);
+        } else {
+            initialWithBoneItems(bones, 0, 0);
+        }
     }
 
     protected BedrockCube createCubeBox(float texOffX, float texOffY, float x, float y, float z, float width, float height, float depth,
@@ -158,6 +165,9 @@ public class BedrockModel implements Skeleton, BoneIndexProvider {
     }
 
     private void initialWithBoneItems(BonesItem[] bones, int texWidth, int texHeight) {
+        if (bones == null) {
+            return;
+        }
         // 建立 name -> bone 和 index -> bone 的映射，对 BedrockPart 实例进行第一遍初始化
         for (BonesItem bone : bones) {
             BedrockBone part = new BedrockBone();

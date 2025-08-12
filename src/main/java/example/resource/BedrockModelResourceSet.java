@@ -48,7 +48,7 @@ public class BedrockModelResourceSet implements PreparableReloadListener {
                 manager.getResource(path).ifPresentOrElse(model -> {
                     SimpleBedrockModel.LOGGER.info("Loading bedrock model file: {}", path);
                     try (InputStream stream = model.open()) {
-                        Gson gson = dist == Dist.CLIENT ? GsonUtil.CLIENT_GSON : GsonUtil.SERVER_NORMAL_GSON;
+                        Gson gson = dist == Dist.CLIENT ? GsonUtil.CLIENT_GSON : GsonUtil.SERVER_GSON_FOR_ROOT_MOTION;
                         BedrockModelPOJO pojo = gson.fromJson(new InputStreamReader(stream), BedrockModelPOJO.class);
                         BedrockModel bedrockModel = new BedrockModel(pojo);
                         modelMap.put(location, bedrockModel);

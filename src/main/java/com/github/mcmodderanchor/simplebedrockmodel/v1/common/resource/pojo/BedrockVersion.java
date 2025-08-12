@@ -1,14 +1,10 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.pojo;
 
-
 import com.github.mcmodderanchor.simplebedrockmodel.SimpleBedrockModel;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 import org.apache.maven.artifact.versioning.InvalidVersionSpecificationException;
 import org.apache.maven.artifact.versioning.VersionRange;
 
-@OnlyIn(Dist.CLIENT)
 public enum BedrockVersion {
     /**
      * 旧版本基岩版模型，仅限 1.10.0
