@@ -140,6 +140,12 @@ public class BedrockModel implements Skeleton, BoneIndexProvider {
         root.render(poseStack, buffer, packedLight, packedOverlay);
     }
 
+    @OnlyIn(Dist.CLIENT)
+    @ParametersAreNonnullByDefault
+    public void renderToBuffer(PoseStack poseStack, VertexConsumer buffer, int packedLight, int packedOverlay, float red, float green, float blue, float alpha) {
+        root.render(poseStack, buffer, packedLight, packedOverlay, red, green, blue, alpha);
+    }
+
     public AABB getRenderBoundingBox() {
         return renderBoundingBox;
     }
