@@ -1,7 +1,6 @@
 package cn.sh1rocu.simplebedrockmodel.client;
 
 import cn.sh1rocu.simplebedrockmodel.api.event.RegisterClientReloadListenersEvent;
-import com.github.tartaricacid.simplebedrockmodel.client.compat.embeddium.EmbeddiumCompat;
 import com.github.tartaricacid.simplebedrockmodel.client.compat.sodium.SodiumCompat;
 import com.github.tartaricacid.simplebedrockmodel.client.manager.BedrockEntityModelRegister;
 import net.fabricmc.api.ClientModInitializer;
@@ -16,6 +15,5 @@ public class SimpleBedrockModelClient implements ClientModInitializer {
     public void onInitializeClient() {
         RegisterClientReloadListenersEvent.CALLBACK.register(BedrockEntityModelRegister::onRegisterClientReloadListenersEvent);
         SodiumCompat.init();
-        EmbeddiumCompat.init();
     }
 }

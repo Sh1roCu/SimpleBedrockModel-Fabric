@@ -12,8 +12,8 @@ import net.minecraft.world.entity.Entity;
 
 import java.util.Set;
 
-@Environment(EnvType.CLIENT)
 @SuppressWarnings({"unchecked", "rawtypes"})
+@Environment(EnvType.CLIENT)
 public class BedrockEntityModelRegister<T extends AbstractBedrockEntityModel<? extends Entity>> {
     public static BedrockEntityModelRegister INSTANCE = null;
     private final BedrockEntityModelSet<T> modelSet;

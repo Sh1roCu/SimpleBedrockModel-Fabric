@@ -9,7 +9,6 @@ import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.entity.Entity;
-import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -29,7 +28,7 @@ public class BedrockEntityModelSet<T extends AbstractBedrockEntityModel<? extend
     }
 
     @Override
-    protected @NotNull Void prepare(@NotNull ResourceManager manager, @NotNull ProfilerFiller filler) {
+    protected Void prepare(ResourceManager manager, ProfilerFiller filler) {
         this.models = Maps.newHashMap();
         this.knowLocations.keySet().forEach(location -> {
             // 将 ID 转换成实际模型文件路径，默认是 <namespace>:models/<path>.json
@@ -48,7 +47,7 @@ public class BedrockEntityModelSet<T extends AbstractBedrockEntityModel<? extend
     }
 
     @Override
-    protected void apply(@NotNull Void unused, @NotNull ResourceManager manager, @NotNull ProfilerFiller filler) {
+    protected void apply(Void unused, ResourceManager manager, ProfilerFiller filler) {
         this.models = ImmutableMap.copyOf(models);
     }
 

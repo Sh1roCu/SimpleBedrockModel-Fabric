@@ -1,6 +1,8 @@
 package com.github.tartaricacid.simplebedrockmodel.client.manager;
 
 import com.github.tartaricacid.simplebedrockmodel.client.bedrock.AbstractBedrockEntityModel;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
 import net.minecraft.resources.ResourceLocation;
@@ -9,6 +11,7 @@ import net.minecraft.world.entity.Entity;
 import java.io.InputStream;
 import java.util.function.Function;
 
+@Environment(EnvType.CLIENT)
 public class BedrockEntityModelRegisterEvent<T extends AbstractBedrockEntityModel<? extends Entity>> {
     private final BedrockEntityModelSet<T> modelSet;
 

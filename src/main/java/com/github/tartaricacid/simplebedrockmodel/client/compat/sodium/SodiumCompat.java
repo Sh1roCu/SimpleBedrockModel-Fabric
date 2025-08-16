@@ -1,10 +1,9 @@
 package com.github.tartaricacid.simplebedrockmodel.client.compat.sodium;
 
-
 import net.fabricmc.loader.api.FabricLoader;
 
 public class SodiumCompat {
-    public static final String SODIUM = "sodium";
+    public static final String SODIUM = "embeddium";
     public static boolean IS_SODIUM_INSTALLED = false;
 
     public static void init() {

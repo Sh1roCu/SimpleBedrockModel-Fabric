@@ -5,9 +5,6 @@ import com.github.tartaricacid.simplebedrockmodel.client.bedrock.model.BedrockCu
 import com.github.tartaricacid.simplebedrockmodel.client.bedrock.model.BedrockCubePerFace;
 import com.github.tartaricacid.simplebedrockmodel.client.bedrock.model.BedrockPart;
 import com.github.tartaricacid.simplebedrockmodel.client.bedrock.pojo.*;
-import com.github.tartaricacid.simplebedrockmodel.client.compat.embeddium.EmbeddiumBedrockCubeBox;
-import com.github.tartaricacid.simplebedrockmodel.client.compat.embeddium.EmbeddiumBedrockCubePerFace;
-import com.github.tartaricacid.simplebedrockmodel.client.compat.embeddium.EmbeddiumCompat;
 import com.github.tartaricacid.simplebedrockmodel.client.compat.sodium.SodiumBedrockCubeBox;
 import com.github.tartaricacid.simplebedrockmodel.client.compat.sodium.SodiumBedrockCubePerFace;
 import com.github.tartaricacid.simplebedrockmodel.client.compat.sodium.SodiumCompat;
@@ -62,7 +59,6 @@ public abstract class AbstractBedrockModel extends Model implements BedrockModel
             loadNewModel(pojo);
         }
     }
-
 
     public AbstractBedrockModel(BedrockModelPOJO pojo) {
         this(pojo, BedrockVersion.getVersion(pojo));
@@ -271,9 +267,6 @@ public abstract class AbstractBedrockModel extends Model implements BedrockModel
         if (SodiumCompat.isSodiumInstalled()) {
             return new SodiumBedrockCubeBox(texOffX, texOffY, x, y, z, width, height, depth, delta, mirror, texWidth, texHeight);
         }
-        if (EmbeddiumCompat.isEmbeddiumInstalled()) {
-            return new EmbeddiumBedrockCubeBox(texOffX, texOffY, x, y, z, width, height, depth, delta, mirror, texWidth, texHeight);
-        }
         return new BedrockCubeBox(texOffX, texOffY, x, y, z, width, height, depth, delta, mirror, texWidth, texHeight);
     }
 
@@ -281,9 +274,6 @@ public abstract class AbstractBedrockModel extends Model implements BedrockModel
                                             float texWidth, float texHeight, FaceUVsItem faces) {
         if (SodiumCompat.isSodiumInstalled()) {
             return new SodiumBedrockCubePerFace(x, y, z, width, height, depth, delta, texWidth, texHeight, faces);
-        }
-        if (EmbeddiumCompat.isEmbeddiumInstalled()) {
-            return new EmbeddiumBedrockCubePerFace(x, y, z, width, height, depth, delta, texWidth, texHeight, faces);
         }
         return new BedrockCubePerFace(x, y, z, width, height, depth, delta, texWidth, texHeight, faces);
     }
