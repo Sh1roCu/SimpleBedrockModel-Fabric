@@ -142,6 +142,7 @@ tasks.named('jarJar', Jar).configure {
     archiveClassifier.set('')
     exclude 'example/**'
     exclude 'assets/example/**'
+    exclude 'data/example/**'
 }
 
 tasks.withType(JavaCompile).configureEach {

@@ -17,10 +17,7 @@ import org.joml.Vector3fc;
 
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Objects;
+import java.util.*;
 
 public class BedrockModel implements Skeleton, BoneIndexProvider {
     private static final Vector3f NORMAL_SCALE = new Vector3f(1, 1, 1);
@@ -177,8 +174,8 @@ public class BedrockModel implements Skeleton, BoneIndexProvider {
         // 建立 name -> bone 和 index -> bone 的映射，对 BedrockPart 实例进行第一遍初始化
         for (BonesItem bone : bones) {
             BedrockBone part = new BedrockBone();
-            float[] pivot = bone.getPivot();
-            float[] rotation = bone.getRotation();
+            float[] pivot = bone.getPivot() != null ? Arrays.copyOf(bone.getPivot(), 3) : null;
+            float[] rotation = bone.getRotation() != null ? Arrays.copyOf(bone.getRotation(), 3) : null;
             // 这里先简单的将左手系坐标转换为右手系坐标，待父子关系建立后再转换为相对坐标
             if (pivot != null) {
                 part.x = -pivot[0];
@@ -218,8 +215,8 @@ public class BedrockModel implements Skeleton, BoneIndexProvider {
                     @Nullable FaceUVsItem faceUv = cube.getFaceUv();
                     float[] size = cube.getSize();
                     float[] origin = cube.getOrigin();
-                    @Nullable float[] cubeRotation = cube.getRotation();
-                    @Nullable float[] cubePivot = cube.getPivot();
+                    @Nullable float[] cubeRotation = cube.getRotation() != null ? Arrays.copyOf(cube.getRotation(), 3) : null;
+                    @Nullable float[] cubePivot = cube.getPivot() != null ? Arrays.copyOf(cube.getPivot(), 3) : null;
                     boolean mirror = cube.isMirror();
                     float inflate = cube.getInflate();
                     // 先将 origin 的 x 轴坐标处理一下，先加上 size.x 再镜像。
