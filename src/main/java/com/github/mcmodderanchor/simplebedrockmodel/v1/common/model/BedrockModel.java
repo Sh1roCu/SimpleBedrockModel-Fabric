@@ -214,7 +214,7 @@ public class BedrockModel implements Skeleton, BoneIndexProvider {
                     float[] uv = cube.getUv();
                     @Nullable FaceUVsItem faceUv = cube.getFaceUv();
                     float[] size = cube.getSize();
-                    float[] origin = cube.getOrigin();
+                    float[] origin = Arrays.copyOf(cube.getOrigin(), 3);
                     @Nullable float[] cubeRotation = cube.getRotation() != null ? Arrays.copyOf(cube.getRotation(), 3) : null;
                     @Nullable float[] cubePivot = cube.getPivot() != null ? Arrays.copyOf(cube.getPivot(), 3) : null;
                     boolean mirror = cube.isMirror();
