@@ -38,4 +38,16 @@ public interface BedrockCube {
      * @param alpha    the alpha (transparency) component (0.0 to 1.0)
      */
     void compile(PoseStack.Pose pose, Vector3f[] normals, VertexConsumer consumer, int lightmap, int overlay, float red, float green, float blue, float alpha);
+
+    float width();
+
+    float height();
+
+    float depth();
+
+    float x();
+
+    float y();
+
+    float z();
 }

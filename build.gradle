@@ -1,10 +1,22 @@
+buildscript {
+    repositories {
+        maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
+        maven { url = 'https://maven.parchmentmc.org' }
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'org.spongepowered:mixingradle:0.7-SNAPSHOT'
+    }
+}
+
 plugins {
     id 'eclipse'
     id 'idea'
     id 'net.minecraftforge.gradle' version '[6.0.16,6.2)'
     id 'org.parchmentmc.librarian.forgegradle' version '1.+'
-    id "com.modrinth.minotaur" version "2.+"
 }
+
+apply plugin: 'org.spongepowered.mixin'
 
 group = mod_group_id
 version = mod_version
@@ -58,6 +70,12 @@ minecraft {
     }
 }
 
+mixin {
+    add sourceSets.main, "${mod_id}.refmap.json"
+
+    config "${mod_id}.mixins.json"
+}
+
 sourceSets.main.resources {
     srcDir 'src/generated/resources'
 }
@@ -82,6 +100,7 @@ dependencies {
         exclude group: 'it.unimi.dsi', module: 'fastutil'
         exclude group: 'org.joml', module: 'joml'
     }
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 }
 
 tasks.named('processResources', ProcessResources).configure {
@@ -106,17 +125,17 @@ tasks.named('processResources', ProcessResources).configure {
     }
 }
 
-modrinth {
-    token = System.getenv("MODRINTH_TOKEN")
-
-    projectId = mod_id
-    versionName = "${mod_id}-${version}"
-    versionNumber = mod_version
-    uploadFile = "${buildDir}/libs/${mod_id}-${version}.jar"
-    additionalFiles = ["${buildDir}/libs/${mod_id}-${version}-sources.jar"]
-    gameVersions = [minecraft_version]
-    //debugMode = true
-}
+//modrinth {
+//    token = System.getenv("MODRINTH_TOKEN")
+//
+//    projectId = mod_id
+//    versionName = "${mod_id}-${version}"
+//    versionNumber = mod_version
+//    uploadFile = "${buildDir}/libs/${mod_id}-${version}.jar"
+//    additionalFiles = ["${buildDir}/libs/${mod_id}-${version}-sources.jar"]
+//    gameVersions = [minecraft_version]
+//    //debugMode = true
+//}
 
 jar {
     archiveClassifier.set('min')

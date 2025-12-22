@@ -93,4 +93,34 @@ public class BedrockCubePerFace implements BedrockCube {
                     r, g, b, a, uvs[i][1], uvs[i][3], overlay, lightmap, normals[i].x, normals[i].y, normals[i].z);
         }
     }
+
+    @Override
+    public float width() {
+        return width;
+    }
+
+    @Override
+    public float height() {
+        return height;
+    }
+
+    @Override
+    public float depth() {
+        return depth;
+    }
+
+    @Override
+    public float x() {
+        return x;
+    }
+
+    @Override
+    public float y() {
+        return y;
+    }
+
+    @Override
+    public float z() {
+        return z;
+    }
 }
