@@ -31,7 +31,7 @@ public class ItemInHandRendererMixin {
         MinecraftForge.EVENT_BUS.post(new BeforeRenderHandEvent(pPoseStack, pPartialTicks));
     }
 
-    @Inject(method = "tick", at = @At("HEAD"))
+    @Inject(method = "tick", at = @At("HEAD"), cancellable = true)
     private void onTickHead(CallbackInfo ci) {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null) return;
@@ -53,6 +53,7 @@ public class ItemInHandRendererMixin {
                 // 锁定高度，防止原版 tick 逻辑将高度降到 0 从而触发强制换手，以此保持旧物品
                 this.mainHandHeight = 1.0F;
                 this.oMainHandHeight = 1.0F;
+                ci.cancel();
                 return;
             }
 

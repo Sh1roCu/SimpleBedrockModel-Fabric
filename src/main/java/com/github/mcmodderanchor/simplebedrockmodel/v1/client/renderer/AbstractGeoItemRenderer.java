@@ -1,7 +1,6 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.client.renderer;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.animation.IFPAnimationInstance;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.client.handler.FirstPersonRenderHandler;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.model.PositionableModel;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.model.SlotModel;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.model.BedrockModel;
@@ -89,9 +88,6 @@ public abstract class AbstractGeoItemRenderer<M extends BedrockModel> extends Bl
                                int light, float partialTicks) {
     }
 
-    /**
-     * 进行第一人称下的渲染，入口参见 {@link FirstPersonRenderHandler}
-     */
     public void renderFirstPerson(LocalPlayer player, ItemStack stack, ItemDisplayContext ctx, PoseStack poseStack, MultiBufferSource bufferSource,
                                   int light, float partialTick) {
         // 默认的左右手位移
@@ -167,16 +163,20 @@ public abstract class AbstractGeoItemRenderer<M extends BedrockModel> extends Bl
 
     /**
      * Check if the given ItemStack should be considered the same as the current one.
-     * if false is returned, a new IFPAnimationInstance will be created for the new item.
+     * If false is returned, a new IFPAnimationInstance will be created for the new item.
      * @param oldStack current item stack
      * @param newStack the new item stack
      * @return true if the items are considered the same, false otherwise
      */
-    public boolean isSameItem(ItemStack oldStack ,ItemStack newStack) {
+    public boolean isSameItem(ItemStack oldStack, ItemStack newStack) {
         return ItemStack.isSameItem(oldStack, newStack);
     }
 
     public long getPutAwayDuration(ItemStack stack) {
         return 0;
+    }
+
+    public boolean blockOffhandRender() {
+        return false;
     }
 }

@@ -1,6 +1,7 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.client.handler;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.animation.IFPAnimationInstance;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.client.event.SwapItemWithOffHand;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.renderer.AbstractGeoItemRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -18,8 +19,8 @@ import java.util.Optional;
 
 @Mod.EventBusSubscriber(Dist.CLIENT)
 public class FirstPersonRenderHandler {
-    public static IFPAnimationInstance previousInstance = null;
-    public static IFPAnimationInstance currentInstance = null;
+    private static IFPAnimationInstance previousInstance = null;
+    private static IFPAnimationInstance currentInstance = null;
 
     // 切换动画的时间控制
     private static long switchStartTime;
@@ -31,8 +32,11 @@ public class FirstPersonRenderHandler {
     private static boolean wasLastCustom = false;
     private static boolean nextIsCustom = false;
 
-    // 标记当前实例的 Draw 动画是否已触发
-    private static boolean drawTriggered = false;
+    // 记录上一次的热键选中下标，用于检测切换物品栏（序号）
+    private static int lastSelectedHotbarIndex = -1;
+
+    // 手动触发主副手互换的信号（外部可调用）
+    private static boolean forceHandSwapFlag = false;
 
     /**
      * 由 Mixin 在 tick 中调用，用于控制物品切换过渡
@@ -42,11 +46,19 @@ public class FirstPersonRenderHandler {
      */
     public static boolean updateTransition(ItemStack currentStack, ItemStack targetStack) {
         // 检测是否是新的切换请求
-        if (pendingTarget != targetStack) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        int selectedIndex = player != null ? player.getInventory().selected : -1;
+        boolean slotChanged = selectedIndex != lastSelectedHotbarIndex || forceHandSwapFlag;
+
+        if (forceHandSwapFlag) forceHandSwapFlag = false;
+
+        // If slot changed, treat it as a new item no matter what renderer says
+        boolean pendingEqualsTarget = isSameItemStacks(pendingTarget, targetStack, slotChanged);
+
+        if (!pendingEqualsTarget) {
             if (isTransitioning) {
                 // A -> B (进行中) -> C
                 // 如果当前正在播放自定义收起动画，我们不应该打断它。
-                // 我们只需要将“下一个要出场的物品”从 B 换成 C。
                 updateTargetOnly(targetStack);
             } else {
                 // A (稳定) -> B
@@ -63,10 +75,14 @@ public class FirstPersonRenderHandler {
                 // 2. Putaway 结束
                 isTransitioning = false;
                 wasLastCustom = true; // 标记刚刚完成的是自定义物品的收起
+                // 每次调用都更新记录的选中下标
+                lastSelectedHotbarIndex = selectedIndex;
                 return false; // 通知mixin放行，切换到新物品
             }
         }
 
+        // 每次调用都更新记录的选中下标
+        lastSelectedHotbarIndex = selectedIndex;
         // 不是自定义物品让原版处理即可
         wasLastCustom = false;
         return false;
@@ -79,24 +95,19 @@ public class FirstPersonRenderHandler {
     private static void updateTargetOnly(ItemStack target) {
         pendingTarget = target;
         nextIsCustom = isCustomItem(target);
-        drawTriggered = false;
 
-        createCurrentInstance(target);
+        currentInstance = createCurrentInstance(target);
     }
 
-    private static void createCurrentInstance(ItemStack target) {
-        var renderer = getRenderer(target).orElse(null);
-        if (renderer != null) {
-            currentInstance = renderer.createAnimationInstance(target, Minecraft.getInstance().getCameraEntity());
-        } else {
-            currentInstance = null;
-        }
+    private static IFPAnimationInstance createCurrentInstance(ItemStack target) {
+        return getRenderer(target).map(r -> {
+            return r.createAnimationInstance(target, Minecraft.getInstance().getCameraEntity());
+        }).orElse(null);
     }
 
     private static void initializeTransition(ItemStack current, ItemStack target) {
         pendingTarget = target;
         switchStartTime = System.currentTimeMillis();
-        drawTriggered = false; // 重置触发标记
 
         boolean oldIsCustom = isCustomItem(current);
         nextIsCustom = isCustomItem(target);
@@ -104,14 +115,16 @@ public class FirstPersonRenderHandler {
         // 归档旧实例
         previousInstance = currentInstance;
 
-        createCurrentInstance(target);
+        currentInstance = createCurrentInstance(target);
 
         // 只有当旧物品是自定义物品时，我们才拦截并播放自定义收起动画
         if (oldIsCustom) {
             isTransitioning = true;
             currentSheatheDuration = calculateSheatheDuration(current);
             // 触发旧实例的收起动画
-             if (previousInstance != null) previousInstance.triggerPutAway();
+            if (previousInstance != null) {
+                previousInstance.triggerPutAway();
+            }
         } else {
             isTransitioning = false;
         }
@@ -124,8 +137,7 @@ public class FirstPersonRenderHandler {
     }
 
     public static float getTargetHeight() {
-        // 如果下一个是自定义物品，返回 1.0 (由 Handler 完全接管渲染，跳过原版 Draw 上浮)
-        // 如果下一个是原版物品，返回 0.0 (让原版播放 Draw 上浮动画)
+        // 如果下一个是自定义物品，返回 1.0(由 Handler 完全接管渲染，跳过原版 Draw 上浮)
         return nextIsCustom ? 1.0F : 0.0F;
     }
 
@@ -163,14 +175,14 @@ public class FirstPersonRenderHandler {
     }
 
     @SubscribeEvent
-    public static void onRenderHand(RenderHandEvent event) {
-        LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null) {
-            return;
-        }
+    public static void onRenderHand(SwapItemWithOffHand event) {
+        forceHandSwapFlag = true;
+    }
 
-        // 仅处理主手
-        if (event.getHand() != InteractionHand.MAIN_HAND) {
+    @SubscribeEvent
+    public static void onRenderHand(RenderHandEvent event) {
+        LocalPlayer player = Minecraft.getInstance() .player;
+        if (player == null) {
             return;
         }
 
@@ -180,6 +192,11 @@ public class FirstPersonRenderHandler {
             ItemStack stack = animationInstance.currentItem();
             if (!stack.isEmpty()) {
                 getRenderer(stack).ifPresent(renderer -> {
+                    if (event.getHand() != InteractionHand.MAIN_HAND && renderer.blockOffhandRender()) {
+                        event.setCanceled(true);
+                        return;
+                    }
+
                     ItemDisplayContext transformType = ItemDisplayContext.FIRST_PERSON_RIGHT_HAND;
                     renderer.renderFirstPerson(player, stack, transformType, event.getPoseStack(), event.getMultiBufferSource(),
                             event.getPackedLight(), event.getPartialTick());
@@ -205,17 +222,15 @@ public class FirstPersonRenderHandler {
             // 使用引用比较，确保是同一个物品对象（即切回了同一个槽位）
             if (heldItem == previousInstance.currentItem()) {
                 isTransitioning = false;
-                createCurrentInstance(heldItem);
+                currentInstance = createCurrentInstance(heldItem);
                 previousInstance = null;
                 pendingTarget = heldItem;
-                drawTriggered = false; // 重置触发器，以便重新播放 Draw
             }
         }
 
-        if (!isTransitioning && currentInstance != null && !drawTriggered) {
+        if (!isTransitioning && currentInstance != null) {
             // 触发 Draw 动画
             currentInstance.triggerDraw();
-            drawTriggered = true;
         }
 
         var ani = getActiveAnimationInstance();
@@ -225,12 +240,18 @@ public class FirstPersonRenderHandler {
     }
 
     public static IFPAnimationInstance getActiveAnimationInstance() {
-        // 如果正在进行收起动画（isTransitioning 为 true），渲染旧的实例
-        // 注意：当 isTransitioning 为 true 时，Mixin 锁定了 mainHandItem 为旧物品
-        if (isTransitioning) {
-            return previousInstance;
-        } else {
-            return currentInstance;
-        }
+        return isTransitioning ? previousInstance : currentInstance;
+    }
+
+    private static boolean isSameItemStacks(ItemStack oldStack, ItemStack newStack, boolean slotChanged) {
+        if (slotChanged) return false;
+        if (oldStack == newStack) return true;
+        if (oldStack.isEmpty() && newStack.isEmpty()) return true;
+        if (oldStack.isEmpty() || newStack.isEmpty()) return false;
+
+        // If oldStack has a renderer, prefer its comparison logic
+        Optional<AbstractGeoItemRenderer<?>> opt = getRenderer(oldStack);
+        return opt.map(abstractGeoItemRenderer -> abstractGeoItemRenderer.isSameItem(oldStack, newStack))
+                .orElseGet(() -> ItemStack.isSameItem(oldStack, newStack));
     }
 }
