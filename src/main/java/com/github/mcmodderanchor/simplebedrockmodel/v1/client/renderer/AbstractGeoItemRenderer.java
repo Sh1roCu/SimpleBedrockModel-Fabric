@@ -31,7 +31,8 @@ import javax.annotation.ParametersAreNonnullByDefault;
  *
  * @param <M> 基岩版模型
  */
-public abstract class AbstractGeoItemRenderer<M extends BedrockModel> extends BlockEntityWithoutLevelRenderer {
+public abstract class AbstractGeoItemRenderer<M extends BedrockModel>
+        extends BlockEntityWithoutLevelRenderer implements IFPGeoItemRenderer {
     public static final String FP_CAMERA_BONE_NAME = "camera";
     private static final SlotModel SLOT_MODEL = new SlotModel();
 

@@ -2,7 +2,7 @@ package com.github.mcmodderanchor.simplebedrockmodel.v1.client.handler;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.animation.IFPAnimationInstance;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.event.SwapItemWithOffHand;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.client.renderer.AbstractGeoItemRenderer;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.client.renderer.IFPGeoItemRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.InteractionHand;
@@ -82,6 +82,10 @@ public class FirstPersonRenderHandler {
             }
         }
 
+        // 进行超级替换
+        if (currentInstance != null) {
+            currentInstance.updateItem(targetStack);
+        }
         // 每次调用都更新记录的选中下标
         lastSelectedHotbarIndex = selectedIndex;
         // 不是自定义物品让原版处理即可
@@ -165,11 +169,11 @@ public class FirstPersonRenderHandler {
         return getRenderer(stack).map(renderer -> renderer.getPutAwayDuration(stack)).orElse(0L);
     }
 
-    public static Optional<AbstractGeoItemRenderer<?>> getRenderer(ItemStack stack) {
+    public static Optional<IFPGeoItemRenderer> getRenderer(ItemStack stack) {
         if (stack.isEmpty()) {
             return Optional.empty();
         }
-        if (IClientItemExtensions.of(stack.getItem()).getCustomRenderer() instanceof AbstractGeoItemRenderer<?> renderer) {
+        if (IClientItemExtensions.of(stack.getItem()).getCustomRenderer() instanceof IFPGeoItemRenderer renderer) {
             return Optional.of(renderer);
         }
         return Optional.empty();
@@ -182,7 +186,7 @@ public class FirstPersonRenderHandler {
 
     @SubscribeEvent(priority = EventPriority.LOW)
     public static void onRenderHand(RenderHandEvent event) {
-        LocalPlayer player = Minecraft.getInstance() .player;
+        LocalPlayer player = Minecraft.getInstance().player;
         if (player == null) {
             return;
         }
@@ -251,7 +255,7 @@ public class FirstPersonRenderHandler {
         if (oldStack.isEmpty() || newStack.isEmpty()) return false;
 
         // If oldStack has a renderer, prefer its comparison logic
-        Optional<AbstractGeoItemRenderer<?>> opt = getRenderer(oldStack);
+        Optional<IFPGeoItemRenderer> opt = getRenderer(oldStack);
         return opt.map(abstractGeoItemRenderer -> abstractGeoItemRenderer.isSameItem(oldStack, newStack))
                 .orElseGet(() -> ItemStack.isSameItem(oldStack, newStack));
     }
