@@ -8,6 +8,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.client.event.RenderHandEvent;
 import net.minecraftforge.client.extensions.common.IClientItemExtensions;
 import net.minecraftforge.event.TickEvent;
@@ -38,6 +39,21 @@ public class FirstPersonRenderHandler {
     private static boolean forceHandSwapFlag = false;
 
     @SubscribeEvent
+    public static void onPlayerLoggedOut(ClientPlayerNetworkEvent.LoggingOut event) {
+        // 离开游戏时重置客户端状态
+        realSelectedSlot = -1;
+        realMainHand = ItemStack.EMPTY;
+        transitioning = false;
+        activeInstance = null;
+        previousInstance = null;
+        pendingTarget = ItemStack.EMPTY;
+        lockVanilla = false;
+        nextIsCustom = false;
+        forceHandSwapFlag = false;
+    }
+
+
+    @SubscribeEvent
     public static void onRenderHand(SwapItemWithOffHand event) {
         forceHandSwapFlag = true;
     }
@@ -63,6 +79,8 @@ public class FirstPersonRenderHandler {
             onSlotChanged(newMain);
         } else if (itemChanged) {
             onItemChangedInSameSlot(newMain);
+        }if (activeInstance != null) {
+            activeInstance.updateItem(newMain);
         }
 
         tickStates();

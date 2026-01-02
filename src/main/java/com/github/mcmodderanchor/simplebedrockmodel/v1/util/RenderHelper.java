@@ -106,6 +106,7 @@ public final class RenderHelper {
         playermodel.attackTime = 0.0F;
         playermodel.crouching = false;
         playermodel.swimAmount = 0.0F;
+        playermodel.setupAnim(pPlayer, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F);
         pRendererArm.xRot = 0.0F;
         pRendererArm.yRot = 0.0F;
         pRendererArm.zRot = 0.0F;
