@@ -5,6 +5,7 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.client.event.SwapItemWith
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.renderer.IFPGeoItemRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
@@ -179,11 +180,23 @@ public class FirstPersonRenderHandler {
         if (stack.isEmpty()) return;
 
         getRenderer(stack).ifPresent(renderer -> {
-            ItemDisplayContext ctx = ItemDisplayContext.FIRST_PERSON_RIGHT_HAND;
+            if (event.getHand() == InteractionHand.OFF_HAND) {
+                if (renderer.blockOffhandRender()) {
+                    event.setCanceled(true);
+                }
+                return;
+            }
+
+            ItemDisplayContext transformType;
+            if (event.getHand() == InteractionHand.MAIN_HAND) {
+                transformType = ItemDisplayContext.FIRST_PERSON_RIGHT_HAND;
+            } else {
+                transformType = ItemDisplayContext.FIRST_PERSON_LEFT_HAND;
+            }
             renderer.renderFirstPerson(
                     player,
                     stack,
-                    ctx,
+                    transformType,
                     event.getPoseStack(),
                     event.getMultiBufferSource(),
                     event.getPackedLight(),
