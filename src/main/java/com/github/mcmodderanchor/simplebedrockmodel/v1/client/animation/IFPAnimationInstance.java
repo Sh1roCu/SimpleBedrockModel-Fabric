@@ -50,4 +50,8 @@ public interface IFPAnimationInstance {
     void triggerDraw();
 
     void triggerPutAway();
+
+    default boolean shouldRenderHand() {
+        return false;
+    }
 }
