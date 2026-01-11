@@ -95,11 +95,12 @@ public class BedrockAnimation extends BasicAnimation {
             pre = keyframe.getPre() == null ? keyframe.getPost() : keyframe.getPre();
             post = keyframe.getPost() == null ? keyframe.getPre() : keyframe.getPost();
         }
+        Vector3f preTransformed = new Vector3f(pre).mul(x, y, z).mul(DEGREE_TO_ANGLE);
+        Vector3f postTransformed;
         if (pre == post) {
-            pre.mul(x, y, z).mul(DEGREE_TO_ANGLE);
+            postTransformed = preTransformed;
         } else {
-            pre.mul(x, y, z).mul(DEGREE_TO_ANGLE);
-            post.mul(x, y, z).mul(DEGREE_TO_ANGLE);
+            postTransformed = new Vector3f(post).mul(x, y, z).mul(DEGREE_TO_ANGLE);
         }
         if ("catmullrom".equals(keyframe.getLerpMode())) {
             interpolator = Vector3fCubicSplineInterpolator.INSTANCE;
@@ -108,8 +109,8 @@ public class BedrockAnimation extends BasicAnimation {
         }
         return new RotationKeyframe(
                 timeS,
-                new Rotation(pre),
-                new Rotation(post),
+                new Rotation(preTransformed),
+                new Rotation(postTransformed),
                 new EulerAnglesRotationInterpolator(interpolator));
     }
 
@@ -136,17 +137,18 @@ public class BedrockAnimation extends BasicAnimation {
             pre = keyframe.getPre() == null ? keyframe.getPost() : keyframe.getPre();
             post = keyframe.getPost() == null ? keyframe.getPre() : keyframe.getPost();
         }
+        Vector3f preTransformed = new Vector3f(pre).mul(x, y, z);
+        Vector3f postTransformed;
         if (pre == post) {
-            pre.mul(x, y, z);
+            postTransformed = preTransformed;
         } else {
-            pre.mul(x, y, z);
-            post.mul(x, y, z);
+            postTransformed = new Vector3f(post).mul(x, y, z);
         }
         if ("catmullrom".equals(keyframe.getLerpMode())) {
             interpolator = Vector3fCubicSplineInterpolator.INSTANCE;
         } else {
             interpolator = Vector3fLinearInterpolator.INSTANCE;
         }
-        return new Vector3fKeyframe(timeS, pre, post, interpolator);
+        return new Vector3fKeyframe(timeS, preTransformed, postTransformed, interpolator);
     }
 }
