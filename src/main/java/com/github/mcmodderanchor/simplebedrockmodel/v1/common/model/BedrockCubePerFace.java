@@ -130,4 +130,19 @@ public class BedrockCubePerFace implements BedrockCube {
     public float z() {
         return z;
     }
+
+    @Override
+    public float getU(int face, int vertex) {
+        return uvs[face][vertex * 2];
+    }
+
+    @Override
+    public float getV(int face, int vertex) {
+        return uvs[face][vertex * 2 + 1];
+    }
+
+    @Override
+    public boolean isEmptyFace(int face) {
+        return (emptyFacesMask & (1 << face)) != 0;
+    }
 }

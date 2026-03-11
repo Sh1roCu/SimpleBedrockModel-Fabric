@@ -134,4 +134,14 @@ public class BedrockCubeBox implements BedrockCube {
     public float z() {
         return z;
     }
+
+    @Override
+    public float getU(int face, int vertex) {
+        return uvs[uvOrder[face][vertex == 0 || vertex == 3 ? 1 : 0]];
+    }
+
+    @Override
+    public float getV(int face, int vertex) {
+        return uvs[uvOrder[face][vertex <= 1 ? 2 : 3]];
+    }
 }

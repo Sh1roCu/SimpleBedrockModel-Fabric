@@ -15,6 +15,7 @@ public class SimpleBedrockModel {
         NetworkHandler.init();
     }
 
+    @SuppressWarnings("removal")
     public static ResourceLocation modLoc(String path) {
         return new ResourceLocation(MOD_ID, path);
     }

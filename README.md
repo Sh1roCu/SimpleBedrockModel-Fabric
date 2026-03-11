@@ -156,7 +156,10 @@ src/main/java/com/github/mcmodderanchor/simplebedrockmodel/
 
 ## 📝 License
 
-This project is licensed under the **LGPL-3.0 License** - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **LGPL-3.0 License** - see the [LICENSE](LICENSE) file for details.  
+
+Specifically, assets under the example namespace are provided solely as tutorial examples and for reference. Their respective owners retain **ALL RIGHTS**.  
+Please do not reuse or redistribute them without permission.
 
 ## 👥 Contributors
 
@@ -164,6 +167,7 @@ This project is licensed under the **LGPL-3.0 License** - see the [LICENSE](LICE
 - **MaydayMemory** - Core Developer
 - **MoePus** - Developer
 - **Hidomatn** - Developer
+- **xjqsh** - Developer
 
 ## 🤝 Contributing
 

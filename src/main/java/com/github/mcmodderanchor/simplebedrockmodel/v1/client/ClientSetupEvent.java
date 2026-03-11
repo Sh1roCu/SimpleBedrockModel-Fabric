@@ -2,6 +2,7 @@ package com.github.mcmodderanchor.simplebedrockmodel.v1.client;
 
 import com.github.mcmodderanchor.simplebedrockmodel.SimpleBedrockModel;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.compat.sodium.SodiumCompat;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.client.compat.epicfight.EpicFightCompat;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -12,5 +13,6 @@ public class ClientSetupEvent {
     @SubscribeEvent
     public static void onClientSetup(FMLClientSetupEvent event) {
         SodiumCompat.init();
+        EpicFightCompat.init();
     }
 }
