@@ -15,6 +15,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.client.extensions.common.IClientItemExtensions;
 
+import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.function.Consumer;
 
 public class DeagleItem extends Item implements GunItem {
@@ -23,6 +24,7 @@ public class DeagleItem extends Item implements GunItem {
     }
 
     @Override
+    @ParametersAreNonnullByDefault
     public boolean onEntitySwing(ItemStack stack, LivingEntity entity) {
         entity.getCapability(ModCapability.FPGUN_ANIMATION_CAPABILITY).ifPresent(capability -> {
             capability.getAnimationInstance().trigger();
@@ -36,11 +38,13 @@ public class DeagleItem extends Item implements GunItem {
     }
 
     @Override
+    @ParametersAreNonnullByDefault
     public boolean shouldCauseReequipAnimation(ItemStack oldStack, ItemStack newStack, boolean slotChanged) {
         return false;
     }
 
     @Override
+    @ParametersAreNonnullByDefault
     public boolean onLeftClickEntity(ItemStack stack, Player player, Entity entity) {
         return true;
     }
@@ -48,9 +52,10 @@ public class DeagleItem extends Item implements GunItem {
     @Override
     public void initializeClient(Consumer<IClientItemExtensions> consumer) {
         consumer.accept(new IClientItemExtensions() {
+            public static final DeagleWithoutLevelRenderer renderer = new DeagleWithoutLevelRenderer();
             @Override
             public BlockEntityWithoutLevelRenderer getCustomRenderer() {
-                return new DeagleWithoutLevelRenderer();
+                return renderer;
             }
         });
     }
