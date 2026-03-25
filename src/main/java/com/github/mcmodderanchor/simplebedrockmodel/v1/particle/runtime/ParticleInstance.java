@@ -1,0 +1,57 @@
+package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime;
+
+/**
+ * 单个粒子实例。所有坐标都在局部坐标系中。
+ */
+public class ParticleInstance {
+    // 位置（局部坐标）
+    public float x, y, z;
+    // 速度
+    public float vx, vy, vz;
+    // 颜色
+    public float r = 1f, g = 1f, b = 1f, a = 1f;
+    // 尺寸
+    public float width = 0.1f, height = 0.1f;
+    // 生命周期
+    public float age;
+    public float maxLifetime;
+    // 随机种子（用于 Molang variable.particle_random_N）
+    public float random1, random2, random3, random4;
+    // UV
+    public float u0, v0, u1, v1;
+    // 是否存活
+    public boolean alive = true;
+
+    public ParticleInstance() {
+    }
+
+    /**
+     * 重置粒子状态以便复用（对象池）。
+     */
+    public void reset() {
+        x = y = z = 0;
+        vx = vy = vz = 0;
+        r = g = b = a = 1f;
+        width = height = 0.1f;
+        age = 0;
+        maxLifetime = 1;
+        random1 = random2 = random3 = random4 = 0;
+        u0 = v0 = 0;
+        u1 = v1 = 1;
+        alive = true;
+    }
+
+    /**
+     * 更新粒子位置和年龄。
+     * @param dt 时间步长（秒）
+     */
+    public void tick(float dt) {
+        x += vx * dt;
+        y += vy * dt;
+        z += vz * dt;
+        age += dt;
+        if (age >= maxLifetime) {
+            alive = false;
+        }
+    }
+}

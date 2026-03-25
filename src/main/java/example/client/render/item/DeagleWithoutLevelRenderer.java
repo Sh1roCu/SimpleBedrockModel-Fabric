@@ -3,10 +3,14 @@ package example.client.render.item;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.model.BedrockBone;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.model.BedrockModel;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.event.RegisterBedrockModelReloadListenerEvent;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleEffectDefinition;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.resource.ParticleDefinitionLoader;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleSystem;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
+import example.animation.DeagleAnimationGraph;
 import example.animation.GunAnimationGraph;
 import example.capability.ModCapability;
 import example.init.ExampleModRegister;
@@ -21,6 +25,7 @@ import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.resources.model.Material;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
@@ -37,8 +42,14 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @Mod.EventBusSubscriber(value = Dist.CLIENT)
 public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer {
     private static final Material material = new Material(TextureAtlas.LOCATION_BLOCKS, KnownResources.DEAGLE.withPrefix("item/"));
+    private static final ResourceLocation BOMB_SPARK_PARTICLE = new ResourceLocation("example", "bomb_spark.particle");
 
     private static BedrockModel model;
+
+    // 粒子系统
+    private static final ParticleSystem particleSystem = new ParticleSystem();
+    private static ParticleEffectDefinition sparkDefinition;
+    private static long lastRenderTimeNano;
 
     // 暂时只能想到这么丑的办法
     @Mod.EventBusSubscriber(value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
@@ -55,6 +66,9 @@ public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer 
                 if (rightHandBone != null) {
                     rightHandBone.visible = false;
                 }
+                // 资源重载时清空粒子缓存
+                sparkDefinition = null;
+                particleSystem.clear();
             });
         }
     }
@@ -67,6 +81,7 @@ public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer 
     public static void onFirstPersonRender(RenderHandEvent event) {
         if (event.getItemStack().getItem() == ExampleModRegister.DEAGLE_ITEM && event.getHand() == InteractionHand.MAIN_HAND) {
             Minecraft mc = Minecraft.getInstance();
+            DeagleAnimationGraph deagleGraph = null;
             // 从 AnimationInstance 中获取 AnimationGraph，然后计算当前帧的 Pose，然后混合并 apply
             if (mc.getCameraEntity() instanceof Player player) {
                 player.getCapability(ModCapability.FPGUN_ANIMATION_CAPABILITY).ifPresent(capability -> {
@@ -75,7 +90,32 @@ public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer 
                         model.applyPose(animationGraph.getPose());
                     }
                 });
+                // 获取 DeagleAnimationGraph 引用用于检查粒子触发
+                var cap = player.getCapability(ModCapability.FPGUN_ANIMATION_CAPABILITY).orElse(null);
+                if (cap != null && cap.getAnimationInstance().getAnimationGraph() instanceof DeagleAnimationGraph dag) {
+                    deagleGraph = dag;
+                }
             }
+
+            // 计算帧间 dt
+            long now = System.nanoTime();
+            float dt = lastRenderTimeNano == 0 ? 0 : (now - lastRenderTimeNano) / 1_000_000_000f;
+            dt = Math.min(dt, 0.1f); // 限制最大 dt 防止卡顿时粒子爆炸
+            lastRenderTimeNano = now;
+
+            // 检查是否需要发射粒子
+            if (deagleGraph != null && deagleGraph.consumeParticlePending()) {
+                if (sparkDefinition == null) {
+                    sparkDefinition = ParticleDefinitionLoader.getInstance().getDefinition(BOMB_SPARK_PARTICLE);
+                }
+                if (sparkDefinition != null) {
+                    particleSystem.addEmitter(sparkDefinition);
+                }
+            }
+
+            // tick 粒子
+            particleSystem.tick(dt);
+
             PoseStack poseStack = event.getPoseStack();
             poseStack.pushPose();
             {
@@ -114,6 +154,17 @@ public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer 
                         poseStack.popPose();
                     }
                 }
+                // 渲染粒子（挂到 muzzle_pos 骨骼位置）
+                if (particleSystem.getParticleCount() > 0) {
+                    BedrockBone muzzleBone = model.getBone("muzzle_pos");
+                    if (muzzleBone != null) {
+                        poseStack.pushPose();
+                        poseStack.mulPoseMatrix(muzzleBone.getGlobalTransform());
+                        particleSystem.render(poseStack, event.getMultiBufferSource(), event.getPackedLight(), event.getPartialTick());
+                        poseStack.popPose();
+                    }
+                }
+
             }
             poseStack.popPose();
             event.setCanceled(true);

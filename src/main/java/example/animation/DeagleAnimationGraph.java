@@ -52,6 +52,8 @@ public class DeagleAnimationGraph implements GunAnimationGraph{
     private SkeletonBaseLayerBlend handAndRootLayer;
     private LayerBlend noHandLayer;
 
+    private boolean particlePending;
+
 
     public DeagleAnimationGraph(FPGunAnimationInstance animationInstance) {
         this.animationInstance = animationInstance;
@@ -151,11 +153,13 @@ public class DeagleAnimationGraph implements GunAnimationGraph{
 
     @Override
     public void notifyTrigger() {
-        if (animationInstance.isCooling() || animationInstance.isRaisingGun() || animationInstance.getAmmoInGun() < 1) {
+        if (animationInstance.isCooling() || animationInstance.isRaisingGun()) {
             return;
         }
         // 设置正在冷却。动画中的 notify 会在合适时机将冷却设置为 false
         animationInstance.setCooling(true);
+        // 标记需要发射粒子
+        particlePending = true;
         // 播放射击动画
         AnimationMontageRunner<FPGunAnimationInstance> shootRunner = new AnimationMontageRunner<>(shootMontage, animationInstance, new ZYXBoneTransformFactory(), ArrayPoseBuilder::new, System::nanoTime);
         shootRunner.start("shoot");
@@ -204,5 +208,16 @@ public class DeagleAnimationGraph implements GunAnimationGraph{
             SoundEvent soundEvent = SoundEvent.createVariableRangeEvent(keyframe.getValue());
             level.playSound(player, player, soundEvent, SoundSource.PLAYERS, 1.0f, 1.0f);
         }
+    }
+
+    /**
+     * 检查并消费粒子发射标记。返回 true 表示本次调用需要发射粒子。
+     */
+    public boolean consumeParticlePending() {
+        if (particlePending) {
+            particlePending = false;
+            return true;
+        }
+        return false;
     }
 }
