@@ -38,6 +38,8 @@ public class ParticleDefinitionLoader extends SimplePreparableReloadListener<Map
     private static ParticleDefinitionLoader INSTANCE;
 
     private final Map<ResourceLocation, ParticleEffectDefinition> cache = Maps.newHashMap();
+    /** 按粒子效果的 identifier（JSON 中的 description.identifier）索引 */
+    private final Map<ResourceLocation, ParticleEffectDefinition> identifierIndex = Maps.newHashMap();
 
     public static ParticleDefinitionLoader getInstance() {
         if (INSTANCE == null) {
@@ -71,11 +73,13 @@ public class ParticleDefinitionLoader extends SimplePreparableReloadListener<Map
     @ParametersAreNonnullByDefault
     protected void apply(Map<ResourceLocation, JsonElement> prepared, ResourceManager resourceManager, ProfilerFiller profiler) {
         cache.clear();
+        identifierIndex.clear();
         prepared.forEach((id, json) -> {
             try {
                 ParticleEffectDefinition definition = GSON.fromJson(json, ParticleEffectDefinition.class);
                 if (definition != null) {
                     cache.put(id, definition);
+                    identifierIndex.put(definition.getIdentifier(), definition);
                     SimpleBedrockModel.LOGGER.debug("Loaded particle definition: {}", id);
                 }
             } catch (Exception e) {
@@ -86,11 +90,15 @@ public class ParticleDefinitionLoader extends SimplePreparableReloadListener<Map
     }
 
     /**
-     * 获取已加载的粒子效果定义。
+     * 获取已加载的粒子效果定义（按文件路径 ID 查找）。
      */
     @Nullable
     public ParticleEffectDefinition getDefinition(ResourceLocation id) {
-        return cache.get(id);
+        // 先按文件路径查找
+        ParticleEffectDefinition def = cache.get(id);
+        if (def != null) return def;
+        // 再按 identifier 查找
+        return identifierIndex.get(id);
     }
 
     /**

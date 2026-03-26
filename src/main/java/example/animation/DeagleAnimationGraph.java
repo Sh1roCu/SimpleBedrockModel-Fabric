@@ -2,6 +2,7 @@ package example.animation;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.animation.BedrockAnimation;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.model.BedrockModel;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.pojo.ParticleEffectData;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.event.RegisterBedrockAnimationReloadListenerEvent;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.event.RegisterBedrockModelReloadListenerEvent;
 import com.maydaymemory.mae.basic.*;
@@ -52,7 +53,7 @@ public class DeagleAnimationGraph implements GunAnimationGraph{
     private SkeletonBaseLayerBlend handAndRootLayer;
     private LayerBlend noHandLayer;
 
-    private boolean particlePending;
+    private final List<ParticleEffectData> pendingParticles = new ArrayList<>();
 
 
     public DeagleAnimationGraph(FPGunAnimationInstance animationInstance) {
@@ -158,9 +159,7 @@ public class DeagleAnimationGraph implements GunAnimationGraph{
         }
         // 设置正在冷却。动画中的 notify 会在合适时机将冷却设置为 false
         animationInstance.setCooling(true);
-        // 标记需要发射粒子
-        particlePending = true;
-        // 播放射击动画
+        // 播放射击动画（粒子触发由动画通道的 particle_effects 关键帧驱动）
         AnimationMontageRunner<FPGunAnimationInstance> shootRunner = new AnimationMontageRunner<>(shootMontage, animationInstance, new ZYXBoneTransformFactory(), ArrayPoseBuilder::new, System::nanoTime);
         shootRunner.start("shoot");
         shootMontageRunners.push(shootRunner);
@@ -184,6 +183,7 @@ public class DeagleAnimationGraph implements GunAnimationGraph{
         for (AnimationMontageRunner<FPGunAnimationInstance> shootRunner : shootMontageRunners) {
             shootRunner.tick();
             consumeSounds(shootRunner.clip(BedrockAnimation.SOUND_CHANNEL_NAME));
+            consumeParticleKeyframes(shootRunner.clip(BedrockAnimation.PARTICLE_CHANNEL_NAME));
         }
     }
 
@@ -210,14 +210,24 @@ public class DeagleAnimationGraph implements GunAnimationGraph{
         }
     }
 
-    /**
-     * 检查并消费粒子发射标记。返回 true 表示本次调用需要发射粒子。
-     */
-    public boolean consumeParticlePending() {
-        if (particlePending) {
-            particlePending = false;
-            return true;
+    private void consumeParticleKeyframes(Iterable<? extends Keyframe<?>> particles) {
+        for (Keyframe<?> keyframe : particles) {
+            Object value = keyframe.getValue();
+            if (value instanceof ParticleEffectData data) {
+                pendingParticles.add(data);
+            }
         }
-        return false;
+    }
+
+    /**
+     * 获取并清空待发射的粒子效果列表。
+     */
+    public List<ParticleEffectData> consumePendingParticles() {
+        if (pendingParticles.isEmpty()) {
+            return List.of();
+        }
+        List<ParticleEffectData> result = new ArrayList<>(pendingParticles);
+        pendingParticles.clear();
+        return result;
     }
 }

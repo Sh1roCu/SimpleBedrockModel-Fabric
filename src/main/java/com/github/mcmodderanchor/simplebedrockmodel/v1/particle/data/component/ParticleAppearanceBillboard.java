@@ -1,5 +1,7 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component;
 
+import javax.annotation.Nullable;
+
 /**
  * 粒子外观组件 — Billboard 模式。
  * 对应 "minecraft:particle_appearance_billboard"。
@@ -9,8 +11,10 @@ public record ParticleAppearanceBillboard(
         String[] size,
         /** 朝向模式 */
         FaceCameraMode faceCameraMode,
-        /** UV 配置 */
-        UVConfig uv
+        /** 静态 UV 配置（flipbook 为 null 时使用） */
+        @Nullable UVConfig uv,
+        /** Flipbook UV 动画配置，可为 null */
+        @Nullable FlipbookConfig flipbook
 ) implements IParticleComponent {
 
     public enum FaceCameraMode {
@@ -39,6 +43,25 @@ public record ParticleAppearanceBillboard(
     public record UVConfig(
             String u, String v,
             String width, String height,
+            int textureWidth, int textureHeight
+    ) {}
+
+    /**
+     * Flipbook UV 动画配置。
+     * @param baseUV 起始 UV [u, v]（Molang）
+     * @param sizeUV 每帧尺寸 [w, h]（Molang）
+     * @param stepUV 每帧步进 [du, dv]（Molang）
+     * @param framesPerSecond 帧率
+     * @param maxFrame 最大帧数（Molang）
+     * @param stretchToLifetime 是否拉伸到粒子生命周期
+     * @param loop 是否循环
+     * @param textureWidth 纹理总宽度（像素）
+     * @param textureHeight 纹理总高度（像素）
+     */
+    public record FlipbookConfig(
+            String[] baseUV, String[] sizeUV, String[] stepUV,
+            float framesPerSecond, String maxFrame,
+            boolean stretchToLifetime, boolean loop,
             int textureWidth, int textureHeight
     ) {}
 }

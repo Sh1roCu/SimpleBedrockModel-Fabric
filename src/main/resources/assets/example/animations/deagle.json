@@ -572,7 +572,7 @@
 			}
 		},
 		"shoot": {
-			"animation_length": 0.5667,
+			"animation_length": 2.4,
 			"bones": {
 				"root": {
 					"rotation": {
@@ -661,11 +661,27 @@
 						"0.2": [0, 0, -0.32],
 						"0.2333": [0, 0, 0]
 					}
+				},
+				"muzzle_pos": {
+					"scale": {
+						"0.0": [0.1, 0.1, 0.1],
+						"2.4": {"pre": [0.1, 0.1, 0.1], "post": [0.5, 0.5, 0.5]}
+					}
 				}
 			},
 			"sound_effects": {
 				"0.0": {
 					"effect": "example:deagle_shoot"
+				}
+			},
+			"particle_effects": {
+				"0.0": {
+					"effect": "confluence:bomb_spark",
+					"locator": "locator"
+				},
+				"0.1": {
+					"effect": "confluence:bomb_lead",
+					"locator": "locator"
 				}
 			}
 		},

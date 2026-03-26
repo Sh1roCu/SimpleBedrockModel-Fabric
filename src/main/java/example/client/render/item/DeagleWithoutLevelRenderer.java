@@ -2,6 +2,7 @@ package example.client.render.item;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.model.BedrockBone;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.model.BedrockModel;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.pojo.ParticleEffectData;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.event.RegisterBedrockModelReloadListenerEvent;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleEffectDefinition;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.resource.ParticleDefinitionLoader;
@@ -39,16 +40,16 @@ import org.joml.Matrix4f;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 
+import java.util.List;
+
 @Mod.EventBusSubscriber(value = Dist.CLIENT)
 public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer {
     private static final Material material = new Material(TextureAtlas.LOCATION_BLOCKS, KnownResources.DEAGLE.withPrefix("item/"));
-    private static final ResourceLocation BOMB_SPARK_PARTICLE = new ResourceLocation("example", "bomb_spark.particle");
 
     private static BedrockModel model;
 
     // 粒子系统
     private static final ParticleSystem particleSystem = new ParticleSystem();
-    private static ParticleEffectDefinition sparkDefinition;
     private static long lastRenderTimeNano;
 
     // 暂时只能想到这么丑的办法
@@ -67,7 +68,6 @@ public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer 
                     rightHandBone.visible = false;
                 }
                 // 资源重载时清空粒子缓存
-                sparkDefinition = null;
                 particleSystem.clear();
             });
         }
@@ -103,13 +103,14 @@ public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer 
             dt = Math.min(dt, 0.1f); // 限制最大 dt 防止卡顿时粒子爆炸
             lastRenderTimeNano = now;
 
-            // 检查是否需要发射粒子
-            if (deagleGraph != null && deagleGraph.consumeParticlePending()) {
-                if (sparkDefinition == null) {
-                    sparkDefinition = ParticleDefinitionLoader.getInstance().getDefinition(BOMB_SPARK_PARTICLE);
-                }
-                if (sparkDefinition != null) {
-                    particleSystem.addEmitter(sparkDefinition);
+            // 检查是否需要发射粒子（从动画通道获取）
+            if (deagleGraph != null) {
+                List<ParticleEffectData> pendingParticles = deagleGraph.consumePendingParticles();
+                for (ParticleEffectData data : pendingParticles) {
+                    ParticleEffectDefinition def = ParticleDefinitionLoader.getInstance().getDefinition(data.effect());
+                    if (def != null) {
+                        particleSystem.addEmitter(def);
+                    }
                 }
             }
 
@@ -162,6 +163,8 @@ public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer 
                         poseStack.mulPoseMatrix(muzzleBone.getGlobalTransform());
                         particleSystem.render(poseStack, event.getMultiBufferSource(), event.getPackedLight(), event.getPartialTick());
                         poseStack.popPose();
+                    } else {
+                        particleSystem.render(poseStack, event.getMultiBufferSource(), event.getPackedLight(), event.getPartialTick());
                     }
                 }
 

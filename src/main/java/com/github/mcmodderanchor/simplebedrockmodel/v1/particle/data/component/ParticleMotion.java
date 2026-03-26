@@ -11,8 +11,11 @@ public sealed interface ParticleMotion extends IParticleComponent {
      * 动力学运动。对应 "minecraft:particle_motion_dynamic"。
      * @param linearAcceleration 线性加速度 [x, y, z]（Molang 表达式字符串）
      * @param linearDragCoefficient 线性阻力系数（Molang），可为 null
+     * @param rotationAcceleration 旋转加速度（Molang，度/秒²），可为 null
+     * @param rotationDragCoefficient 旋转阻力系数（Molang），可为 null
      */
-    record Dynamic(@Nullable String[] linearAcceleration, @Nullable String linearDragCoefficient) implements ParticleMotion {}
+    record Dynamic(@Nullable String[] linearAcceleration, @Nullable String linearDragCoefficient,
+                   @Nullable String rotationAcceleration, @Nullable String rotationDragCoefficient) implements ParticleMotion {}
 
     /**
      * 参数化运动。对应 "minecraft:particle_motion_parametric"。

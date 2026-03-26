@@ -1,6 +1,7 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.common.animation;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.BoneIndexProvider;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.common.ParticleEffectDataKeyframe;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.ResourceLocationKeyframe;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.pojo.*;
 import com.maydaymemory.mae.basic.*;
@@ -19,6 +20,7 @@ import java.util.Map;
 public class BedrockAnimation extends BasicAnimation {
     private static final float DEGREE_TO_ANGLE = (float) (Math.PI / 180);
     public static final String SOUND_CHANNEL_NAME = "sound_effects";
+    public static final String PARTICLE_CHANNEL_NAME = "particle_effects";
 
     private float specifiedEndTimeS = -1;
 
@@ -59,12 +61,20 @@ public class BedrockAnimation extends BasicAnimation {
             }
         }
         SoundEffectKeyframes soundEffects = pojo.getSoundEffects();
-        if (soundEffects != null) {
+        if (soundEffects != null && soundEffects.getKeyframes() != null) {
             ArrayList<Keyframe<ResourceLocation>> keyframes = new ArrayList<>();
             for (Double2ObjectMap.Entry<ResourceLocation> entry : soundEffects.getKeyframes().double2ObjectEntrySet()) {
                 keyframes.add(new ResourceLocationKeyframe((float) entry.getDoubleKey(), entry.getValue()));
             }
             animation.setClipChannel(SOUND_CHANNEL_NAME, new ArrayClipChannel<>(keyframes));
+        }
+        ParticleEffectKeyframes particleEffects = pojo.getParticleEffects();
+        if (particleEffects != null && particleEffects.getKeyframes() != null) {
+            ArrayList<Keyframe<ParticleEffectData>> keyframes = new ArrayList<>();
+            for (Double2ObjectMap.Entry<ParticleEffectData> entry : particleEffects.getKeyframes().double2ObjectEntrySet()) {
+                keyframes.add(new ParticleEffectDataKeyframe((float) entry.getDoubleKey(), entry.getValue()));
+            }
+            animation.setClipChannel(PARTICLE_CHANNEL_NAME, new ArrayClipChannel<>(keyframes));
         }
         float animationLength = (float) pojo.getAnimationLength();
         animation.setSpecifiedEndTimeS(animationLength);

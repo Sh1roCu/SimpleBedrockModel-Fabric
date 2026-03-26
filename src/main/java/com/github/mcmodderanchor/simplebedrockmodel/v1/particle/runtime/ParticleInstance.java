@@ -12,6 +12,9 @@ public class ParticleInstance {
     public float r = 1f, g = 1f, b = 1f, a = 1f;
     // 尺寸
     public float width = 0.1f, height = 0.1f;
+    // 旋转（度）
+    public float rotation;
+    public float rotationRate;
     // 生命周期
     public float age;
     public float maxLifetime;
@@ -33,6 +36,8 @@ public class ParticleInstance {
         vx = vy = vz = 0;
         r = g = b = a = 1f;
         width = height = 0.1f;
+        rotation = 0;
+        rotationRate = 0;
         age = 0;
         maxLifetime = 1;
         random1 = random2 = random3 = random4 = 0;
@@ -49,6 +54,7 @@ public class ParticleInstance {
         x += vx * dt;
         y += vy * dt;
         z += vz * dt;
+        rotation += rotationRate * dt;
         age += dt;
         if (age >= maxLifetime) {
             alive = false;

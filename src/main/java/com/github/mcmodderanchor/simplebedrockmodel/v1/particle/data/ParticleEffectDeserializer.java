@@ -97,6 +97,10 @@ public class ParticleEffectDeserializer implements JsonDeserializer<ParticleEffe
             case "minecraft:particle_lifetime_expression" -> parseLifetimeExpression(value.getAsJsonObject());
             case "minecraft:particle_initial_speed" -> parseInitialSpeed(value);
             case "minecraft:particle_appearance_tinting" -> parseAppearanceTinting(value.getAsJsonObject());
+            case "minecraft:particle_initialization" -> parseParticleInitialization(value.getAsJsonObject());
+            case "minecraft:particle_initial_spin" -> parseParticleInitialSpin(value.getAsJsonObject());
+            case "minecraft:emitter_local_space" -> parseEmitterLocalSpace(value.getAsJsonObject());
+            case "minecraft:particle_motion_collision" -> parseMotionCollision(value.getAsJsonObject());
             default -> null; // 未知组件，跳过
         };
     }
@@ -127,53 +131,69 @@ public class ParticleEffectDeserializer implements JsonDeserializer<ParticleEffe
         return new EmitterLifetime.Once(activeTime);
     }
 
+    // ---- Emitter Local Space ----
+
+    private EmitterLocalSpace parseEmitterLocalSpace(JsonObject obj) {
+        boolean position = obj.has("position") && obj.get("position").getAsBoolean();
+        boolean rotation = obj.has("rotation") && obj.get("rotation").getAsBoolean();
+        boolean velocity = obj.has("velocity") && obj.get("velocity").getAsBoolean();
+        return new EmitterLocalSpace(position, rotation, velocity);
+    }
+
     // ---- Emitter Shape ----
 
     private EmitterShape.Point parseEmitterShapePoint(JsonObject obj) {
         String[] offset = getMolangArray3(obj, "offset", "0", "0", "0");
-        String[] direction = parseShapeDirection(obj);
-        return new EmitterShape.Point(offset, direction);
+        var dirResult = parseShapeDirection(obj);
+        return new EmitterShape.Point(offset, dirResult.direction, dirResult.mode);
     }
 
     private EmitterShape.Sphere parseEmitterShapeSphere(JsonObject obj) {
         String[] offset = getMolangArray3(obj, "offset", "0", "0", "0");
         String radius = getMolang(obj, "radius", "1");
         boolean surfaceOnly = obj.has("surface_only") && obj.get("surface_only").getAsBoolean();
-        String[] direction = parseShapeDirection(obj);
-        return new EmitterShape.Sphere(offset, radius, surfaceOnly, direction);
+        var dirResult = parseShapeDirection(obj);
+        return new EmitterShape.Sphere(offset, radius, surfaceOnly, dirResult.direction, dirResult.mode);
     }
 
     private EmitterShape.Box parseEmitterShapeBox(JsonObject obj) {
         String[] offset = getMolangArray3(obj, "offset", "0", "0", "0");
         String[] halfDimensions = getMolangArray3(obj, "half_dimensions", "0.5", "0.5", "0.5");
         boolean surfaceOnly = obj.has("surface_only") && obj.get("surface_only").getAsBoolean();
-        String[] direction = parseShapeDirection(obj);
-        return new EmitterShape.Box(offset, halfDimensions, surfaceOnly, direction);
+        var dirResult = parseShapeDirection(obj);
+        return new EmitterShape.Box(offset, halfDimensions, surfaceOnly, dirResult.direction, dirResult.mode);
     }
+
+    private record DirectionParseResult(@Nullable String[] direction, EmitterShape.DirectionMode mode) {}
 
     /**
      * 解析形状的 direction 字段。
      * <ul>
-     *   <li>缺失或 {@code "outwards"} / {@code "inwards"} → 返回 null（运行时根据位置计算）</li>
-     *   <li>数组 [x, y, z] → 返回 Molang 表达式数组</li>
+     *   <li>缺失或 {@code "outwards"} → OUTWARDS 模式</li>
+     *   <li>{@code "inwards"} → INWARDS 模式</li>
+     *   <li>数组 [x, y, z] → CUSTOM 模式</li>
      * </ul>
      */
-    @Nullable
-    private static String[] parseShapeDirection(JsonObject obj) {
-        if (!obj.has("direction")) return null;
+    private static DirectionParseResult parseShapeDirection(JsonObject obj) {
+        if (!obj.has("direction")) return new DirectionParseResult(null, EmitterShape.DirectionMode.OUTWARDS);
         JsonElement elem = obj.get("direction");
-        // "outwards" / "inwards" 字符串 → null
-        if (elem.isJsonPrimitive() && elem.getAsJsonPrimitive().isString()) return null;
-        // 数组
+        if (elem.isJsonPrimitive() && elem.getAsJsonPrimitive().isString()) {
+            String str = elem.getAsString().toLowerCase();
+            if ("inwards".equals(str)) {
+                return new DirectionParseResult(null, EmitterShape.DirectionMode.INWARDS);
+            }
+            return new DirectionParseResult(null, EmitterShape.DirectionMode.OUTWARDS);
+        }
         if (elem.isJsonArray()) {
             JsonArray arr = elem.getAsJsonArray();
-            return new String[]{
+            String[] dir = new String[]{
                     molangFromElement(arr.size() > 0 ? arr.get(0) : null, "0"),
                     molangFromElement(arr.size() > 1 ? arr.get(1) : null, "0"),
                     molangFromElement(arr.size() > 2 ? arr.get(2) : null, "0")
             };
+            return new DirectionParseResult(dir, EmitterShape.DirectionMode.CUSTOM);
         }
-        return null;
+        return new DirectionParseResult(null, EmitterShape.DirectionMode.OUTWARDS);
     }
 
     // ---- Particle Appearance Billboard ----
@@ -187,9 +207,17 @@ public class ParticleEffectDeserializer implements JsonDeserializer<ParticleEffe
         ParticleAppearanceBillboard.FaceCameraMode mode = parseFaceCameraMode(modeStr);
 
         // uv
-        ParticleAppearanceBillboard.UVConfig uv = parseUVConfig(obj.has("uv") ? obj.getAsJsonObject("uv") : null);
+        JsonObject uvObj = obj.has("uv") ? obj.getAsJsonObject("uv") : null;
+        ParticleAppearanceBillboard.UVConfig uv = null;
+        ParticleAppearanceBillboard.FlipbookConfig flipbook = null;
 
-        return new ParticleAppearanceBillboard(size, mode, uv);
+        if (uvObj != null && uvObj.has("flipbook")) {
+            flipbook = parseFlipbookConfig(uvObj);
+        } else {
+            uv = parseUVConfig(uvObj);
+        }
+
+        return new ParticleAppearanceBillboard(size, mode, uv, flipbook);
     }
 
     private ParticleAppearanceBillboard.FaceCameraMode parseFaceCameraMode(String mode) {
@@ -235,18 +263,43 @@ public class ParticleEffectDeserializer implements JsonDeserializer<ParticleEffe
         return new ParticleAppearanceBillboard.UVConfig("0", "0", String.valueOf(texW), String.valueOf(texH), texW, texH);
     }
 
+    private ParticleAppearanceBillboard.FlipbookConfig parseFlipbookConfig(JsonObject uvObj) {
+        int texW = uvObj.has("texture_width") ? uvObj.get("texture_width").getAsInt() : 1;
+        int texH = uvObj.has("texture_height") ? uvObj.get("texture_height").getAsInt() : 1;
+        JsonObject fb = uvObj.getAsJsonObject("flipbook");
+        String[] baseUV = getMolangArray(fb, "base_UV", 2, "0", "0");
+        String[] sizeUV = getMolangArray(fb, "size_UV", 2, "1", "1");
+        String[] stepUV = getMolangArray(fb, "step_UV", 2, "0", "0");
+        float fps = fb.has("frames_per_second") ? fb.get("frames_per_second").getAsFloat() : 1;
+        String maxFrame = getMolang(fb, "max_frame", "1");
+        boolean stretch = fb.has("stretch_to_lifetime") && fb.get("stretch_to_lifetime").getAsBoolean();
+        boolean loop = fb.has("loop") && fb.get("loop").getAsBoolean();
+        return new ParticleAppearanceBillboard.FlipbookConfig(baseUV, sizeUV, stepUV, fps, maxFrame, stretch, loop, texW, texH);
+    }
+
     // ---- Particle Motion ----
 
     private ParticleMotion.Dynamic parseMotionDynamic(JsonObject obj) {
         String[] accel = obj.has("linear_acceleration") ? getMolangArray3(obj, "linear_acceleration", "0", "0", "0") : null;
         String drag = obj.has("linear_drag_coefficient") ? getMolang(obj, "linear_drag_coefficient", "0") : null;
-        return new ParticleMotion.Dynamic(accel, drag);
+        String rotAccel = obj.has("rotation_acceleration") ? getMolang(obj, "rotation_acceleration", "0") : null;
+        String rotDrag = obj.has("rotation_drag_coefficient") ? getMolang(obj, "rotation_drag_coefficient", "0") : null;
+        return new ParticleMotion.Dynamic(accel, drag, rotAccel, rotDrag);
     }
 
     private ParticleMotion.Parametric parseMotionParametric(JsonObject obj) {
         String[] pos = obj.has("relative_position") ? getMolangArray3(obj, "relative_position", "0", "0", "0") : null;
         String[] dir = obj.has("direction") ? getMolangArray3(obj, "direction", "0", "0", "0") : null;
         return new ParticleMotion.Parametric(pos, dir);
+    }
+
+    // TODO: 运行时碰撞逻辑尚未实现，仅解析存储数据
+    private ParticleMotionCollision parseMotionCollision(JsonObject obj) {
+        float drag = obj.has("collision_drag") ? obj.get("collision_drag").getAsFloat() : 0;
+        float restitution = obj.has("coefficient_of_restitution") ? obj.get("coefficient_of_restitution").getAsFloat() : 1;
+        float radius = obj.has("collision_radius") ? obj.get("collision_radius").getAsFloat() : 0.1f;
+        boolean expire = obj.has("expire_on_contact") && obj.get("expire_on_contact").getAsBoolean();
+        return new ParticleMotionCollision(drag, restitution, radius, expire);
     }
 
     // ---- Particle Lifetime ----
@@ -263,6 +316,19 @@ public class ParticleEffectDeserializer implements JsonDeserializer<ParticleEffe
         // 可以是数字或 Molang 字符串
         String speed = molangFromElement(value, "0");
         return new ParticleInitialSpeed(speed);
+    }
+
+    // ---- Particle Initialization ----
+
+    private ParticleInitialization parseParticleInitialization(JsonObject obj) {
+        String perRender = obj.has("per_render_expression") ? getMolang(obj, "per_render_expression", "") : null;
+        return new ParticleInitialization(perRender);
+    }
+
+    private ParticleInitialSpin parseParticleInitialSpin(JsonObject obj) {
+        String rotation = getMolang(obj, "rotation", "0");
+        String rotationRate = getMolang(obj, "rotation_rate", "0");
+        return new ParticleInitialSpin(rotation, rotationRate);
     }
 
     // ---- Particle Appearance Tinting ----
@@ -312,15 +378,17 @@ public class ParticleEffectDeserializer implements JsonDeserializer<ParticleEffe
         String interpolant = getMolang(obj, "interpolant", "0");
         JsonObject gradient = obj.getAsJsonObject("gradient");
         if (gradient == null) {
-            return new ParticleAppearanceTinting.GradientColor(interpolant, new float[][]{{1, 1, 1, 1}});
+            return new ParticleAppearanceTinting.GradientColor(interpolant, new float[]{0}, new float[][]{{1, 1, 1, 1}});
         }
 
         // 渐变是 { "0.0": "#RRGGBB", "1.0": "#RRGGBB" } 或 { "0.0": [r,g,b,a], ... }
         List<Map.Entry<String, JsonElement>> entries = new ArrayList<>(gradient.entrySet());
         entries.sort((a, b) -> Double.compare(Double.parseDouble(a.getKey()), Double.parseDouble(b.getKey())));
 
+        float[] stops = new float[entries.size()];
         float[][] colors = new float[entries.size()][4];
         for (int i = 0; i < entries.size(); i++) {
+            stops[i] = Float.parseFloat(entries.get(i).getKey());
             JsonElement colorElem = entries.get(i).getValue();
             if (colorElem.isJsonPrimitive() && colorElem.getAsJsonPrimitive().isString()) {
                 colors[i] = parseHexColor(colorElem.getAsString());
@@ -332,7 +400,7 @@ public class ParticleEffectDeserializer implements JsonDeserializer<ParticleEffe
                 colors[i][3] = arr.size() > 3 ? arr.get(3).getAsFloat() : 1f;
             }
         }
-        return new ParticleAppearanceTinting.GradientColor(interpolant, colors);
+        return new ParticleAppearanceTinting.GradientColor(interpolant, stops, colors);
     }
 
     // ---- Utility ----

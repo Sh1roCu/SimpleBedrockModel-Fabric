@@ -19,7 +19,8 @@ public sealed interface ParticleAppearanceTinting extends IParticleComponent {
     /**
      * 渐变颜色。
      * @param interpolant 插值因子（Molang）
+     * @param stops 每个颜色对应的位置值（与 colors 一一对应）
      * @param colors 颜色数组，每个元素为 [r, g, b, a] 的 float 数组
      */
-    record GradientColor(String interpolant, float[][] colors) implements ParticleAppearanceTinting {}
+    record GradientColor(String interpolant, float[] stops, float[][] colors) implements ParticleAppearanceTinting {}
 }

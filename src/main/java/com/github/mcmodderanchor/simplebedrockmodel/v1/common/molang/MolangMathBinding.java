@@ -24,13 +24,18 @@ public final class MolangMathBinding implements ObjectValue {
         func3("clamp", (v, min, max) -> Math.max(Math.min(v, max), min));
         func1("cos", v -> Math.cos(v * RADIAN));
         func3("die_roll", (amount, low, high) -> {
+            double lo = Math.min(low, high), hi = Math.max(low, high);
             double result = 0;
-            for (int i = 0; i < (int) amount; i++) result += RANDOM.nextInt((int) high) + low;
+            int range = (int) hi;
+            if (range <= 0) return 0.0;
+            for (int i = 0; i < (int) amount; i++) result += RANDOM.nextInt(range) + lo;
             return result / 4.0;
         });
         func3("die_roll_integer", (amount, low, high) -> {
+            int a = (int) Math.min(low, high), b = (int) Math.max(low, high);
+            if (a == b) return a;
             int result = 0;
-            for (int i = 0; i < (int) amount; i++) result += RANDOM.nextInt((int) low, (int) high);
+            for (int i = 0; i < (int) amount; i++) result += RANDOM.nextInt(a, b);
             return result;
         });
         func1("exp", Math::exp);
@@ -45,8 +50,11 @@ public final class MolangMathBinding implements ObjectValue {
         func2("mod", (a, b) -> a % b);
         constant("pi", Math.PI);
         func2("pow", Math::pow);
-        func2("random", (min, max) -> RANDOM.nextDouble(min, max));
-        func2("random_integer", (min, max) -> (double) RANDOM.nextInt((int) min, (int) max));
+        func2("random", (min, max) -> min < max ? RANDOM.nextDouble(min, max) : min > max ? RANDOM.nextDouble(max, min) : min);
+        func2("random_integer", (min, max) -> {
+            int a = (int) min, b = (int) max;
+            return a < b ? (double) RANDOM.nextInt(a, b) : a > b ? (double) RANDOM.nextInt(b, a) : (double) a;
+        });
         func1("round", v -> (double) Math.round(v));
         func1("sin", v -> Math.sin(v * RADIAN));
         func1("sqrt", Math::sqrt);

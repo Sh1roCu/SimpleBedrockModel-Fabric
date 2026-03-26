@@ -4,6 +4,9 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.client.compat.sodium.Sodi
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.BoneIndexProvider;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.pojo.*;
 import com.google.common.collect.Collections2;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.maydaymemory.mae.basic.*;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -209,6 +212,7 @@ public class BedrockModel implements Skeleton, BoneIndexProvider {
                 root.addChild(part);
             }
             // 塞入 cubes
+            part.setLocators(parseLocators(bone));
             if (bone.getCubes() != null) {
                 for (CubesItem cube : bone.getCubes()) {
                     float[] uv = cube.getUv();
@@ -269,6 +273,43 @@ public class BedrockModel implements Skeleton, BoneIndexProvider {
         }
         // 将所有相对 pivot 转换为绝对 pivot，使用 DFS 实现
         convertPivot(root);
+    }
+
+    private Map<String, LocatorData> parseLocators(BonesItem bone) {
+        Map<String, JsonElement> locators = bone.getLocators();
+        if (locators == null || locators.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, LocatorData> parsed = new HashMap<>();
+        for (Map.Entry<String, JsonElement> entry : locators.entrySet()) {
+            parsed.put(entry.getKey(), parseLocator(entry.getValue()));
+        }
+        return Map.copyOf(parsed);
+    }
+
+    private LocatorData parseLocator(JsonElement element) {
+        if (element == null || element.isJsonNull()) {
+            return LocatorData.EMPTY;
+        }
+        if (element.isJsonArray()) {
+            return new LocatorData(parseLocatorArray(element.getAsJsonArray()), new float[3]);
+        }
+        if (element.isJsonObject()) {
+            JsonObject object = element.getAsJsonObject();
+            float[] offset = object.has("offset") ? parseLocatorArray(object.getAsJsonArray("offset")) : new float[3];
+            float[] rotation = object.has("rotation") ? parseLocatorArray(object.getAsJsonArray("rotation")) : new float[3];
+            return new LocatorData(offset, rotation);
+        }
+        return LocatorData.EMPTY;
+    }
+
+    private float[] parseLocatorArray(JsonArray array) {
+        float[] values = new float[3];
+        int size = Math.min(array.size(), values.length);
+        for (int i = 0; i < size; i++) {
+            values[i] = array.get(i).getAsFloat();
+        }
+        return values;
     }
 
     @Override

@@ -42,6 +42,17 @@ public final class BillboardHelper {
         Vector3f axisY = new Vector3f(0, 1, 0);
         applyBillboardAxes(axisX, axisY, mode, particle, pose);
 
+        // 应用粒子自旋旋转
+        if (particle.rotation != 0) {
+            float rad = (float) Math.toRadians(particle.rotation);
+            float cos = (float) Math.cos(rad);
+            float sin = (float) Math.sin(rad);
+            float ax = axisX.x, ay = axisX.y, az = axisX.z;
+            float bx = axisY.x, by = axisY.y, bz = axisY.z;
+            axisX.set(ax * cos + bx * sin, ay * cos + by * sin, az * cos + bz * sin);
+            axisY.set(-ax * sin + bx * cos, -ay * sin + by * cos, -az * sin + bz * cos);
+        }
+
         // 直接在视图空间中构建 4 个顶点
         float cx = viewPos.x, cy = viewPos.y, cz = viewPos.z;
 
