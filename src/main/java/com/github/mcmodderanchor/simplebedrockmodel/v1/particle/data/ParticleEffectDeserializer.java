@@ -101,6 +101,7 @@ public class ParticleEffectDeserializer implements JsonDeserializer<ParticleEffe
             case "minecraft:particle_initial_spin" -> parseParticleInitialSpin(value.getAsJsonObject());
             case "minecraft:emitter_local_space" -> parseEmitterLocalSpace(value.getAsJsonObject());
             case "minecraft:particle_motion_collision" -> parseMotionCollision(value.getAsJsonObject());
+            case "sbm:fp_emitter_local_space" -> parseFPEmitterLocalSpace(value.getAsJsonObject());
             default -> null; // 未知组件，跳过
         };
     }
@@ -138,6 +139,14 @@ public class ParticleEffectDeserializer implements JsonDeserializer<ParticleEffe
         boolean rotation = obj.has("rotation") && obj.get("rotation").getAsBoolean();
         boolean velocity = obj.has("velocity") && obj.get("velocity").getAsBoolean();
         return new EmitterLocalSpace(position, rotation, velocity);
+    }
+
+    private FPEmitterLocalSpace parseFPEmitterLocalSpace(JsonObject obj) {
+        boolean position = obj.has("position") && obj.get("position").getAsBoolean();
+        boolean rotation = obj.has("rotation") && obj.get("rotation").getAsBoolean();
+        boolean velocity = obj.has("velocity") && obj.get("velocity").getAsBoolean();
+        boolean toWorld = obj.has("to_world") && obj.get("to_world").getAsBoolean();
+        return new FPEmitterLocalSpace(position, rotation, velocity, toWorld);
     }
 
     // ---- Emitter Shape ----

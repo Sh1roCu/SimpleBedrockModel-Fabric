@@ -58,6 +58,13 @@ public class ParticleEmitterInstance {
     private final boolean localRotation;
     private final boolean localVelocity;
 
+    // 第一人称脱离模式（sbm:fp_emitter_local_space）
+    private boolean fpMode = false;
+    private boolean fpLocalPosition = false;
+    private boolean fpLocalRotation = false;
+    private boolean fpLocalVelocity = false;
+    private boolean fpToWorld = false;
+
     // 粒子生成回调
     @Nullable
     private ParticleSpawnCallback spawnCallback;
@@ -90,9 +97,11 @@ public class ParticleEmitterInstance {
             this.localPosition = localSpace.position();
             // position=false, rotation=true 是无效组合，按 rotation=false 处理
             this.localRotation = localSpace.position() && localSpace.rotation();
+            this.localVelocity = localSpace.velocity();
         } else {
             this.localPosition = false;
             this.localRotation = false;
+            this.localVelocity = false;
         }
 
         // 计算发射器生命周期
@@ -132,6 +141,10 @@ public class ParticleEmitterInstance {
 
     public boolean isLocalRotation() {
         return localRotation;
+    }
+
+    public boolean isLocalVelocity() {
+        return localVelocity;
     }
 
     /**
@@ -394,9 +407,17 @@ public class ParticleEmitterInstance {
      * 粒子的位置和速度最初在发射器局部空间中计算。
      * 根据 localPosition / localRotation 决定是否转换到世界空间。
      * 同时从变换矩阵中提取缩放快照存入粒子。
+     * <p>
+     * 当 FP 模式启用且 fpLocalPosition=true 时，粒子在发射时使用定位器位置
+     * （通过 worldTransform 转换到摄像机空间），但标记为 fpDetached 而非 worldSpace，
+     * 使其留在内部列表由第一人称管线管理。
      */
     private void applyLocalSpaceOnSpawn(ParticleInstance p) {
-        if (!localPosition) {
+        // 确定实际使用的 local space 配置
+        boolean effectiveLocalPos = fpMode ? fpLocalPosition : localPosition;
+        boolean effectiveLocalRot = fpMode ? fpLocalRotation : localRotation;
+
+        if (!effectiveLocalPos) {
             // 从 worldTransform 提取缩放（取第一列长度作为统一缩放）
             float scale = (float) Math.sqrt(
                     worldTransform.m00() * worldTransform.m00() +
@@ -411,29 +432,61 @@ public class ParticleEmitterInstance {
             p.z = worldPos.z;
             p.worldSpace = true;
 
-            if (!localRotation) {
-                // 将局部速度转换到世界空间：旋转方向 + 缩放速度大小
-                float c0x = worldTransform.m00(), c0y = worldTransform.m01(), c0z = worldTransform.m02();
-                float c1x = worldTransform.m10(), c1y = worldTransform.m11(), c1z = worldTransform.m12();
-                float c2x = worldTransform.m20(), c2y = worldTransform.m21(), c2z = worldTransform.m22();
-                float s0 = (float) Math.sqrt(c0x * c0x + c0y * c0y + c0z * c0z);
-                float s1 = (float) Math.sqrt(c1x * c1x + c1y * c1y + c1z * c1z);
-                float s2 = (float) Math.sqrt(c2x * c2x + c2y * c2y + c2z * c2z);
-                if (s0 > 1e-6f && s1 > 1e-6f && s2 > 1e-6f) {
-                    // 先旋转方向（归一化列向量）
-                    float rx = (c0x / s0) * p.vx + (c1x / s1) * p.vy + (c2x / s2) * p.vz;
-                    float ry = (c0y / s0) * p.vx + (c1y / s1) * p.vy + (c2y / s2) * p.vz;
-                    float rz = (c0z / s0) * p.vx + (c1z / s1) * p.vy + (c2z / s2) * p.vz;
-                    // 再乘以缩放
-                    p.vx = rx * scale;
-                    p.vy = ry * scale;
-                    p.vz = rz * scale;
-                }
+            if (!effectiveLocalRot) {
+                transformVelocityToWorldSpace(p, scale);
             } else {
                 // 速度留在局部空间方向，但大小仍需缩放
                 p.vx *= scale;
                 p.vy *= scale;
                 p.vz *= scale;
+            }
+        } else if (fpMode) {
+            // FP 模式下 position=true：发射时使用定位器位置，但发射后脱离定位器。
+            // toWorld 控制脱离后的粒子去向。
+            if (fpToWorld) {
+                // 投放到世界：用 worldTransform 转换到摄像机空间，标记 worldSpace
+                float scale = (float) Math.sqrt(
+                        worldTransform.m00() * worldTransform.m00() +
+                        worldTransform.m01() * worldTransform.m01() +
+                        worldTransform.m02() * worldTransform.m02());
+                p.spawnScale = scale;
+
+                Vector4f worldPos = worldTransform.transform(new Vector4f(p.x, p.y, p.z, 1));
+                p.x = worldPos.x;
+                p.y = worldPos.y;
+                p.z = worldPos.z;
+                p.worldSpace = true;
+
+                if (!effectiveLocalRot) {
+                    transformVelocityToWorldSpace(p, scale);
+                } else {
+                    p.vx *= scale;
+                    p.vy *= scale;
+                    p.vz *= scale;
+                }
+            } else {
+                // 留在第一人称管线内部：用 emitterTransform 转换到模型空间，
+                // 粒子跟随摄像机但不再跟随定位器
+                float scale = (float) Math.sqrt(
+                        emitterTransform.m00() * emitterTransform.m00() +
+                        emitterTransform.m01() * emitterTransform.m01() +
+                        emitterTransform.m02() * emitterTransform.m02());
+                p.spawnScale = scale;
+
+                Vector4f modelPos = emitterTransform.transform(new Vector4f(p.x, p.y, p.z, 1));
+                p.x = modelPos.x;
+                p.y = modelPos.y;
+                p.z = modelPos.z;
+                p.fpDetached = true;
+
+                if (!effectiveLocalRot) {
+                    // 用 emitterTransform 转换速度方向到模型空间
+                    transformVelocityByMatrix(p, emitterTransform, scale);
+                } else {
+                    p.vx *= scale;
+                    p.vy *= scale;
+                    p.vz *= scale;
+                }
             }
         } else {
             // localPosition=true：粒子留在局部空间，从 emitterTransform（locator）提取缩放
@@ -441,6 +494,35 @@ public class ParticleEmitterInstance {
                     emitterTransform.m00() * emitterTransform.m00() +
                     emitterTransform.m01() * emitterTransform.m01() +
                     emitterTransform.m02() * emitterTransform.m02());
+        }
+    }
+
+    /**
+     * 将粒子的局部速度转换到世界空间：旋转方向 + 缩放速度大小。
+     */
+    private void transformVelocityToWorldSpace(ParticleInstance p, float scale) {
+        transformVelocityByMatrix(p, worldTransform, scale);
+    }
+
+    /**
+     * 用指定矩阵的旋转部分变换粒子速度方向，并乘以缩放。
+     */
+    private static void transformVelocityByMatrix(ParticleInstance p, Matrix4f mat, float scale) {
+        float c0x = mat.m00(), c0y = mat.m01(), c0z = mat.m02();
+        float c1x = mat.m10(), c1y = mat.m11(), c1z = mat.m12();
+        float c2x = mat.m20(), c2y = mat.m21(), c2z = mat.m22();
+        float s0 = (float) Math.sqrt(c0x * c0x + c0y * c0y + c0z * c0z);
+        float s1 = (float) Math.sqrt(c1x * c1x + c1y * c1y + c1z * c1z);
+        float s2 = (float) Math.sqrt(c2x * c2x + c2y * c2y + c2z * c2z);
+        if (s0 > 1e-6f && s1 > 1e-6f && s2 > 1e-6f) {
+            // 先旋转方向（归一化列向量）
+            float rx = (c0x / s0) * p.vx + (c1x / s1) * p.vy + (c2x / s2) * p.vz;
+            float ry = (c0y / s0) * p.vx + (c1y / s1) * p.vy + (c2y / s2) * p.vz;
+            float rz = (c0z / s0) * p.vx + (c1z / s1) * p.vy + (c2z / s2) * p.vz;
+            // 再乘以缩放
+            p.vx = rx * scale;
+            p.vy = ry * scale;
+            p.vz = rz * scale;
         }
     }
 
@@ -706,6 +788,30 @@ public class ParticleEmitterInstance {
     public void setWorldSpaceParticleCallback(@Nullable ParticleSpawnCallback callback) {
         this.spawnCallback = callback;
         this.externalParticleManagement = false;
+    }
+
+    /**
+     * 启用第一人称脱离模式。检查定义中是否有 {@link FPEmitterLocalSpace} 组件，
+     * 有则读取其配置，在粒子生成时覆盖原版 {@link EmitterLocalSpace} 的行为。
+     * <p>
+     * 当 FP 模式下 {@code position=true} 时，粒子在发射时使用定位器位置
+     * （通过 worldTransform 转换到摄像机空间），但发射后脱离定位器。
+     * {@code toWorld} 控制脱离后的粒子是投放到世界还是留在第一人称管线内部。
+     */
+    public void enableFPMode() {
+        FPEmitterLocalSpace fpSpace = definition.findComponent(FPEmitterLocalSpace.class);
+        if (fpSpace != null) {
+            this.fpMode = true;
+            this.fpLocalPosition = fpSpace.position();
+            // position=false, rotation=true 是无效组合，按 rotation=false 处理
+            this.fpLocalRotation = fpSpace.position() && fpSpace.rotation();
+            this.fpLocalVelocity = fpSpace.velocity();
+            this.fpToWorld = fpSpace.toWorld();
+        }
+    }
+
+    public boolean isFPMode() {
+        return fpMode;
     }
 
     public ParticleMolangEnvironment getMolang() {

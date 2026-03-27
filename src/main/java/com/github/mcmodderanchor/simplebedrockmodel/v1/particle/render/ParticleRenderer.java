@@ -13,6 +13,7 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import org.joml.Matrix4f;
 
+import javax.annotation.Nullable;
 import java.util.List;
 
 /**
@@ -31,12 +32,15 @@ public final class ParticleRenderer {
      * 发射器变换矩阵从 emitter 实例上读取。粒子坐标在发射器局部空间中，
      * 渲染时叠加发射器变换。
      *
-     * @param cameraPitch 摄像机 pitch（弧度）
-     * @param cameraRoll  摄像机 roll（弧度）
+     * @param cameraPitch    摄像机 pitch（弧度）
+     * @param cameraRoll     摄像机 roll（弧度）
+     * @param cameraRotation 摄像机旋转矩阵（世界对齐空间 → 视图空间），
+     *                       用于 fpDetached 粒子。可为 null。
      */
     public static void render(ParticleEmitterInstance emitter, PoseStack poseStack,
                                MultiBufferSource bufferSource, int light, float partialTick,
-                               float cameraPitch, float cameraRoll) {
+                               float cameraPitch, float cameraRoll,
+                               @Nullable Matrix4f cameraRotation) {
         List<ParticleInstance> particles = emitter.getParticles();
         if (particles.isEmpty()) return;
 
@@ -60,7 +64,7 @@ public final class ParticleRenderer {
 
         for (ParticleInstance particle : particles) {
             BillboardHelper.renderBillboard(particle, poseStack, consumer, light, mode,
-                    emitterTransform, localPos, localRot, cameraPitch, cameraRoll);
+                    emitterTransform, localPos, localRot, cameraPitch, cameraRoll, cameraRotation);
         }
     }
 

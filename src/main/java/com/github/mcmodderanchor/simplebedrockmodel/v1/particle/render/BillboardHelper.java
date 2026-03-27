@@ -5,6 +5,7 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.Particle
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.world.SnowStormParticle;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
@@ -12,6 +13,8 @@ import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
+
+import javax.annotation.Nullable;
 
 /**
  * Billboard quad 构建工具。
@@ -26,18 +29,23 @@ public final class BillboardHelper {
      * <p>
      * 仅处理局部空间粒子（{@code worldSpace=false}）。
      * 世界空间粒子由 {@link SnowStormParticle} 渲染。
+     *
+     * @param cameraRotation 摄像机旋转矩阵（世界对齐空间 → 视图空间），保留备用。可为 null。
      */
     public static void renderBillboard(ParticleInstance particle, PoseStack poseStack,
                                         VertexConsumer consumer, int light,
                                         ParticleAppearanceBillboard.FaceCameraMode mode,
                                         Matrix4f emitterTransform,
                                         boolean localPos, boolean localRot,
-                                        float cameraPitch, float cameraRoll) {
+                                        float cameraPitch, float cameraRoll,
+                                        @Nullable Matrix4f cameraRotation) {
         Matrix4f pose = poseStack.last().pose();
 
-        // 局部空间粒子的变换矩阵
+        // 选择变换矩阵：
+        // - localPos 且非 fpDetached：用 pose × emitterTransform（跟随定位器）
+        // - fpDetached 或非 localPos：用 pose（在模型空间中自由运动）
         Matrix4f effectivePose;
-        if (localPos) {
+        if (localPos && !particle.fpDetached) {
             effectivePose = new Matrix4f(pose).mul(emitterTransform);
         } else {
             effectivePose = pose;
@@ -55,7 +63,7 @@ public final class BillboardHelper {
         // 确定速度方向使用的变换矩阵
         float velX = particle.vx, velY = particle.vy, velZ = particle.vz;
         Matrix4f velPose;
-        if (localRot) {
+        if (localRot && !particle.fpDetached) {
             velPose = effectivePose;
         } else {
             velPose = pose;
@@ -64,7 +72,7 @@ public final class BillboardHelper {
         // 计算 billboard 的两个轴向量（视图空间中）
         Vector3f axisX = new Vector3f(1, 0, 0);
         Vector3f axisY = new Vector3f(0, 1, 0);
-        applyBillboardAxes(axisX, axisY, mode, velX, velY, velZ, velPose, cameraPitch, cameraRoll);
+        applyBillboardAxes(axisX, axisY, mode, velX, velY, velZ, velPose, pose, cameraPitch, cameraRoll);
 
         // 应用粒子自旋旋转
         if (particle.rotation != 0) {
@@ -106,7 +114,7 @@ public final class BillboardHelper {
                 .color(particle.r, particle.g, particle.b, particle.a)
                 .uv(u, v)
                 .overlayCoords(OverlayTexture.NO_OVERLAY)
-                .uv2(light)
+                .uv2(LightTexture.FULL_BRIGHT)
                 .normal(normal, 0, 1, 0)
                 .endVertex();
     }
@@ -117,13 +125,14 @@ public final class BillboardHelper {
      *
      * @param velX/velY/velZ 粒子速度（在粒子自身的坐标空间中）
      * @param velPose 用于将速度变换到视图空间的矩阵
+     * @param viewPose 视图矩阵（poseStack 的 pose），用于将世界坐标轴变换到视图空间
      * @param cameraPitch 摄像机 pitch（弧度）
      * @param cameraRoll  摄像机 roll（弧度）
      */
     private static void applyBillboardAxes(Vector3f axisX, Vector3f axisY,
                                             ParticleAppearanceBillboard.FaceCameraMode mode,
                                             float velX, float velY, float velZ,
-                                            Matrix4f velPose,
+                                            Matrix4f velPose, Matrix4f viewPose,
                                             float cameraPitch, float cameraRoll) {
         switch (mode) {
             case ROTATE_XYZ, LOOKAT_XYZ -> {
@@ -165,16 +174,29 @@ public final class BillboardHelper {
                     }
                 }
             }
-            case DIRECTION_X, DIRECTION_Y, DIRECTION_Z -> {
-                Vector3f viewVel = transformDirection(velPose, velX, velY, velZ);
-                float sLen = viewVel.x * viewVel.x + viewVel.y * viewVel.y;
-                if (sLen > 0.0001f) {
-                    float angle = (float) Math.atan2(viewVel.y, viewVel.x);
-                    float cos = (float) Math.cos(angle);
-                    float sin = (float) Math.sin(angle);
-                    axisX.set(cos, sin, 0);
-                    axisY.set(-sin, cos, 0);
-                }
+            case DIRECTION_X -> {
+                // 面片法线朝世界 X 轴，面片在 YZ 平面上
+                // 用视图矩阵将世界 Y 和 Z 轴变换到视图空间
+                Vector3f viewY = transformDirection(viewPose, 0, 1, 0).normalize();
+                Vector3f viewZ = transformDirection(viewPose, 0, 0, 1).normalize();
+                axisX.set(viewZ);
+                axisY.set(viewY);
+            }
+            case DIRECTION_Y -> {
+                // 面片法线朝世界 Y 轴，面片在 XZ 平面上
+                // 用视图矩阵将世界 X 和 Z 轴变换到视图空间
+                Vector3f viewX = transformDirection(viewPose, 1, 0, 0).normalize();
+                Vector3f viewZ = transformDirection(viewPose, 0, 0, 1).normalize();
+                axisX.set(viewX);
+                axisY.set(viewZ);
+            }
+            case DIRECTION_Z -> {
+                // 面片法线朝世界 Z 轴，面片在 XY 平面上
+                // 用视图矩阵将世界 X 和 Y 轴变换到视图空间
+                Vector3f viewX = transformDirection(viewPose, 1, 0, 0).normalize();
+                Vector3f viewY = transformDirection(viewPose, 0, 1, 0).normalize();
+                axisX.set(viewX);
+                axisY.set(viewY);
             }
             default -> {
                 // EMITTER_TRANSFORM_* 等模式：保持默认

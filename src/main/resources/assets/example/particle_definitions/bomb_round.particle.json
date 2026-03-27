@@ -5,13 +5,18 @@
 			"identifier": "confluence:bomb_round",
 			"basic_render_parameters": {
 				"material": "particles_add",
-				"texture": "particlestorm:bomb_round"
+				"texture": "example:particle/bomb_round"
 			}
 		},
 		"components": {
+			"sbm:fp_emitter_local_space": {
+				"position": true,
+				"rotation": false,
+				"to_world": false
+			},
 			"minecraft:emitter_local_space": {
 				"position": true,
-				"rotation": false
+				"rotation": true
 			},
 			"minecraft:emitter_rate_instant": {
 				"num_particles": 1

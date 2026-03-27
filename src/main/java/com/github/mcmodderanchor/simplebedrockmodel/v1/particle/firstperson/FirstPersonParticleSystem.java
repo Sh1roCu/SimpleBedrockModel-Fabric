@@ -1,6 +1,7 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.firstperson;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleEffectDefinition;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.EmitterLocalSpace;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.render.ParticleRenderer;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleEmitterInstance;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleInstance;
@@ -13,7 +14,9 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import org.joml.Matrix4f;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,6 +32,11 @@ public class FirstPersonParticleSystem {
     private final List<ParticleEmitterInstance> emitters = new ArrayList<>();
     private final ParticleMolangEnvironment molang = new ParticleMolangEnvironment();
 
+    // 摄像机速度追踪（用于 velocity=true 时给世界空间粒子叠加摄像机速度）
+    private double prevCamX, prevCamY, prevCamZ;
+    private float cameraVx, cameraVy, cameraVz; // blocks/second
+    private boolean hasPrevCam = false;
+
     /**
      * 添加一个粒子效果发射器。
      * <p>
@@ -39,6 +47,9 @@ public class FirstPersonParticleSystem {
      */
     public ParticleEmitterInstance addEmitter(ParticleEffectDefinition definition) {
         ParticleEmitterInstance emitter = new ParticleEmitterInstance(definition, molang);
+
+        // 启用第一人称模式（检查 sbm:fp_emitter_local_space 组件）
+        emitter.enableFPMode();
 
         // 设置世界空间粒子分流：worldSpace=true 的粒子投递到 ParticleEngine
         emitter.setWorldSpaceParticleCallback(particle ->
@@ -53,11 +64,12 @@ public class FirstPersonParticleSystem {
      * <p>
      * 第一人称管线中，世界空间粒子的坐标在"以摄像机为原点的世界对齐空间"中，
      * 需要加上摄像机世界位置转换为真正的世界坐标。
+     * 当 {@code emitter_local_space.velocity=true} 时，还需要叠加摄像机速度。
      */
-    private static void deliverWorldSpaceParticle(ParticleInstance particle,
-                                                   ParticleEffectDefinition definition,
-                                                   ParticleMolangEnvironment molang,
-                                                   ParticleEmitterInstance emitter) {
+    private void deliverWorldSpaceParticle(ParticleInstance particle,
+                                            ParticleEffectDefinition definition,
+                                            ParticleMolangEnvironment molang,
+                                            ParticleEmitterInstance emitter) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.particleEngine == null) return;
 
@@ -67,6 +79,13 @@ public class FirstPersonParticleSystem {
         particle.x += (float) camPos.x;
         particle.y += (float) camPos.y;
         particle.z += (float) camPos.z;
+
+        // velocity=true 时叠加摄像机（发射器）速度
+        if (emitter.isLocalVelocity()) {
+            particle.vx += cameraVx;
+            particle.vy += cameraVy;
+            particle.vz += cameraVz;
+        }
 
         SnowStormParticle worldParticle = new SnowStormParticle(
                 mc.level, particle, definition, molang, emitter);
@@ -81,6 +100,19 @@ public class FirstPersonParticleSystem {
      * @param dt 时间步长（秒）
      */
     public void tick(float dt) {
+        // 追踪摄像机速度和位移
+        updateCameraVelocity(dt);
+
+        // 补偿摄像机位移，使 fpDetached 和 worldSpace 粒子在摄像机空间中保持世界固定
+        if (hasPrevCam && dt > 0) {
+            float dx = cameraVx * dt;
+            float dy = cameraVy * dt;
+            float dz = cameraVz * dt;
+            for (ParticleEmitterInstance emitter : emitters) {
+                emitter.applyViewerOffset(dx, dy, dz);
+            }
+        }
+
         for (int i = emitters.size() - 1; i >= 0; i--) {
             ParticleEmitterInstance emitter = emitters.get(i);
             emitter.tick(dt);
@@ -90,19 +122,40 @@ public class FirstPersonParticleSystem {
         }
     }
 
+    private void updateCameraVelocity(float dt) {
+        Minecraft mc = Minecraft.getInstance();
+        Camera camera = mc.gameRenderer.getMainCamera();
+        Vec3 camPos = camera.getPosition();
+
+        if (hasPrevCam && dt > 0) {
+            cameraVx = (float) ((camPos.x - prevCamX) / dt);
+            cameraVy = (float) ((camPos.y - prevCamY) / dt);
+            cameraVz = (float) ((camPos.z - prevCamZ) / dt);
+        } else {
+            cameraVx = cameraVy = cameraVz = 0;
+        }
+
+        prevCamX = camPos.x;
+        prevCamY = camPos.y;
+        prevCamZ = camPos.z;
+        hasPrevCam = true;
+    }
+
     /**
      * 渲染所有局部空间粒子。在目标 PoseStack 坐标系中绘制。
      * <p>
      * 世界空间粒子由原版 ParticleEngine 渲染，不经过此方法。
      *
-     * @param cameraPitch  摄像机 pitch 角度（弧度）
-     * @param cameraRoll   摄像机 roll 角度（弧度）
+     * @param cameraPitch      摄像机 pitch 角度（弧度）
+     * @param cameraRoll       摄像机 roll 角度（弧度）
+     * @param cameraRotation   摄像机旋转矩阵（世界对齐空间 → 视图空间），
+     *                         用于 fpDetached 粒子的渲染。可为 null（无 fpDetached 粒子时）。
      */
     public void render(PoseStack poseStack, MultiBufferSource bufferSource, int light, float partialTick,
-                       float cameraPitch, float cameraRoll) {
+                       float cameraPitch, float cameraRoll, @Nullable Matrix4f cameraRotation) {
         for (ParticleEmitterInstance emitter : emitters) {
             ParticleRenderer.render(emitter, poseStack, bufferSource, light, partialTick,
-                    cameraPitch, cameraRoll);
+                    cameraPitch, cameraRoll, cameraRotation);
         }
     }
 
@@ -111,6 +164,7 @@ public class FirstPersonParticleSystem {
      */
     public void clear() {
         emitters.clear();
+        hasPrevCam = false;
     }
 
     /**

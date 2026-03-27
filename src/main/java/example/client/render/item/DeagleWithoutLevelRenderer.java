@@ -231,7 +231,7 @@ public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer 
                 // 渲染粒子（仅局部空间粒子，世界空间粒子由 ParticleEngine 渲染）
                 if (particleSystem.getParticleCount() > 0) {
                     particleSystem.render(poseStack, event.getMultiBufferSource(), event.getPackedLight(),
-                            event.getPartialTick(), cameraPitchRad, cameraRollRad);
+                            event.getPartialTick(), cameraPitchRad, cameraRollRad, cameraRotation);
                 }
 
             }

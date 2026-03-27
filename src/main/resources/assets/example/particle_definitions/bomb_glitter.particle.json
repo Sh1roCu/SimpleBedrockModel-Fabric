@@ -5,10 +5,15 @@
 			"identifier": "confluence:bomb_glitter",
 			"basic_render_parameters": {
 				"material": "particles_add",
-				"texture": "particlestorm:flash"
+				"texture": "example:particle/flash"
 			}
 		},
 		"components": {
+			"sbm:fp_emitter_local_space": {
+				"position": true,
+				"rotation": false,
+				"to_world": false
+			},
 			"minecraft:emitter_local_space": {
 				"position": true,
 				"rotation": false

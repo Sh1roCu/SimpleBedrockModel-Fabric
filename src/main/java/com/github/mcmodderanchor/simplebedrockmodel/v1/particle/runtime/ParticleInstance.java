@@ -28,6 +28,8 @@ public class ParticleInstance {
     public boolean alive = true;
     // 标记该粒子是否在世界空间中（emitter_local_space.position=false 时为 true）
     public boolean worldSpace = false;
+    // 标记该粒子是否在第一人称脱离模式（发射后脱离定位器，但不投放到世界）
+    public boolean fpDetached = false;
 
     public ParticleInstance() {
     }
@@ -50,6 +52,7 @@ public class ParticleInstance {
         spawnScale = 1f;
         alive = true;
         worldSpace = false;
+        fpDetached = false;
     }
 
     /**

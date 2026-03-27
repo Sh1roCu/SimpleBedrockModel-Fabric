@@ -9,8 +9,13 @@
 			}
 		},
 		"components": {
+			"sbm:fp_emitter_local_space": {
+				"position": true,
+				"rotation": false,
+				"to_world": false
+			},
 			"minecraft:emitter_local_space": {
-				"position": false,
+				"position": true,
 				"rotation": false
 			},
 			"minecraft:emitter_rate_instant": {
