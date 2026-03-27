@@ -2,10 +2,9 @@ package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.render;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.ParticleAppearanceBillboard;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleInstance;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.world.SnowStormParticle;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.Camera;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
@@ -22,22 +21,24 @@ public final class BillboardHelper {
 
     private BillboardHelper() {}
 
+    /**
+     * 渲染一个局部空间粒子的 billboard quad。
+     * <p>
+     * 仅处理局部空间粒子（{@code worldSpace=false}）。
+     * 世界空间粒子由 {@link SnowStormParticle} 渲染。
+     */
     public static void renderBillboard(ParticleInstance particle, PoseStack poseStack,
                                         VertexConsumer consumer, int light,
                                         ParticleAppearanceBillboard.FaceCameraMode mode,
                                         Matrix4f emitterTransform,
                                         boolean localPos, boolean localRot,
-                                        Matrix4f worldToView) {
+                                        float cameraPitch, float cameraRoll) {
         Matrix4f pose = poseStack.last().pose();
 
-        // 构建最终的变换矩阵：
-        // 局部空间粒子 → pose × emitterTransform（跟随发射器）
-        // 世界空间粒子 → worldToView（世界坐标 → 视图空间）
+        // 局部空间粒子的变换矩阵
         Matrix4f effectivePose;
-        if (!particle.worldSpace && localPos) {
+        if (localPos) {
             effectivePose = new Matrix4f(pose).mul(emitterTransform);
-        } else if (particle.worldSpace) {
-            effectivePose = worldToView;
         } else {
             effectivePose = pose;
         }
@@ -52,13 +53,9 @@ public final class BillboardHelper {
         float hh = particle.height * scale;
 
         // 确定速度方向使用的变换矩阵
-        // 如果 rotation 也是局部空间的，速度需要经过发射器变换
-        // 世界空间粒子的速度已在世界空间中，需要用 worldToView 转到视图空间
         float velX = particle.vx, velY = particle.vy, velZ = particle.vz;
         Matrix4f velPose;
-        if (particle.worldSpace) {
-            velPose = worldToView;
-        } else if (localRot) {
+        if (localRot) {
             velPose = effectivePose;
         } else {
             velPose = pose;
@@ -67,7 +64,7 @@ public final class BillboardHelper {
         // 计算 billboard 的两个轴向量（视图空间中）
         Vector3f axisX = new Vector3f(1, 0, 0);
         Vector3f axisY = new Vector3f(0, 1, 0);
-        applyBillboardAxes(axisX, axisY, mode, velX, velY, velZ, velPose);
+        applyBillboardAxes(axisX, axisY, mode, velX, velY, velZ, velPose, cameraPitch, cameraRoll);
 
         // 应用粒子自旋旋转
         if (particle.rotation != 0) {
@@ -120,21 +117,38 @@ public final class BillboardHelper {
      *
      * @param velX/velY/velZ 粒子速度（在粒子自身的坐标空间中）
      * @param velPose 用于将速度变换到视图空间的矩阵
+     * @param cameraPitch 摄像机 pitch（弧度）
+     * @param cameraRoll  摄像机 roll（弧度）
      */
     private static void applyBillboardAxes(Vector3f axisX, Vector3f axisY,
                                             ParticleAppearanceBillboard.FaceCameraMode mode,
                                             float velX, float velY, float velZ,
-                                            Matrix4f velPose) {
+                                            Matrix4f velPose,
+                                            float cameraPitch, float cameraRoll) {
         switch (mode) {
             case ROTATE_XYZ, LOOKAT_XYZ -> {
                 axisX.set(1, 0, 0);
                 axisY.set(0, 1, 0);
             }
             case ROTATE_Y, LOOKAT_Y -> {
-                Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
-                float pitch = (float) Math.toRadians(camera.getXRot());
-                axisX.set(1, 0, 0);
-                axisY.set(0, (float) Math.cos(pitch), (float) -Math.sin(pitch));
+                // 世界 Y 轴在视图空间中的投影（考虑 pitch 和 roll）
+                // 无 roll 时：axisX = (1, 0, 0), axisY = (0, cos(pitch), -sin(pitch))
+                // 有 roll 时需要额外绕 Z 轴旋转
+                float cosPitch = (float) Math.cos(cameraPitch);
+                float sinPitch = (float) Math.sin(cameraPitch);
+                float ax = 1, ay = 0;
+                float bx = 0, by = cosPitch, bz = -sinPitch;
+
+                if (cameraRoll != 0) {
+                    float cosRoll = (float) Math.cos(cameraRoll);
+                    float sinRoll = (float) Math.sin(cameraRoll);
+                    // 绕视图空间 Z 轴旋转 axisX 和 axisY
+                    axisX.set(ax * cosRoll + bx * sinRoll, ay * cosRoll + by * sinRoll, bz * sinRoll);
+                    axisY.set(-ax * sinRoll + bx * cosRoll, -ay * sinRoll + by * cosRoll, bz * cosRoll);
+                } else {
+                    axisX.set(ax, ay, 0);
+                    axisY.set(bx, by, bz);
+                }
             }
             case LOOKAT_DIRECTION -> {
                 Vector3f viewVel = transformDirection(velPose, velX, velY, velZ);

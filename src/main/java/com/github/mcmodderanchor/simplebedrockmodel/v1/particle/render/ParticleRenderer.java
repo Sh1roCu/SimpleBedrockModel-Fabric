@@ -16,7 +16,9 @@ import org.joml.Matrix4f;
 import java.util.List;
 
 /**
- * 粒子渲染器。将发射器中的所有粒子渲染到 PoseStack 局部坐标系中。
+ * 粒子渲染器。将发射器中的局部空间粒子渲染到 PoseStack 局部坐标系中。
+ * <p>
+ * 世界空间粒子由原版 {@code ParticleEngine} 渲染，不经过此渲染器。
  */
 @OnlyIn(Dist.CLIENT)
 public final class ParticleRenderer {
@@ -24,14 +26,17 @@ public final class ParticleRenderer {
     private ParticleRenderer() {}
 
     /**
-     * 渲染一个发射器的所有粒子。
+     * 渲染一个发射器的所有局部空间粒子。
      * <p>
-     * 发射器变换矩阵从 emitter 实例上读取。对于局部空间粒子（worldSpace=false），
-     * 渲染时会叠加发射器变换；对于世界空间粒子（worldSpace=true），直接使用粒子坐标。
+     * 发射器变换矩阵从 emitter 实例上读取。粒子坐标在发射器局部空间中，
+     * 渲染时叠加发射器变换。
+     *
+     * @param cameraPitch 摄像机 pitch（弧度）
+     * @param cameraRoll  摄像机 roll（弧度）
      */
     public static void render(ParticleEmitterInstance emitter, PoseStack poseStack,
                                MultiBufferSource bufferSource, int light, float partialTick,
-                               Matrix4f worldToView) {
+                               float cameraPitch, float cameraRoll) {
         List<ParticleInstance> particles = emitter.getParticles();
         if (particles.isEmpty()) return;
 
@@ -55,7 +60,7 @@ public final class ParticleRenderer {
 
         for (ParticleInstance particle : particles) {
             BillboardHelper.renderBillboard(particle, poseStack, consumer, light, mode,
-                    emitterTransform, localPos, localRot, worldToView);
+                    emitterTransform, localPos, localRot, cameraPitch, cameraRoll);
         }
     }
 

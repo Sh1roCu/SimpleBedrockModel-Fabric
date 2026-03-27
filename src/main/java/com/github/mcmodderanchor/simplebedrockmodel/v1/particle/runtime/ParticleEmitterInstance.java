@@ -2,6 +2,7 @@ package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleEffectDefinition;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.*;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.world.SnowStormParticle;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 import team.unnamed.mocha.runtime.MochaFunction;
@@ -55,6 +56,28 @@ public class ParticleEmitterInstance {
     // emitter_local_space 配置
     private final boolean localPosition;
     private final boolean localRotation;
+    private final boolean localVelocity;
+
+    // 粒子生成回调
+    @Nullable
+    private ParticleSpawnCallback spawnCallback;
+    private boolean externalParticleManagement;
+
+    /**
+     * 粒子生成回调接口。
+     * <p>
+     * 两种使用模式：
+     * <ul>
+     *   <li>全部外部管理（{@code externalParticleManagement=true}）：所有粒子都通过回调交给外部，不加入内部列表。
+     *       用于 {@link com.github.mcmodderanchor.simplebedrockmodel.v1.particle.world.WorldEmitterManager}。</li>
+     *   <li>世界空间粒子分流（{@code externalParticleManagement=false}）：仅 {@code worldSpace=true} 的粒子走回调，
+     *       局部空间粒子仍留在内部列表。用于第一人称管线将世界空间粒子投递到原版 ParticleEngine。</li>
+     * </ul>
+     */
+    @FunctionalInterface
+    public interface ParticleSpawnCallback {
+        void onParticleSpawned(ParticleInstance particle);
+    }
 
     public ParticleEmitterInstance(ParticleEffectDefinition definition, ParticleMolangEnvironment molang) {
         this.definition = definition;
@@ -238,7 +261,15 @@ public class ParticleEmitterInstance {
             applyLocalSpaceOnSpawn(p);
         }
 
-        particles.add(p);
+        // 粒子分流：
+        // 1. 全部外部管理模式：所有粒子走回调
+        // 2. 有回调但非全部外部管理：仅 worldSpace 粒子走回调，局部空间粒子留在内部
+        // 3. 无回调：全部留在内部列表
+        if (spawnCallback != null && (externalParticleManagement || p.worldSpace)) {
+            spawnCallback.onParticleSpawned(p);
+        } else {
+            particles.add(p);
+        }
     }
 
     private void applyShape(ParticleInstance p) {
@@ -510,62 +541,79 @@ public class ParticleEmitterInstance {
     }
 
     private void updateParticles(float dt) {
-        ParticleMotion motion = definition.findComponent(ParticleMotion.class);
-
         for (int i = particles.size() - 1; i >= 0; i--) {
             ParticleInstance p = particles.get(i);
-            molang.bindParticle(p.age, p.maxLifetime, p.random1, p.random2, p.random3, p.random4);
 
-            // 执行 per_render_expression（在其他组件求值之前，用于设置 variable.xxx）
-            if (compiled.perRenderExpression != null) {
-                compiled.perRenderExpression.evaluate();
-            }
-
-            if (motion instanceof ParticleMotion.Dynamic dynamic) {
-                // 应用加速度
-                if (compiled.accelX != null) {
-                    p.vx += (float) compiled.accelX.evaluate() * dt;
-                    p.vy += (float) compiled.accelY.evaluate() * dt;
-                    p.vz += (float) compiled.accelZ.evaluate() * dt;
-                }
-                // 应用阻力
-                if (compiled.dragCoefficient != null) {
-                    float drag = (float) compiled.dragCoefficient.evaluate();
-                    float factor = Math.max(0, 1f - drag * dt);
-                    p.vx *= factor;
-                    p.vy *= factor;
-                    p.vz *= factor;
-                }
-                // 应用旋转加速度
-                if (compiled.rotationAcceleration != null) {
-                    p.rotationRate += (float) compiled.rotationAcceleration.evaluate() * dt;
-                }
-                // 应用旋转阻力
-                if (compiled.rotationDragCoefficient != null) {
-                    float rotDrag = (float) compiled.rotationDragCoefficient.evaluate();
-                    float rotFactor = Math.max(0, 1f - rotDrag * dt);
-                    p.rotationRate *= rotFactor;
-                }
-            }
-
-            // 更新尺寸（可能随时间变化）
-            applyAppearance(p);
-
-            // 更新颜色
-            applyTinting(p);
-
-            p.tick(dt);
-
-            // 检查过期条件
-            if (compiled.expirationExpr != null) {
-                if (compiled.expirationExpr.evaluate() != 0) {
-                    p.alive = false;
-                }
-            }
+            updateSingleParticle(p, dt);
 
             if (!p.alive) {
                 particles.remove(i);
                 recycleParticle(p);
+            }
+        }
+    }
+
+    /**
+     * 对单个粒子执行一帧的组件驱动更新。
+     * <p>
+     * 包括：Molang 绑定、per_render_expression、动态运动（加速度/阻力/旋转）、
+     * 外观（尺寸/flipbook UV）、颜色、位置/旋转/age 更新、过期检查。
+     * <p>
+     * 此方法同时被内部 {@link #updateParticles(float)} 和外部
+     * {@link SnowStormParticle} 调用。
+     *
+     * @param p  要更新的粒子实例
+     * @param dt 时间步长（秒）
+     */
+    public void updateSingleParticle(ParticleInstance p, float dt) {
+        ParticleMotion motion = definition.findComponent(ParticleMotion.class);
+
+        molang.bindParticle(p.age, p.maxLifetime, p.random1, p.random2, p.random3, p.random4);
+
+        // 执行 per_render_expression（在其他组件求值之前，用于设置 variable.xxx）
+        if (compiled.perRenderExpression != null) {
+            compiled.perRenderExpression.evaluate();
+        }
+
+        if (motion instanceof ParticleMotion.Dynamic dynamic) {
+            // 应用加速度
+            if (compiled.accelX != null) {
+                p.vx += (float) compiled.accelX.evaluate() * dt;
+                p.vy += (float) compiled.accelY.evaluate() * dt;
+                p.vz += (float) compiled.accelZ.evaluate() * dt;
+            }
+            // 应用阻力
+            if (compiled.dragCoefficient != null) {
+                float drag = (float) compiled.dragCoefficient.evaluate();
+                float factor = Math.max(0, 1f - drag * dt);
+                p.vx *= factor;
+                p.vy *= factor;
+                p.vz *= factor;
+            }
+            // 应用旋转加速度
+            if (compiled.rotationAcceleration != null) {
+                p.rotationRate += (float) compiled.rotationAcceleration.evaluate() * dt;
+            }
+            // 应用旋转阻力
+            if (compiled.rotationDragCoefficient != null) {
+                float rotDrag = (float) compiled.rotationDragCoefficient.evaluate();
+                float rotFactor = Math.max(0, 1f - rotDrag * dt);
+                p.rotationRate *= rotFactor;
+            }
+        }
+
+        // 更新尺寸（可能随时间变化）
+        applyAppearance(p);
+
+        // 更新颜色
+        applyTinting(p);
+
+        p.tick(dt);
+
+        // 检查过期条件
+        if (compiled.expirationExpr != null) {
+            if (compiled.expirationExpr.evaluate() != 0) {
+                p.alive = false;
             }
         }
     }
@@ -632,6 +680,36 @@ public class ParticleEmitterInstance {
 
     public ParticleEffectDefinition getDefinition() {
         return definition;
+    }
+
+    /**
+     * 设置外部粒子管理模式。启用后，<b>所有</b>新生成的粒子不会加入内部列表，
+     * 而是通过 {@link ParticleSpawnCallback} 交给外部处理。
+     * <p>
+     * 用于 {@link com.github.mcmodderanchor.simplebedrockmodel.v1.particle.world.WorldEmitterManager}。
+     *
+     * @param callback 粒子生成回调，传 null 则恢复内部管理
+     */
+    public void setExternalParticleManagement(@Nullable ParticleSpawnCallback callback) {
+        this.spawnCallback = callback;
+        this.externalParticleManagement = callback != null;
+    }
+
+    /**
+     * 设置世界空间粒子分流回调。仅 {@code worldSpace=true} 的粒子走回调，
+     * 局部空间粒子仍留在内部列表由第一人称管线管理。
+     * <p>
+     * 用于第一人称管线将世界空间粒子投递到原版 ParticleEngine。
+     *
+     * @param callback 世界空间粒子回调，传 null 则取消分流
+     */
+    public void setWorldSpaceParticleCallback(@Nullable ParticleSpawnCallback callback) {
+        this.spawnCallback = callback;
+        this.externalParticleManagement = false;
+    }
+
+    public ParticleMolangEnvironment getMolang() {
+        return molang;
     }
 
     /**

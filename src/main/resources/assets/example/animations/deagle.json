@@ -678,10 +678,6 @@
 				"0.0": {
 					"effect": "confluence:bomb_spark",
 					"locator": "locator"
-				},
-				"0.1": {
-					"effect": "confluence:test_steady",
-					"locator": "locator"
 				}
 			}
 		},

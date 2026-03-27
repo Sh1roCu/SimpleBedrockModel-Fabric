@@ -5,9 +5,10 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.common.model.BedrockModel
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.pojo.ParticleEffectData;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.event.RegisterBedrockModelReloadListenerEvent;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleEffectDefinition;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.render.CameraStateCache;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.resource.ParticleDefinitionLoader;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleEmitterInstance;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleSystem;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.firstperson.FirstPersonParticleSystem;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -34,7 +35,6 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderHandEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -54,13 +54,10 @@ public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer 
     private static BedrockModel model;
 
     // 粒子系统
-    private static final ParticleSystem particleSystem = new ParticleSystem();
+    private static final FirstPersonParticleSystem particleSystem = new FirstPersonParticleSystem();
     // 发射器 → locator 名称映射
     private static final Map<ParticleEmitterInstance, String> emitterLocatorMap = new HashMap<>();
     private static long lastRenderTimeNano;
-    // 摄像机位置追踪（用于世界空间粒子的位移补偿）
-    private static double prevCamX, prevCamY, prevCamZ;
-    private static boolean hasPrevCam = false;
 
     // 暂时只能想到这么丑的办法
     @Mod.EventBusSubscriber(value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
@@ -80,7 +77,6 @@ public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer 
                 // 资源重载时清空粒子缓存
                 particleSystem.clear();
                 emitterLocatorMap.clear();
-                hasPrevCam = false;
             });
         }
     }
@@ -90,13 +86,14 @@ public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer 
     }
 
     /**
-     * 用摄像机的 pitch/yaw 构建视图旋转矩阵（与 Minecraft 内部一致）。
-     * Minecraft 的视图矩阵构建顺序：先绕 X 旋转 pitch，再绕 Y 旋转 (yaw + 180)。
+     * 用摄像机的 pitch/yaw/roll 构建视图旋转矩阵（与 Minecraft 内部一致）。
+     * Minecraft 的视图矩阵构建顺序：先绕 X 旋转 pitch，再绕 Y 旋转 (yaw + 180)，最后绕 Z 旋转 roll。
      */
-    private static Matrix4f buildCameraRotation(Camera camera) {
+    private static Matrix4f buildCameraRotation(Camera camera, float rollRadians) {
         return new Matrix4f()
                 .rotationX((float) Math.toRadians(camera.getXRot()))
-                .rotateY((float) Math.toRadians(camera.getYRot() + 180f));
+                .rotateY((float) Math.toRadians(camera.getYRot() + 180f))
+                .rotateZ(rollRadians);
     }
 
     @SubscribeEvent
@@ -156,10 +153,12 @@ public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer 
             PoseStack poseStack = event.getPoseStack();
             Camera camera = mc.gameRenderer.getMainCamera();
 
-            // 用 Camera 的 pitch/yaw 构建摄像机旋转矩阵
+            // 用 Camera 的 pitch/yaw/roll 构建摄像机旋转矩阵
             // RenderHandEvent 的 poseStack 初始 pose 可能不包含摄像机旋转，
             // 所以我们从 Camera 直接获取旋转角度来构建可靠的世界对齐空间。
-            Matrix4f cameraRotation = buildCameraRotation(camera);
+            float cameraRollRad = CameraStateCache.getCameraRollRadians();
+            float cameraPitchRad = (float) Math.toRadians(camera.getXRot());
+            Matrix4f cameraRotation = buildCameraRotation(camera, cameraRollRad);
             Matrix4f cameraRotationInv = new Matrix4f(cameraRotation).invert();
 
             // worldTransform: 发射器局部空间 → 以摄像机为原点的世界对齐空间
@@ -189,21 +188,8 @@ public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer 
             // 清理已完成的发射器的 locator 映射
             emitterLocatorMap.keySet().removeIf(ParticleEmitterInstance::isFinished);
 
-            // 计算摄像机位移 delta（用于世界空间粒子的位移补偿）
-            Vec3 camPos = camera.getPosition();
-            float viewerDx = 0, viewerDy = 0, viewerDz = 0;
-            if (hasPrevCam) {
-                viewerDx = (float) (camPos.x - prevCamX);
-                viewerDy = (float) (camPos.y - prevCamY);
-                viewerDz = (float) (camPos.z - prevCamZ);
-            }
-            prevCamX = camPos.x;
-            prevCamY = camPos.y;
-            prevCamZ = camPos.z;
-            hasPrevCam = true;
-
-            // tick 粒子
-            particleSystem.tick(dt, viewerDx, viewerDy, viewerDz);
+            // tick 粒子（仅局部空间粒子，世界空间粒子由 ParticleEngine 管理）
+            particleSystem.tick(dt);
 
             poseStack.pushPose();
             {
@@ -242,10 +228,10 @@ public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer 
                         poseStack.popPose();
                     }
                 }
-                // 渲染粒子
-                // 世界空间粒子坐标在世界对齐空间中，用 cameraRotation 转回视图空间
+                // 渲染粒子（仅局部空间粒子，世界空间粒子由 ParticleEngine 渲染）
                 if (particleSystem.getParticleCount() > 0) {
-                    particleSystem.render(poseStack, event.getMultiBufferSource(), event.getPackedLight(), event.getPartialTick(), cameraRotation);
+                    particleSystem.render(poseStack, event.getMultiBufferSource(), event.getPackedLight(),
+                            event.getPartialTick(), cameraPitchRad, cameraRollRad);
                 }
 
             }
