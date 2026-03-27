@@ -680,7 +680,7 @@
 					"locator": "locator"
 				},
 				"0.1": {
-					"effect": "confluence:bomb_lead",
+					"effect": "confluence:test_steady",
 					"locator": "locator"
 				}
 			}

@@ -2,6 +2,8 @@ package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleEffectDefinition;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.*;
+import org.joml.Matrix4f;
+import org.joml.Vector4f;
 import team.unnamed.mocha.runtime.MochaFunction;
 
 import javax.annotation.Nullable;
@@ -43,10 +45,32 @@ public class ParticleEmitterInstance {
     private final List<ParticleInstance> particles = new ArrayList<>();
     private final List<ParticleInstance> pool = new ArrayList<>();
 
+    // 发射器变换（由外部每帧设置）
+    // emitterTransform: locator 局部变换（发射器局部空间 → 模型空间，用于局部空间粒子的渲染）
+    private final Matrix4f emitterTransform = new Matrix4f();
+    // worldTransform: 完整变换（发射器局部空间 → 世界空间），用于世界空间粒子的 spawn 和速度转换
+    private final Matrix4f worldTransform = new Matrix4f();
+    private boolean hasTransform = false;
+
+    // emitter_local_space 配置
+    private final boolean localPosition;
+    private final boolean localRotation;
+
     public ParticleEmitterInstance(ParticleEffectDefinition definition, ParticleMolangEnvironment molang) {
         this.definition = definition;
         this.molang = molang;
         this.compiled = new CompiledExpressions(definition, molang);
+
+        // 读取 emitter_local_space 配置
+        EmitterLocalSpace localSpace = definition.findComponent(EmitterLocalSpace.class);
+        if (localSpace != null) {
+            this.localPosition = localSpace.position();
+            // position=false, rotation=true 是无效组合，按 rotation=false 处理
+            this.localRotation = localSpace.position() && localSpace.rotation();
+        } else {
+            this.localPosition = false;
+            this.localRotation = false;
+        }
 
         // 计算发射器生命周期
         bindEmitterContext();
@@ -58,6 +82,33 @@ public class ParticleEmitterInstance {
         } else {
             this.emitterLifetime = Float.MAX_VALUE;
         }
+    }
+
+    /**
+     * 设置发射器的当前变换矩阵。每帧由外部调用，在 tick 之前。
+     *
+     * @param locatorTransform locator 局部变换矩阵（发射器局部空间 → 模型空间）
+     * @param worldTransformIn 完整变换矩阵（发射器局部空间 → 世界空间）
+     */
+    public void setEmitterTransform(Matrix4f locatorTransform, Matrix4f worldTransformIn) {
+        emitterTransform.set(locatorTransform);
+        worldTransform.set(worldTransformIn);
+        hasTransform = true;
+    }
+
+    /**
+     * 获取当前发射器变换矩阵。
+     */
+    public Matrix4f getEmitterTransform() {
+        return emitterTransform;
+    }
+
+    public boolean isLocalPosition() {
+        return localPosition;
+    }
+
+    public boolean isLocalRotation() {
+        return localRotation;
     }
 
     /**
@@ -155,10 +206,10 @@ public class ParticleEmitterInstance {
         p.random3 = RANDOM.nextFloat();
         p.random4 = RANDOM.nextFloat();
 
-        // 初始位置（由形状决定）
+        // 初始位置（由形状决定，在发射器局部空间中）
         applyShape(p);
 
-        // 初始速度
+        // 初始速度（在发射器局部空间中）
         applyInitialSpeed(p);
 
         // 生命周期
@@ -182,12 +233,12 @@ public class ParticleEmitterInstance {
             p.rotationRate = (float) compiled.initialRotationRate.evaluate();
         }
 
-        particles.add(p);
-        // 临时调试：打印前 5 个粒子的位置和速度
-        if (particles.size() <= 5) {
-            System.out.printf("[Particle Debug] pos=(%.3f, %.3f, %.3f) vel=(%.3f, %.3f, %.3f) maxLife=%.3f%n",
-                    p.x, p.y, p.z, p.vx, p.vy, p.vz, p.maxLifetime);
+        // 根据 emitter_local_space 配置转换坐标空间
+        if (hasTransform) {
+            applyLocalSpaceOnSpawn(p);
         }
+
+        particles.add(p);
     }
 
     private void applyShape(ParticleInstance p) {
@@ -304,6 +355,62 @@ public class ParticleEmitterInstance {
         p.vx = dx * speed;
         p.vy = dy * speed;
         p.vz = dz * speed;
+    }
+
+    /**
+     * 根据 emitter_local_space 配置，在粒子生成时转换坐标空间。
+     * <p>
+     * 粒子的位置和速度最初在发射器局部空间中计算。
+     * 根据 localPosition / localRotation 决定是否转换到世界空间。
+     * 同时从变换矩阵中提取缩放快照存入粒子。
+     */
+    private void applyLocalSpaceOnSpawn(ParticleInstance p) {
+        if (!localPosition) {
+            // 从 worldTransform 提取缩放（取第一列长度作为统一缩放）
+            float scale = (float) Math.sqrt(
+                    worldTransform.m00() * worldTransform.m00() +
+                    worldTransform.m01() * worldTransform.m01() +
+                    worldTransform.m02() * worldTransform.m02());
+            p.spawnScale = scale;
+
+            // 用 worldTransform 将局部位置转换到世界空间（包含缩放）
+            Vector4f worldPos = worldTransform.transform(new Vector4f(p.x, p.y, p.z, 1));
+            p.x = worldPos.x;
+            p.y = worldPos.y;
+            p.z = worldPos.z;
+            p.worldSpace = true;
+
+            if (!localRotation) {
+                // 将局部速度转换到世界空间：旋转方向 + 缩放速度大小
+                float c0x = worldTransform.m00(), c0y = worldTransform.m01(), c0z = worldTransform.m02();
+                float c1x = worldTransform.m10(), c1y = worldTransform.m11(), c1z = worldTransform.m12();
+                float c2x = worldTransform.m20(), c2y = worldTransform.m21(), c2z = worldTransform.m22();
+                float s0 = (float) Math.sqrt(c0x * c0x + c0y * c0y + c0z * c0z);
+                float s1 = (float) Math.sqrt(c1x * c1x + c1y * c1y + c1z * c1z);
+                float s2 = (float) Math.sqrt(c2x * c2x + c2y * c2y + c2z * c2z);
+                if (s0 > 1e-6f && s1 > 1e-6f && s2 > 1e-6f) {
+                    // 先旋转方向（归一化列向量）
+                    float rx = (c0x / s0) * p.vx + (c1x / s1) * p.vy + (c2x / s2) * p.vz;
+                    float ry = (c0y / s0) * p.vx + (c1y / s1) * p.vy + (c2y / s2) * p.vz;
+                    float rz = (c0z / s0) * p.vx + (c1z / s1) * p.vy + (c2z / s2) * p.vz;
+                    // 再乘以缩放
+                    p.vx = rx * scale;
+                    p.vy = ry * scale;
+                    p.vz = rz * scale;
+                }
+            } else {
+                // 速度留在局部空间方向，但大小仍需缩放
+                p.vx *= scale;
+                p.vy *= scale;
+                p.vz *= scale;
+            }
+        } else {
+            // localPosition=true：粒子留在局部空间，从 emitterTransform（locator）提取缩放
+            p.spawnScale = (float) Math.sqrt(
+                    emitterTransform.m00() * emitterTransform.m00() +
+                    emitterTransform.m01() * emitterTransform.m01() +
+                    emitterTransform.m02() * emitterTransform.m02());
+        }
     }
 
     private void applyAppearance(ParticleInstance p) {
@@ -480,6 +587,20 @@ public class ParticleEmitterInstance {
         }
     }
 
+    /**
+     * 补偿观察者（摄像机）的位移，使世界空间粒子在世界中保持固定。
+     * 每帧 tick 之前由外部调用，传入摄像机本帧的位移量。
+     */
+    public void applyViewerOffset(float dx, float dy, float dz) {
+        for (ParticleInstance p : particles) {
+            if (p.worldSpace) {
+                p.x -= dx;
+                p.y -= dy;
+                p.z -= dz;
+            }
+        }
+    }
+
     public List<ParticleInstance> getParticles() {
         return particles;
     }
@@ -502,6 +623,9 @@ public class ParticleEmitterInstance {
         hasEmittedInstant = false;
         spawnAccumulator = 0;
         particles.clear();
+        hasTransform = false;
+        emitterTransform.identity();
+        worldTransform.identity();
         bindEmitterContext();
         emitterLifetime = (float) compiled.emitterActiveTime.evaluate();
     }

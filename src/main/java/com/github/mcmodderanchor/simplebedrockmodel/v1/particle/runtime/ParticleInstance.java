@@ -22,8 +22,12 @@ public class ParticleInstance {
     public float random1, random2, random3, random4;
     // UV
     public float u0, v0, u1, v1;
+    // 发射时的骨骼缩放快照
+    public float spawnScale = 1f;
     // 是否存活
     public boolean alive = true;
+    // 标记该粒子是否在世界空间中（emitter_local_space.position=false 时为 true）
+    public boolean worldSpace = false;
 
     public ParticleInstance() {
     }
@@ -43,7 +47,9 @@ public class ParticleInstance {
         random1 = random2 = random3 = random4 = 0;
         u0 = v0 = 0;
         u1 = v1 = 1;
+        spawnScale = 1f;
         alive = true;
+        worldSpace = false;
     }
 
     /**

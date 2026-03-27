@@ -10,7 +10,7 @@
 		},
 		"components": {
 			"minecraft:emitter_local_space": {
-				"position": true,
+				"position": false,
 				"rotation": false
 			},
 			"minecraft:emitter_rate_instant": {

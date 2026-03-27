@@ -5,6 +5,8 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.render.ParticleR
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
 
+import org.joml.Matrix4f;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,13 +38,17 @@ public class ParticleSystem {
 
     /**
      * 更新所有发射器和粒子。
-     * @param dt 时间步长（秒）
+     *
+     * @param dt       时间步长（秒）
+     * @param viewerDx 观察者（摄像机）本帧在世界 X 轴上的位移
+     * @param viewerDy 观察者（摄像机）本帧在世界 Y 轴上的位移
+     * @param viewerDz 观察者（摄像机）本帧在世界 Z 轴上的位移
      */
-    public void tick(float dt) {
+    public void tick(float dt, float viewerDx, float viewerDy, float viewerDz) {
         for (int i = emitters.size() - 1; i >= 0; i--) {
             ParticleEmitterInstance emitter = emitters.get(i);
+            emitter.applyViewerOffset(viewerDx, viewerDy, viewerDz);
             emitter.tick(dt);
-            // 自动移除已完成的非循环发射器
             if (emitter.isFinished()) {
                 emitters.remove(i);
             }
@@ -51,10 +57,11 @@ public class ParticleSystem {
 
     /**
      * 渲染所有粒子。在目标 PoseStack 坐标系中绘制。
+     * @param worldToView 世界空间到视图空间的变换矩阵，用于世界空间粒子的渲染
      */
-    public void render(PoseStack poseStack, MultiBufferSource bufferSource, int light, float partialTick) {
+    public void render(PoseStack poseStack, MultiBufferSource bufferSource, int light, float partialTick, Matrix4f worldToView) {
         for (ParticleEmitterInstance emitter : emitters) {
-            ParticleRenderer.render(emitter, poseStack, bufferSource, light, partialTick);
+            ParticleRenderer.render(emitter, poseStack, bufferSource, light, partialTick, worldToView);
         }
     }
 

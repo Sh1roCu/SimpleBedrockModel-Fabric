@@ -6,6 +6,7 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.pojo.Part
 import com.github.mcmodderanchor.simplebedrockmodel.v1.event.RegisterBedrockModelReloadListenerEvent;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleEffectDefinition;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.resource.ParticleDefinitionLoader;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleEmitterInstance;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleSystem;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -16,6 +17,7 @@ import example.animation.GunAnimationGraph;
 import example.capability.ModCapability;
 import example.init.ExampleModRegister;
 import example.resource.KnownResources;
+import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.player.AbstractClientPlayer;
@@ -32,6 +34,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderHandEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -40,7 +43,9 @@ import org.joml.Matrix4f;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Mod.EventBusSubscriber(value = Dist.CLIENT)
 public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer {
@@ -50,7 +55,12 @@ public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer 
 
     // 粒子系统
     private static final ParticleSystem particleSystem = new ParticleSystem();
+    // 发射器 → locator 名称映射
+    private static final Map<ParticleEmitterInstance, String> emitterLocatorMap = new HashMap<>();
     private static long lastRenderTimeNano;
+    // 摄像机位置追踪（用于世界空间粒子的位移补偿）
+    private static double prevCamX, prevCamY, prevCamZ;
+    private static boolean hasPrevCam = false;
 
     // 暂时只能想到这么丑的办法
     @Mod.EventBusSubscriber(value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
@@ -69,12 +79,24 @@ public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer 
                 }
                 // 资源重载时清空粒子缓存
                 particleSystem.clear();
+                emitterLocatorMap.clear();
+                hasPrevCam = false;
             });
         }
     }
 
     public DeagleWithoutLevelRenderer() {
         super(Minecraft.getInstance().getBlockEntityRenderDispatcher(), Minecraft.getInstance().getEntityModels());
+    }
+
+    /**
+     * 用摄像机的 pitch/yaw 构建视图旋转矩阵（与 Minecraft 内部一致）。
+     * Minecraft 的视图矩阵构建顺序：先绕 X 旋转 pitch，再绕 Y 旋转 (yaw + 180)。
+     */
+    private static Matrix4f buildCameraRotation(Camera camera) {
+        return new Matrix4f()
+                .rotationX((float) Math.toRadians(camera.getXRot()))
+                .rotateY((float) Math.toRadians(camera.getYRot() + 180f));
     }
 
     @SubscribeEvent
@@ -109,15 +131,80 @@ public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer 
                 for (ParticleEffectData data : pendingParticles) {
                     ParticleEffectDefinition def = ParticleDefinitionLoader.getInstance().getDefinition(data.effect());
                     if (def != null) {
-                        particleSystem.addEmitter(def);
+                        ParticleEmitterInstance emitter = particleSystem.addEmitter(def);
+                        // 记录 locator 名称，用于后续查找骨骼变换
+                        String locator = data.locator();
+                        if (locator != null && !locator.isEmpty()) {
+                            emitterLocatorMap.put(emitter, locator);
+                        }
                     }
                 }
             }
 
-            // tick 粒子
-            particleSystem.tick(dt);
+            // 构建模型变换矩阵（antibob × gunOffset）
+            Matrix4f modelTransform = new Matrix4f();
+            if (mc.options.bobView().get() && (mc.getCameraEntity() instanceof Player player2)) {
+                float f = player2.walkDist - player2.walkDistO;
+                float f1 = -(player2.walkDist + f * event.getPartialTick());
+                float f2 = Mth.lerp(event.getPartialTick(), player2.oBob, player2.bob);
+                modelTransform.rotate(Axis.XN.rotationDegrees(Math.abs(Mth.cos(f1 * (float)Math.PI - 0.2F) * f2) * 5.0F));
+                modelTransform.rotate(Axis.ZN.rotationDegrees(Mth.sin(f1 * (float)Math.PI) * f2 * 3.0F));
+                modelTransform.translate(-Mth.sin(f1 * (float)Math.PI) * f2 * 0.5F, (float)Math.abs(Mth.cos(f1 * (float)Math.PI) * f2), 0.0F);
+            }
+            modelTransform.translate(0.125f, -0.5f, -1.03125f);
 
             PoseStack poseStack = event.getPoseStack();
+            Camera camera = mc.gameRenderer.getMainCamera();
+
+            // 用 Camera 的 pitch/yaw 构建摄像机旋转矩阵
+            // RenderHandEvent 的 poseStack 初始 pose 可能不包含摄像机旋转，
+            // 所以我们从 Camera 直接获取旋转角度来构建可靠的世界对齐空间。
+            Matrix4f cameraRotation = buildCameraRotation(camera);
+            Matrix4f cameraRotationInv = new Matrix4f(cameraRotation).invert();
+
+            // worldTransform: 发射器局部空间 → 以摄像机为原点的世界对齐空间
+            // = cameraRotationInv × poseInitial × modelTransform × locatorTransform
+            Matrix4f poseInitial = new Matrix4f(poseStack.last().pose());
+            Matrix4f toWorldAligned = new Matrix4f(cameraRotationInv).mul(poseInitial).mul(modelTransform);
+
+            // 为每个发射器设置当前的 locator 变换矩阵和世界变换
+            for (ParticleEmitterInstance emitter : particleSystem.getEmitters()) {
+                String locatorName = emitterLocatorMap.get(emitter);
+                Matrix4f transform = null;
+                if (locatorName != null) {
+                    transform = model.getLocatorTransform(locatorName);
+                }
+                if (transform == null) {
+                    BedrockBone bone = locatorName != null ? model.getBone(locatorName) : null;
+                    if (bone != null) {
+                        transform = bone.getGlobalTransform();
+                    }
+                }
+                if (transform != null) {
+                    Matrix4f worldTransform = new Matrix4f(toWorldAligned).mul(transform);
+                    emitter.setEmitterTransform(transform, worldTransform);
+                }
+            }
+
+            // 清理已完成的发射器的 locator 映射
+            emitterLocatorMap.keySet().removeIf(ParticleEmitterInstance::isFinished);
+
+            // 计算摄像机位移 delta（用于世界空间粒子的位移补偿）
+            Vec3 camPos = camera.getPosition();
+            float viewerDx = 0, viewerDy = 0, viewerDz = 0;
+            if (hasPrevCam) {
+                viewerDx = (float) (camPos.x - prevCamX);
+                viewerDy = (float) (camPos.y - prevCamY);
+                viewerDz = (float) (camPos.z - prevCamZ);
+            }
+            prevCamX = camPos.x;
+            prevCamY = camPos.y;
+            prevCamZ = camPos.z;
+            hasPrevCam = true;
+
+            // tick 粒子
+            particleSystem.tick(dt, viewerDx, viewerDy, viewerDz);
+
             poseStack.pushPose();
             {
                 // 反转 Bobbing
@@ -155,17 +242,10 @@ public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer 
                         poseStack.popPose();
                     }
                 }
-                // 渲染粒子（挂到 muzzle_pos 骨骼位置）
+                // 渲染粒子
+                // 世界空间粒子坐标在世界对齐空间中，用 cameraRotation 转回视图空间
                 if (particleSystem.getParticleCount() > 0) {
-                    BedrockBone muzzleBone = model.getBone("muzzle_pos");
-                    if (muzzleBone != null) {
-                        poseStack.pushPose();
-                        poseStack.mulPoseMatrix(muzzleBone.getGlobalTransform());
-                        particleSystem.render(poseStack, event.getMultiBufferSource(), event.getPackedLight(), event.getPartialTick());
-                        poseStack.popPose();
-                    } else {
-                        particleSystem.render(poseStack, event.getMultiBufferSource(), event.getPackedLight(), event.getPartialTick());
-                    }
+                    particleSystem.render(poseStack, event.getMultiBufferSource(), event.getPackedLight(), event.getPartialTick(), cameraRotation);
                 }
 
             }

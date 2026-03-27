@@ -11,6 +11,7 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import org.joml.Matrix4f;
 
 import java.util.List;
 
@@ -24,9 +25,13 @@ public final class ParticleRenderer {
 
     /**
      * 渲染一个发射器的所有粒子。
+     * <p>
+     * 发射器变换矩阵从 emitter 实例上读取。对于局部空间粒子（worldSpace=false），
+     * 渲染时会叠加发射器变换；对于世界空间粒子（worldSpace=true），直接使用粒子坐标。
      */
     public static void render(ParticleEmitterInstance emitter, PoseStack poseStack,
-                               MultiBufferSource bufferSource, int light, float partialTick) {
+                               MultiBufferSource bufferSource, int light, float partialTick,
+                               Matrix4f worldToView) {
         List<ParticleInstance> particles = emitter.getParticles();
         if (particles.isEmpty()) return;
 
@@ -44,8 +49,13 @@ public final class ParticleRenderer {
                 ? billboard.faceCameraMode()
                 : ParticleAppearanceBillboard.FaceCameraMode.ROTATE_XYZ;
 
+        Matrix4f emitterTransform = emitter.getEmitterTransform();
+        boolean localPos = emitter.isLocalPosition();
+        boolean localRot = emitter.isLocalRotation();
+
         for (ParticleInstance particle : particles) {
-            BillboardHelper.renderBillboard(particle, poseStack, consumer, light, mode);
+            BillboardHelper.renderBillboard(particle, poseStack, consumer, light, mode,
+                    emitterTransform, localPos, localRot, worldToView);
         }
     }
 

@@ -11,7 +11,6 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
-import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 
@@ -25,22 +24,50 @@ public final class BillboardHelper {
 
     public static void renderBillboard(ParticleInstance particle, PoseStack poseStack,
                                         VertexConsumer consumer, int light,
-                                        ParticleAppearanceBillboard.FaceCameraMode mode) {
+                                        ParticleAppearanceBillboard.FaceCameraMode mode,
+                                        Matrix4f emitterTransform,
+                                        boolean localPos, boolean localRot,
+                                        Matrix4f worldToView) {
         Matrix4f pose = poseStack.last().pose();
 
-        // 用当前 pose 把粒子局部坐标变换到视图空间
-        Vector4f viewPos = pose.transform(new Vector4f(particle.x, particle.y, particle.z, 1));
+        // 构建最终的变换矩阵：
+        // 局部空间粒子 → pose × emitterTransform（跟随发射器）
+        // 世界空间粒子 → worldToView（世界坐标 → 视图空间）
+        Matrix4f effectivePose;
+        if (!particle.worldSpace && localPos) {
+            effectivePose = new Matrix4f(pose).mul(emitterTransform);
+        } else if (particle.worldSpace) {
+            effectivePose = worldToView;
+        } else {
+            effectivePose = pose;
+        }
 
-        // 提取统一缩放因子（取第一列长度）
-        float scale = (float) Math.sqrt(pose.m00() * pose.m00() + pose.m01() * pose.m01() + pose.m02() * pose.m02());
+        // 用 effectivePose 把粒子坐标变换到视图空间
+        Vector4f viewPos = effectivePose.transform(new Vector4f(particle.x, particle.y, particle.z, 1));
+
+        // 使用发射时的骨骼缩放快照计算粒子大小
+        float scale = particle.spawnScale;
 
         float hw = particle.width * scale;
         float hh = particle.height * scale;
 
+        // 确定速度方向使用的变换矩阵
+        // 如果 rotation 也是局部空间的，速度需要经过发射器变换
+        // 世界空间粒子的速度已在世界空间中，需要用 worldToView 转到视图空间
+        float velX = particle.vx, velY = particle.vy, velZ = particle.vz;
+        Matrix4f velPose;
+        if (particle.worldSpace) {
+            velPose = worldToView;
+        } else if (localRot) {
+            velPose = effectivePose;
+        } else {
+            velPose = pose;
+        }
+
         // 计算 billboard 的两个轴向量（视图空间中）
         Vector3f axisX = new Vector3f(1, 0, 0);
         Vector3f axisY = new Vector3f(0, 1, 0);
-        applyBillboardAxes(axisX, axisY, mode, particle, pose);
+        applyBillboardAxes(axisX, axisY, mode, velX, velY, velZ, velPose);
 
         // 应用粒子自旋旋转
         if (particle.rotation != 0) {
@@ -90,13 +117,16 @@ public final class BillboardHelper {
     /**
      * 根据朝向模式计算 billboard 的 X/Y 轴方向（视图空间中的单位向量）。
      * axisX 对应 quad 的宽度方向，axisY 对应高度方向。
+     *
+     * @param velX/velY/velZ 粒子速度（在粒子自身的坐标空间中）
+     * @param velPose 用于将速度变换到视图空间的矩阵
      */
     private static void applyBillboardAxes(Vector3f axisX, Vector3f axisY,
                                             ParticleAppearanceBillboard.FaceCameraMode mode,
-                                            ParticleInstance particle, Matrix4f pose) {
+                                            float velX, float velY, float velZ,
+                                            Matrix4f velPose) {
         switch (mode) {
             case ROTATE_XYZ, LOOKAT_XYZ -> {
-                // 面朝摄像机：X/Y 轴就是视图空间的 X/Y
                 axisX.set(1, 0, 0);
                 axisY.set(0, 1, 0);
             }
@@ -107,14 +137,11 @@ public final class BillboardHelper {
                 axisY.set(0, (float) Math.cos(pitch), (float) -Math.sin(pitch));
             }
             case LOOKAT_DIRECTION -> {
-                // 将局部速度变换到视图空间
-                Vector3f viewVel = transformDirection(pose, particle.vx, particle.vy, particle.vz);
+                Vector3f viewVel = transformDirection(velPose, velX, velY, velZ);
                 float velLen = viewVel.length();
                 if (velLen > 0.0001f) {
-                    // 速度方向 = billboard 长轴（X 轴）
                     Vector3f dir = new Vector3f(viewVel).normalize();
                     Vector3f forward = new Vector3f(0, 0, 1);
-                    // Y 轴 = forward × dir
                     Vector3f up = new Vector3f(forward).cross(dir);
                     float upLen = up.length();
                     if (upLen > 0.0001f) {
@@ -122,11 +149,10 @@ public final class BillboardHelper {
                         axisX.set(dir);
                         axisY.set(up);
                     }
-                    // 速度平行于视线时保持默认
                 }
             }
             case DIRECTION_X, DIRECTION_Y, DIRECTION_Z -> {
-                Vector3f viewVel = transformDirection(pose, particle.vx, particle.vy, particle.vz);
+                Vector3f viewVel = transformDirection(velPose, velX, velY, velZ);
                 float sLen = viewVel.x * viewVel.x + viewVel.y * viewVel.y;
                 if (sLen > 0.0001f) {
                     float angle = (float) Math.atan2(viewVel.y, viewVel.x);
@@ -143,7 +169,7 @@ public final class BillboardHelper {
     }
 
     /**
-     * 用 pose 矩阵的 3x3 部分（含缩放+旋转）变换一个方向向量。
+     * 用矩阵的 3x3 部分（含缩放+旋转）变换一个方向向量。
      */
     private static Vector3f transformDirection(Matrix4f pose, float x, float y, float z) {
         return new Vector3f(

@@ -110,14 +110,14 @@ public class DeagleAnimationGraph implements GunAnimationGraph{
         shootMontage = new AnimationMontage<>();
 
         ArrayList<Keyframe<AnimationSegment>> shotSegments = new ArrayList<>();
-        shotSegments.add(constructSegmentKeyframe("shoot", 0.0f, 0.0f, 0.57f));
+        shotSegments.add(constructSegmentKeyframe("shoot", 0.0f, 0.0f, 2.4f));
         AnimationMontageTrack shootTrack = new AnimationMontageTrack(shotSegments);
         shootTrack.setAdditive(true);
         shootTrack.setLayer(noHandLayer);
         shootMontage.setTracks(List.of(shootTrack));
 
         Map<String, AnimationMontageSection> shootMontageSections = new HashMap<>();
-        shootMontageSections.put("shoot", new AnimationMontageSection("shoot", 0.0f, 0.57f, null));
+        shootMontageSections.put("shoot", new AnimationMontageSection("shoot", 0.0f, 2.4f, null));
         shootMontage.setSections(shootMontageSections);
 
         ArrayList<Keyframe<IAnimationNotify<FPGunAnimationInstance>>> coolingNotifies = new ArrayList<>();
