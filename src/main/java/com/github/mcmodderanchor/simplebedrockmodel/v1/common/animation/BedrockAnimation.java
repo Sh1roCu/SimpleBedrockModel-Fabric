@@ -3,14 +3,15 @@ package com.github.mcmodderanchor.simplebedrockmodel.v1.common.animation;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.BoneIndexProvider;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.ParticleEffectDataKeyframe;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.ResourceLocationKeyframe;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.common.molang.MolangEngineHelper;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangExpression;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.pojo.*;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.MochaEngine;
 import com.maydaymemory.mae.basic.*;
 import it.unimi.dsi.fastutil.doubles.Double2ObjectMap;
 import net.minecraft.resources.ResourceLocation;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
-import team.unnamed.mocha.MochaEngine;
-import team.unnamed.mocha.runtime.MochaFunction;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -49,9 +50,7 @@ public class BedrockAnimation extends BasicAnimation {
                 int boneIndex = indexProvider.getIndex(entry.getKey());
                 AnimationBone bone = entry.getValue();
                 if (boneIndex >= 0) {
-                    // 这里导出成基岩版模型之后位移 x 轴会逆转（yz 平面对称变成左手系等效位移），现在我们逆转回来
                     ArrayInterpolatableChannel<Vector3fc> translationChannel = parseChannel(bone.getPosition(), -1, 1, 1, molangEngine);
-                    // 这里导出成基岩版模型之后旋转会 z 轴对称变成左手系等效旋转，现在我们逆转回来
                     ArrayInterpolatableChannel<Rotation> rotationChannel = parseRotationChannel(bone.getRotation(), -1, -1, 1, molangEngine);
                     ArrayInterpolatableChannel<Vector3fc> scaleChannel = parseChannel(bone.getScale(), 1, 1, 1, molangEngine);
                     animation.setTranslationChannel(boneIndex, translationChannel);
@@ -113,7 +112,6 @@ public class BedrockAnimation extends BasicAnimation {
     private static InterpolatableKeyframe<Rotation> parseRotationKeyframe(float timeS, AnimationKeyframes.Keyframe keyframe,
                                                                           float x, float y, float z,
                                                                           @Nullable MochaEngine<?> molangEngine) {
-        // 如果包含 Molang 表达式且引擎可用，创建 MolangRotationKeyframe
         if (keyframe.hasMolang() && molangEngine != null) {
             Interpolator<Vector3fc> vecInterpolator;
             if ("catmullrom".equals(keyframe.getLerpMode())) {
@@ -121,21 +119,20 @@ public class BedrockAnimation extends BasicAnimation {
             } else {
                 vecInterpolator = Vector3fLinearInterpolator.INSTANCE;
             }
-            MochaFunction[] preFunctions;
-            MochaFunction[] postFunctions;
+            MolangExpression[] preFunctions;
+            MolangExpression[] postFunctions;
             if (keyframe.getDataExpressions() != null) {
-                preFunctions = postFunctions = compileMolangFunctions(molangEngine, keyframe.getDataExpressions());
+                preFunctions = postFunctions = compileMolangExpressions(molangEngine, keyframe.getDataExpressions());
             } else {
                 String[] preExprs = keyframe.getPreExpressions() != null ? keyframe.getPreExpressions() : keyframe.getPostExpressions();
                 String[] postExprs = keyframe.getPostExpressions() != null ? keyframe.getPostExpressions() : keyframe.getPreExpressions();
-                preFunctions = compileMolangFunctions(molangEngine, preExprs);
-                postFunctions = (preExprs == postExprs) ? preFunctions : compileMolangFunctions(molangEngine, postExprs);
+                preFunctions = compileMolangExpressions(molangEngine, preExprs);
+                postFunctions = (preExprs == postExprs) ? preFunctions : compileMolangExpressions(molangEngine, postExprs);
             }
             return new MolangRotationKeyframe(timeS, preFunctions, postFunctions, x, y, z,
                     new EulerAnglesRotationInterpolator(vecInterpolator));
         }
 
-        // 原有逻辑
         Interpolator<Vector3fc> interpolator;
         Vector3f pre, post;
         if (keyframe.getData() != null) {
@@ -179,7 +176,6 @@ public class BedrockAnimation extends BasicAnimation {
     private static InterpolatableKeyframe<Vector3fc> parseKeyframe(float timeS, AnimationKeyframes.Keyframe keyframe,
                                                                     float x, float y, float z,
                                                                     @Nullable MochaEngine<?> molangEngine) {
-        // 如果包含 Molang 表达式且引擎可用，创建 MolangVector3fKeyframe
         if (keyframe.hasMolang() && molangEngine != null) {
             Interpolator<Vector3fc> interpolator;
             if ("catmullrom".equals(keyframe.getLerpMode())) {
@@ -187,28 +183,26 @@ public class BedrockAnimation extends BasicAnimation {
             } else {
                 interpolator = Vector3fLinearInterpolator.INSTANCE;
             }
-            MochaFunction[] preFunctions;
-            MochaFunction[] postFunctions;
+            MolangExpression[] preFunctions;
+            MolangExpression[] postFunctions;
             if (keyframe.getDataExpressions() != null) {
-                MochaFunction[] dataFunctions = compileMolangFunctions(molangEngine, keyframe.getDataExpressions());
-                // 对位移通道应用坐标系转换
+                MolangExpression[] dataFunctions = compileMolangExpressions(molangEngine, keyframe.getDataExpressions());
                 preFunctions = postFunctions = wrapWithMultiplier(dataFunctions, x, y, z);
             } else {
                 String[] preExprs = keyframe.getPreExpressions() != null ? keyframe.getPreExpressions() : keyframe.getPostExpressions();
                 String[] postExprs = keyframe.getPostExpressions() != null ? keyframe.getPostExpressions() : keyframe.getPreExpressions();
-                MochaFunction[] preRaw = compileMolangFunctions(molangEngine, preExprs);
+                MolangExpression[] preRaw = compileMolangExpressions(molangEngine, preExprs);
                 preFunctions = wrapWithMultiplier(preRaw, x, y, z);
                 if (preExprs == postExprs) {
                     postFunctions = preFunctions;
                 } else {
-                    MochaFunction[] postRaw = compileMolangFunctions(molangEngine, postExprs);
+                    MolangExpression[] postRaw = compileMolangExpressions(molangEngine, postExprs);
                     postFunctions = wrapWithMultiplier(postRaw, x, y, z);
                 }
             }
             return new MolangVector3fKeyframe(timeS, preFunctions, postFunctions, interpolator);
         }
 
-        // 原有逻辑
         Interpolator<Vector3fc> interpolator;
         Vector3f pre, post;
         if (keyframe.getData() != null) {
@@ -233,30 +227,30 @@ public class BedrockAnimation extends BasicAnimation {
     }
 
     /**
-     * 将 Molang 表达式字符串数组编译为 MochaFunction 数组
+     * 将 Molang 表达式字符串数组编译为 MolangExpression 数组
      */
-    private static MochaFunction[] compileMolangFunctions(MochaEngine<?> engine, String[] expressions) {
-        MochaFunction[] functions = new MochaFunction[expressions.length];
+    private static MolangExpression[] compileMolangExpressions(MochaEngine<?> engine, String[] expressions) {
+        MolangExpression[] result = new MolangExpression[expressions.length];
         for (int i = 0; i < expressions.length; i++) {
-            functions[i] = engine.prepareEval(expressions[i]);
+            result[i] = MolangEngineHelper.compileExpression(engine, expressions[i]);
         }
-        return functions;
+        return result;
     }
 
     /**
-     * 包装 MochaFunction 数组，对求值结果应用坐标系乘数
+     * 包装 MolangExpression 数组，对求值结果应用坐标系乘数
      */
-    private static MochaFunction[] wrapWithMultiplier(MochaFunction[] functions, float x, float y, float z) {
+    private static MolangExpression[] wrapWithMultiplier(MolangExpression[] functions, float x, float y, float z) {
         if (x == 1 && y == 1 && z == 1) return functions;
         float[] multipliers = {x, y, z};
-        MochaFunction[] wrapped = new MochaFunction[3];
+        MolangExpression[] wrapped = new MolangExpression[3];
         for (int i = 0; i < 3; i++) {
-            final MochaFunction original = functions[i];
+            final MolangExpression original = functions[i];
             final float mul = multipliers[i];
             if (mul == 1) {
                 wrapped[i] = original;
             } else {
-                wrapped[i] = () -> original.evaluate() * mul;
+                wrapped[i] = ctx -> original.evaluate(ctx) * mul;
             }
         }
         return wrapped;

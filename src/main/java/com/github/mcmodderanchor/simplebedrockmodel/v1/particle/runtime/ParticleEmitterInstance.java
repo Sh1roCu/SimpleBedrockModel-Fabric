@@ -1,11 +1,11 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime;
 
+import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangContext;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleEffectDefinition;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.*;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.world.SnowStormParticle;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
-import team.unnamed.mocha.runtime.MochaFunction;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -65,6 +65,16 @@ public class ParticleEmitterInstance {
     private boolean fpLocalVelocity = false;
     private boolean fpToWorld = false;
 
+    // 缓存的组件引用（构造时一次性查找，避免热路径中重复查找）
+    @Nullable private final EmitterLifetime lifetimeComponent;
+    @Nullable private final EmitterRate rateComponent;
+    @Nullable private final EmitterShape shapeComponent;
+    @Nullable private final ParticleInitialSpeed initialSpeedComponent;
+    @Nullable private final ParticleLifetimeExpression lifetimeExprComponent;
+    @Nullable private final ParticleAppearanceBillboard billboardComponent;
+    @Nullable private final ParticleAppearanceTinting tintingComponent;
+    @Nullable private final ParticleMotion motionComponent;
+
     // 粒子生成回调
     @Nullable
     private ParticleSpawnCallback spawnCallback;
@@ -89,13 +99,22 @@ public class ParticleEmitterInstance {
     public ParticleEmitterInstance(ParticleEffectDefinition definition, ParticleMolangEnvironment molang) {
         this.definition = definition;
         this.molang = molang;
-        this.compiled = new CompiledExpressions(definition, molang);
+        this.compiled = molang.getOrCompile(definition);
+
+        // 一次性缓存所有组件引用
+        this.lifetimeComponent = definition.findComponent(EmitterLifetime.class);
+        this.rateComponent = definition.findComponent(EmitterRate.class);
+        this.shapeComponent = definition.findComponent(EmitterShape.class);
+        this.initialSpeedComponent = definition.findComponent(ParticleInitialSpeed.class);
+        this.lifetimeExprComponent = definition.findComponent(ParticleLifetimeExpression.class);
+        this.billboardComponent = definition.findComponent(ParticleAppearanceBillboard.class);
+        this.tintingComponent = definition.findComponent(ParticleAppearanceTinting.class);
+        this.motionComponent = definition.findComponent(ParticleMotion.class);
 
         // 读取 emitter_local_space 配置
         EmitterLocalSpace localSpace = definition.findComponent(EmitterLocalSpace.class);
         if (localSpace != null) {
             this.localPosition = localSpace.position();
-            // position=false, rotation=true 是无效组合，按 rotation=false 处理
             this.localRotation = localSpace.position() && localSpace.rotation();
             this.localVelocity = localSpace.velocity();
         } else {
@@ -106,14 +125,18 @@ public class ParticleEmitterInstance {
 
         // 计算发射器生命周期
         bindEmitterContext();
-        EmitterLifetime lifetime = definition.findComponent(EmitterLifetime.class);
-        if (lifetime instanceof EmitterLifetime.Looping looping) {
-            this.emitterLifetime = (float) compiled.emitterActiveTime.evaluate();
-        } else if (lifetime instanceof EmitterLifetime.Once once) {
-            this.emitterLifetime = (float) compiled.emitterActiveTime.evaluate();
+        if (lifetimeComponent != null) {
+            this.emitterLifetime = (float) compiled.emitterActiveTime().evaluate(ctx());
         } else {
             this.emitterLifetime = Float.MAX_VALUE;
         }
+    }
+
+    /**
+     * 获取当前粒子环境的 MolangContext。
+     */
+    private MolangContext<?> ctx() {
+        return molang.getContext();
     }
 
     /**
@@ -167,7 +190,7 @@ public class ParticleEmitterInstance {
                 hasEmittedInstant = false;
                 spawnAccumulator = 0;
                 bindEmitterContext();
-                emitterLifetime = (float) compiled.emitterActiveTime.evaluate();
+                emitterLifetime = (float) compiled.emitterActiveTime().evaluate(ctx());
             }
             // 休眠期间仍然更新已有粒子
             updateParticles(dt);
@@ -190,12 +213,11 @@ public class ParticleEmitterInstance {
     }
 
     private void handleLifetimeEnd() {
-        EmitterLifetime lifetime = definition.findComponent(EmitterLifetime.class);
-        if (lifetime instanceof EmitterLifetime.Looping looping) {
+        if (lifetimeComponent instanceof EmitterLifetime.Looping looping) {
             // 进入休眠
             sleeping = true;
             bindEmitterContext();
-            sleepTimer = (float) compiled.emitterSleepTime.evaluate();
+            sleepTimer = (float) compiled.emitterSleepTime().evaluate(ctx());
             if (sleepTimer <= 0) {
                 // 无休眠，直接重启
                 sleeping = false;
@@ -203,7 +225,7 @@ public class ParticleEmitterInstance {
                 hasEmittedInstant = false;
                 spawnAccumulator = 0;
                 bindEmitterContext();
-                emitterLifetime = (float) compiled.emitterActiveTime.evaluate();
+                emitterLifetime = (float) compiled.emitterActiveTime().evaluate(ctx());
             }
         } else {
             // Once 模式，停止发射（但已有粒子继续存活）
@@ -212,18 +234,17 @@ public class ParticleEmitterInstance {
     }
 
     private void emitParticles(float dt) {
-        EmitterRate rate = definition.findComponent(EmitterRate.class);
-        if (rate instanceof EmitterRate.Instant instant) {
+        if (compiled.rate() instanceof CompiledExpressions.RateCompiled.Instant instant) {
             if (!hasEmittedInstant) {
                 hasEmittedInstant = true;
-                int count = (int) compiled.emitterAmount.evaluate();
+                int count = (int) instant.amount().evaluate(ctx());
                 for (int i = 0; i < count && particles.size() < MAX_PARTICLES; i++) {
                     spawnParticle();
                 }
             }
-        } else if (rate instanceof EmitterRate.Steady steady) {
-            int maxP = (int) compiled.emitterMaxParticles.evaluate();
-            float spawnRate = (float) compiled.emitterSpawnRate.evaluate();
+        } else if (compiled.rate() instanceof CompiledExpressions.RateCompiled.Steady steady) {
+            int maxP = (int) steady.maxParticles().evaluate(ctx());
+            float spawnRate = (float) steady.spawnRate().evaluate(ctx());
             spawnAccumulator += spawnRate * dt;
             while (spawnAccumulator >= 1f && particles.size() < maxP && particles.size() < MAX_PARTICLES) {
                 spawnAccumulator -= 1f;
@@ -250,9 +271,8 @@ public class ParticleEmitterInstance {
 
         // 生命周期
         molang.bindParticle(0, 1, p.random1, p.random2, p.random3, p.random4);
-        ParticleLifetimeExpression lifetimeComp = definition.findComponent(ParticleLifetimeExpression.class);
-        if (lifetimeComp != null) {
-            p.maxLifetime = (float) compiled.particleMaxLifetime.evaluate();
+        if (lifetimeExprComponent != null) {
+            p.maxLifetime = (float) compiled.particleMaxLifetime().evaluate(ctx());
         }
 
         // 初始尺寸
@@ -262,11 +282,9 @@ public class ParticleEmitterInstance {
         applyTinting(p);
 
         // 初始自旋
-        if (compiled.initialRotation != null) {
-            p.rotation = (float) compiled.initialRotation.evaluate();
-        }
-        if (compiled.initialRotationRate != null) {
-            p.rotationRate = (float) compiled.initialRotationRate.evaluate();
+        if (compiled.spin() != null) {
+            p.rotation = (float) compiled.spin().rotation().evaluate(ctx());
+            p.rotationRate = (float) compiled.spin().rotationRate().evaluate(ctx());
         }
 
         // 根据 emitter_local_space 配置转换坐标空间
@@ -274,10 +292,6 @@ public class ParticleEmitterInstance {
             applyLocalSpaceOnSpawn(p);
         }
 
-        // 粒子分流：
-        // 1. 全部外部管理模式：所有粒子走回调
-        // 2. 有回调但非全部外部管理：仅 worldSpace 粒子走回调，局部空间粒子留在内部
-        // 3. 无回调：全部留在内部列表
         if (spawnCallback != null && (externalParticleManagement || p.worldSpace)) {
             spawnCallback.onParticleSpawned(p);
         } else {
@@ -286,16 +300,15 @@ public class ParticleEmitterInstance {
     }
 
     private void applyShape(ParticleInstance p) {
-        EmitterShape shape = definition.findComponent(EmitterShape.class);
-        if (shape instanceof EmitterShape.Point point) {
-            p.x = (float) compiled.shapeOffset[0].evaluate();
-            p.y = (float) compiled.shapeOffset[1].evaluate();
-            p.z = (float) compiled.shapeOffset[2].evaluate();
-        } else if (shape instanceof EmitterShape.Sphere sphere) {
-            float r = (float) compiled.shapeRadius.evaluate();
-            float ox = (float) compiled.shapeOffset[0].evaluate();
-            float oy = (float) compiled.shapeOffset[1].evaluate();
-            float oz = (float) compiled.shapeOffset[2].evaluate();
+        if (shapeComponent instanceof EmitterShape.Point point) {
+            p.x = (float) compiled.shape().offset()[0].evaluate(ctx());
+            p.y = (float) compiled.shape().offset()[1].evaluate(ctx());
+            p.z = (float) compiled.shape().offset()[2].evaluate(ctx());
+        } else if (shapeComponent instanceof EmitterShape.Sphere sphere) {
+            float r = (float) compiled.shape().radius().evaluate(ctx());
+            float ox = (float) compiled.shape().offset()[0].evaluate(ctx());
+            float oy = (float) compiled.shape().offset()[1].evaluate(ctx());
+            float oz = (float) compiled.shape().offset()[2].evaluate(ctx());
 
             // 随机方向
             float theta = (float) (RANDOM.nextFloat() * Math.PI * 2);
@@ -305,13 +318,13 @@ public class ParticleEmitterInstance {
             p.x = ox + dist * (float) (Math.sin(phi) * Math.cos(theta));
             p.y = oy + dist * (float) Math.cos(phi);
             p.z = oz + dist * (float) (Math.sin(phi) * Math.sin(theta));
-        } else if (shape instanceof EmitterShape.Box box) {
-            float ox = (float) compiled.shapeOffset[0].evaluate();
-            float oy = (float) compiled.shapeOffset[1].evaluate();
-            float oz = (float) compiled.shapeOffset[2].evaluate();
-            float hx = (float) compiled.shapeHalfDimensions[0].evaluate();
-            float hy = (float) compiled.shapeHalfDimensions[1].evaluate();
-            float hz = (float) compiled.shapeHalfDimensions[2].evaluate();
+        } else if (shapeComponent instanceof EmitterShape.Box box) {
+            float ox = (float) compiled.shape().offset()[0].evaluate(ctx());
+            float oy = (float) compiled.shape().offset()[1].evaluate(ctx());
+            float oz = (float) compiled.shape().offset()[2].evaluate(ctx());
+            float hx = (float) compiled.shape().halfDimensions()[0].evaluate(ctx());
+            float hy = (float) compiled.shape().halfDimensions()[1].evaluate(ctx());
+            float hz = (float) compiled.shape().halfDimensions()[2].evaluate(ctx());
 
             if (box.surfaceOnly()) {
                 // 在盒体表面随机
@@ -338,44 +351,31 @@ public class ParticleEmitterInstance {
     }
 
     private void applyInitialSpeed(ParticleInstance p) {
-        ParticleInitialSpeed speedComp = definition.findComponent(ParticleInitialSpeed.class);
-        if (speedComp == null) return;
+        if (initialSpeedComponent == null || shapeComponent == null) return;
 
-        float speed = (float) compiled.initialSpeed.evaluate();
+        float speed = (float) compiled.initialSpeed().evaluate(ctx());
         if (speed == 0) return;
 
-        EmitterShape shape = definition.findComponent(EmitterShape.class);
         float dx, dy, dz;
 
         // 确定方向
-        if (shape instanceof EmitterShape.Point point && point.directionMode() == EmitterShape.DirectionMode.CUSTOM) {
-            dx = (float) compiled.shapeDirection[0].evaluate();
-            dy = (float) compiled.shapeDirection[1].evaluate();
-            dz = (float) compiled.shapeDirection[2].evaluate();
-        } else if (shape instanceof EmitterShape.Sphere sphere && sphere.directionMode() == EmitterShape.DirectionMode.CUSTOM) {
-            dx = (float) compiled.shapeDirection[0].evaluate();
-            dy = (float) compiled.shapeDirection[1].evaluate();
-            dz = (float) compiled.shapeDirection[2].evaluate();
-        } else if (shape instanceof EmitterShape.Box box && box.directionMode() == EmitterShape.DirectionMode.CUSTOM) {
-            dx = (float) compiled.shapeDirection[0].evaluate();
-            dy = (float) compiled.shapeDirection[1].evaluate();
-            dz = (float) compiled.shapeDirection[2].evaluate();
+        EmitterShape.DirectionMode dirMode = shapeComponent.directionMode();
+        if (dirMode == EmitterShape.DirectionMode.CUSTOM) {
+            dx = (float) compiled.shape().direction()[0].evaluate(ctx());
+            dy = (float) compiled.shape().direction()[1].evaluate(ctx());
+            dz = (float) compiled.shape().direction()[2].evaluate(ctx());
         } else {
             // outwards/inwards — 从形状中心向外/向内
-            float ox = (float) compiled.shapeOffset[0].evaluate();
-            float oy = (float) compiled.shapeOffset[1].evaluate();
-            float oz = (float) compiled.shapeOffset[2].evaluate();
+            float ox = (float) compiled.shape().offset()[0].evaluate(ctx());
+            float oy = (float) compiled.shape().offset()[1].evaluate(ctx());
+            float oz = (float) compiled.shape().offset()[2].evaluate(ctx());
             dx = p.x - ox;
             dy = p.y - oy;
             dz = p.z - oz;
         }
 
         // inwards 时取反方向
-        boolean inwards = false;
-        if (shape instanceof EmitterShape.Point point) inwards = point.directionMode() == EmitterShape.DirectionMode.INWARDS;
-        else if (shape instanceof EmitterShape.Sphere sphere) inwards = sphere.directionMode() == EmitterShape.DirectionMode.INWARDS;
-        else if (shape instanceof EmitterShape.Box box) inwards = box.directionMode() == EmitterShape.DirectionMode.INWARDS;
-        if (inwards) {
+        if (dirMode == EmitterShape.DirectionMode.INWARDS) {
             dx = -dx;
             dy = -dy;
             dz = -dz;
@@ -527,70 +527,65 @@ public class ParticleEmitterInstance {
     }
 
     private void applyAppearance(ParticleInstance p) {
-        if (compiled.particleSizeW != null) {
-            p.width = (float) compiled.particleSizeW.evaluate();
-            p.height = (float) compiled.particleSizeH.evaluate();
-        }
+        var app = compiled.appearance();
+        if (app != null) {
+            p.width = (float) app.sizeW().evaluate(ctx());
+            p.height = (float) app.sizeH().evaluate(ctx());
 
-        // Flipbook UV
-        if (compiled.flipbookBaseUV != null) {
-            int maxFrame = (int) compiled.flipbookMaxFrame.evaluate();
-            float frame;
-            if (compiled.flipbookStretch) {
-                // 拉伸到生命周期
-                frame = (p.maxLifetime > 0) ? (p.age / p.maxLifetime) * maxFrame : 0;
-            } else {
-                frame = p.age * compiled.flipbookFPS;
+            if (app.uv() instanceof CompiledExpressions.UVCompiled.Flipbook fb) {
+                int maxFrame = (int) fb.maxFrame().evaluate(ctx());
+                float frame;
+                if (fb.stretch()) {
+                    // 拉伸到生命周期
+                    frame = (p.maxLifetime > 0) ? (p.age / p.maxLifetime) * maxFrame : 0;
+                } else {
+                    frame = p.age * fb.fps();
+                }
+                int frameIdx = (int) frame;
+                if (fb.loop()) {
+                    frameIdx = maxFrame > 0 ? frameIdx % maxFrame : 0;
+                } else {
+                    frameIdx = Math.min(frameIdx, maxFrame - 1);
+                }
+                frameIdx = Math.max(0, frameIdx);
+
+                float baseU = (float) fb.baseUV()[0].evaluate(ctx());
+                float baseV = (float) fb.baseUV()[1].evaluate(ctx());
+                float sizeU = (float) fb.sizeUV()[0].evaluate(ctx());
+                float sizeV = (float) fb.sizeUV()[1].evaluate(ctx());
+                float stepU = (float) fb.stepUV()[0].evaluate(ctx());
+                float stepV = (float) fb.stepUV()[1].evaluate(ctx());
+
+                float u = baseU + stepU * frameIdx;
+                float v = baseV + stepV * frameIdx;
+                p.u0 = u / fb.texW();
+                p.v0 = v / fb.texH();
+                p.u1 = (u + sizeU) / fb.texW();
+                p.v1 = (v + sizeV) / fb.texH();
+            } else if (app.uv() instanceof CompiledExpressions.UVCompiled.Static suv) {
+                float u = (float) suv.u().evaluate(ctx());
+                float v = (float) suv.v().evaluate(ctx());
+                float w = (float) suv.w().evaluate(ctx());
+                float h = (float) suv.h().evaluate(ctx());
+                p.u0 = u / suv.texW();
+                p.v0 = v / suv.texH();
+                p.u1 = (u + w) / suv.texW();
+                p.v1 = (v + h) / suv.texH();
             }
-            int frameIdx = (int) frame;
-            if (compiled.flipbookLoop) {
-                frameIdx = maxFrame > 0 ? frameIdx % maxFrame : 0;
-            } else {
-                frameIdx = Math.min(frameIdx, maxFrame - 1);
-            }
-            frameIdx = Math.max(0, frameIdx);
-
-            float baseU = (float) compiled.flipbookBaseUV[0].evaluate();
-            float baseV = (float) compiled.flipbookBaseUV[1].evaluate();
-            float sizeU = (float) compiled.flipbookSizeUV[0].evaluate();
-            float sizeV = (float) compiled.flipbookSizeUV[1].evaluate();
-            float stepU = (float) compiled.flipbookStepUV[0].evaluate();
-            float stepV = (float) compiled.flipbookStepUV[1].evaluate();
-
-            float u = baseU + stepU * frameIdx;
-            float v = baseV + stepV * frameIdx;
-            p.u0 = u / compiled.flipbookTexW;
-            p.v0 = v / compiled.flipbookTexH;
-            p.u1 = (u + sizeU) / compiled.flipbookTexW;
-            p.v1 = (v + sizeV) / compiled.flipbookTexH;
-            return;
-        }
-
-        // 静态 UV
-        ParticleAppearanceBillboard billboard = definition.findComponent(ParticleAppearanceBillboard.class);
-        if (billboard != null && billboard.uv() != null) {
-            var uv = billboard.uv();
-            float u = (float) compiled.uvU.evaluate();
-            float v = (float) compiled.uvV.evaluate();
-            float w = (float) compiled.uvW.evaluate();
-            float h = (float) compiled.uvH.evaluate();
-            p.u0 = u / uv.textureWidth();
-            p.v0 = v / uv.textureHeight();
-            p.u1 = (u + w) / uv.textureWidth();
-            p.v1 = (v + h) / uv.textureHeight();
         }
     }
 
     private void applyTinting(ParticleInstance p) {
-        ParticleAppearanceTinting tinting = definition.findComponent(ParticleAppearanceTinting.class);
-        if (tinting instanceof ParticleAppearanceTinting.StaticColor color) {
-            p.r = (float) compiled.colorR.evaluate();
-            p.g = (float) compiled.colorG.evaluate();
-            p.b = (float) compiled.colorB.evaluate();
-            p.a = compiled.colorA != null ? (float) compiled.colorA.evaluate() : 1f;
-        } else if (tinting instanceof ParticleAppearanceTinting.GradientColor gradient) {
-            float t = (float) compiled.colorInterpolant.evaluate();
-            applyGradientColor(p, gradient.stops(), gradient.colors(), t);
+        if (compiled.color() instanceof CompiledExpressions.ColorCompiled.Static sc) {
+            p.r = (float) sc.r().evaluate(ctx());
+            p.g = (float) sc.g().evaluate(ctx());
+            p.b = (float) sc.b().evaluate(ctx());
+            p.a = sc.a() != null ? (float) sc.a().evaluate(ctx()) : 1f;
+        } else if (compiled.color() instanceof CompiledExpressions.ColorCompiled.Gradient gc) {
+            float t = (float) gc.interpolant().evaluate(ctx());
+            if (tintingComponent instanceof ParticleAppearanceTinting.GradientColor gradient) {
+                applyGradientColor(p, gradient.stops(), gradient.colors(), t);
+            }
         }
     }
 
@@ -648,37 +643,36 @@ public class ParticleEmitterInstance {
      * @param dt 时间步长（秒）
      */
     public void updateSingleParticle(ParticleInstance p, float dt) {
-        ParticleMotion motion = definition.findComponent(ParticleMotion.class);
-
         molang.bindParticle(p.age, p.maxLifetime, p.random1, p.random2, p.random3, p.random4);
 
         // 执行 per_render_expression（在其他组件求值之前，用于设置 variable.xxx）
-        if (compiled.perRenderExpression != null) {
-            compiled.perRenderExpression.evaluate();
+        if (compiled.perRenderExpression() != null) {
+            compiled.perRenderExpression().evaluate(ctx());
         }
 
-        if (motion instanceof ParticleMotion.Dynamic dynamic) {
+        var mot = compiled.motion();
+        if (mot != null) {
             // 应用加速度
-            if (compiled.accelX != null) {
-                p.vx += (float) compiled.accelX.evaluate() * dt;
-                p.vy += (float) compiled.accelY.evaluate() * dt;
-                p.vz += (float) compiled.accelZ.evaluate() * dt;
+            if (mot.accelX() != null) {
+                p.vx += (float) mot.accelX().evaluate(ctx()) * dt;
+                p.vy += (float) mot.accelY().evaluate(ctx()) * dt;
+                p.vz += (float) mot.accelZ().evaluate(ctx()) * dt;
             }
             // 应用阻力
-            if (compiled.dragCoefficient != null) {
-                float drag = (float) compiled.dragCoefficient.evaluate();
+            if (mot.dragCoefficient() != null) {
+                float drag = (float) mot.dragCoefficient().evaluate(ctx());
                 float factor = Math.max(0, 1f - drag * dt);
                 p.vx *= factor;
                 p.vy *= factor;
                 p.vz *= factor;
             }
             // 应用旋转加速度
-            if (compiled.rotationAcceleration != null) {
-                p.rotationRate += (float) compiled.rotationAcceleration.evaluate() * dt;
+            if (mot.rotationAcceleration() != null) {
+                p.rotationRate += (float) mot.rotationAcceleration().evaluate(ctx()) * dt;
             }
             // 应用旋转阻力
-            if (compiled.rotationDragCoefficient != null) {
-                float rotDrag = (float) compiled.rotationDragCoefficient.evaluate();
+            if (mot.rotationDragCoefficient() != null) {
+                float rotDrag = (float) mot.rotationDragCoefficient().evaluate(ctx());
                 float rotFactor = Math.max(0, 1f - rotDrag * dt);
                 p.rotationRate *= rotFactor;
             }
@@ -693,8 +687,8 @@ public class ParticleEmitterInstance {
         p.tick(dt);
 
         // 检查过期条件
-        if (compiled.expirationExpr != null) {
-            if (compiled.expirationExpr.evaluate() != 0) {
+        if (compiled.expirationExpr() != null) {
+            if (compiled.expirationExpr().evaluate(ctx()) != 0) {
                 p.alive = false;
             }
         }
@@ -757,7 +751,7 @@ public class ParticleEmitterInstance {
         emitterTransform.identity();
         worldTransform.identity();
         bindEmitterContext();
-        emitterLifetime = (float) compiled.emitterActiveTime.evaluate();
+        emitterLifetime = (float) compiled.emitterActiveTime().evaluate(ctx());
     }
 
     public ParticleEffectDefinition getDefinition() {
@@ -818,234 +812,4 @@ public class ParticleEmitterInstance {
         return molang;
     }
 
-    /**
-     * 预编译的 Molang 表达式缓存。
-     */
-    private static class CompiledExpressions {
-        // Emitter
-        final MochaFunction emitterActiveTime;
-        @Nullable final MochaFunction emitterSleepTime;
-        @Nullable final MochaFunction emitterAmount;
-        @Nullable final MochaFunction emitterSpawnRate;
-        @Nullable final MochaFunction emitterMaxParticles;
-
-        // Shape
-        final MochaFunction[] shapeOffset;
-        @Nullable final MochaFunction[] shapeDirection;
-        @Nullable final MochaFunction shapeRadius;
-        @Nullable final MochaFunction[] shapeHalfDimensions;
-
-        // Particle
-        @Nullable final MochaFunction initialSpeed;
-        @Nullable final MochaFunction particleMaxLifetime;
-        @Nullable final MochaFunction expirationExpr;
-        @Nullable final MochaFunction particleSizeW;
-        @Nullable final MochaFunction particleSizeH;
-
-        // UV
-        @Nullable final MochaFunction uvU;
-        @Nullable final MochaFunction uvV;
-        @Nullable final MochaFunction uvW;
-        @Nullable final MochaFunction uvH;
-
-        // Flipbook
-        @Nullable final MochaFunction[] flipbookBaseUV;
-        @Nullable final MochaFunction[] flipbookSizeUV;
-        @Nullable final MochaFunction[] flipbookStepUV;
-        @Nullable final MochaFunction flipbookMaxFrame;
-        float flipbookFPS;
-        boolean flipbookStretch;
-        boolean flipbookLoop;
-        int flipbookTexW;
-        int flipbookTexH;
-
-        // Color
-        @Nullable final MochaFunction colorR;
-        @Nullable final MochaFunction colorG;
-        @Nullable final MochaFunction colorB;
-        @Nullable final MochaFunction colorA;
-        @Nullable final MochaFunction colorInterpolant;
-
-        // Motion
-        @Nullable final MochaFunction accelX;
-        @Nullable final MochaFunction accelY;
-        @Nullable final MochaFunction accelZ;
-        @Nullable final MochaFunction dragCoefficient;
-        @Nullable final MochaFunction rotationAcceleration;
-        @Nullable final MochaFunction rotationDragCoefficient;
-
-        // Initial Spin
-        @Nullable final MochaFunction initialRotation;
-        @Nullable final MochaFunction initialRotationRate;
-
-        // Initialization
-        @Nullable final MochaFunction perRenderExpression;
-
-        CompiledExpressions(ParticleEffectDefinition def, ParticleMolangEnvironment molang) {
-            // Emitter Lifetime
-            EmitterLifetime lifetime = def.findComponent(EmitterLifetime.class);
-            if (lifetime instanceof EmitterLifetime.Looping looping) {
-                emitterActiveTime = molang.compile(looping.activeTime());
-                emitterSleepTime = molang.compile(looping.sleepTime());
-            } else if (lifetime instanceof EmitterLifetime.Once once) {
-                emitterActiveTime = molang.compile(once.activeTime());
-                emitterSleepTime = null;
-            } else {
-                emitterActiveTime = () -> Float.MAX_VALUE;
-                emitterSleepTime = null;
-            }
-
-            // Emitter Rate
-            EmitterRate rate = def.findComponent(EmitterRate.class);
-            if (rate instanceof EmitterRate.Instant instant) {
-                emitterAmount = molang.compile(instant.amount());
-                emitterSpawnRate = null;
-                emitterMaxParticles = null;
-            } else if (rate instanceof EmitterRate.Steady steady) {
-                emitterAmount = null;
-                emitterSpawnRate = molang.compile(steady.spawnRate());
-                emitterMaxParticles = molang.compile(steady.maxParticles());
-            } else {
-                emitterAmount = null;
-                emitterSpawnRate = null;
-                emitterMaxParticles = null;
-            }
-
-            // Shape
-            EmitterShape shape = def.findComponent(EmitterShape.class);
-            if (shape instanceof EmitterShape.Point point) {
-                shapeOffset = compileArray3(molang, point.offset());
-                shapeDirection = point.direction() != null ? compileArray3(molang, point.direction()) : null;
-                shapeRadius = null;
-                shapeHalfDimensions = null;
-            } else if (shape instanceof EmitterShape.Sphere sphere) {
-                shapeOffset = compileArray3(molang, sphere.offset());
-                shapeDirection = sphere.direction() != null ? compileArray3(molang, sphere.direction()) : null;
-                shapeRadius = molang.compile(sphere.radius());
-                shapeHalfDimensions = null;
-            } else if (shape instanceof EmitterShape.Box box) {
-                shapeOffset = compileArray3(molang, box.offset());
-                shapeDirection = box.direction() != null ? compileArray3(molang, box.direction()) : null;
-                shapeRadius = null;
-                shapeHalfDimensions = compileArray3(molang, box.halfDimensions());
-            } else {
-                shapeOffset = new MochaFunction[]{() -> 0, () -> 0, () -> 0};
-                shapeDirection = null;
-                shapeRadius = null;
-                shapeHalfDimensions = null;
-            }
-
-            // Initial Speed
-            ParticleInitialSpeed speedComp = def.findComponent(ParticleInitialSpeed.class);
-            initialSpeed = speedComp != null ? molang.compile(speedComp.speed()) : null;
-
-            // Particle Lifetime
-            ParticleLifetimeExpression lifetimeExpr = def.findComponent(ParticleLifetimeExpression.class);
-            if (lifetimeExpr != null) {
-                particleMaxLifetime = molang.compile(lifetimeExpr.maxLifetime());
-                expirationExpr = lifetimeExpr.expirationExpression() != null ? molang.compile(lifetimeExpr.expirationExpression()) : null;
-            } else {
-                particleMaxLifetime = () -> 1;
-                expirationExpr = null;
-            }
-
-            // Appearance Billboard
-            ParticleAppearanceBillboard billboard = def.findComponent(ParticleAppearanceBillboard.class);
-            if (billboard != null) {
-                particleSizeW = molang.compile(billboard.size()[0]);
-                particleSizeH = molang.compile(billboard.size()[1]);
-                if (billboard.uv() != null) {
-                    var uv = billboard.uv();
-                    uvU = molang.compile(uv.u());
-                    uvV = molang.compile(uv.v());
-                    uvW = molang.compile(uv.width());
-                    uvH = molang.compile(uv.height());
-                } else {
-                    uvU = uvV = uvW = uvH = null;
-                }
-                if (billboard.flipbook() != null) {
-                    var fb = billboard.flipbook();
-                    flipbookBaseUV = new MochaFunction[]{molang.compile(fb.baseUV()[0]), molang.compile(fb.baseUV()[1])};
-                    flipbookSizeUV = new MochaFunction[]{molang.compile(fb.sizeUV()[0]), molang.compile(fb.sizeUV()[1])};
-                    flipbookStepUV = new MochaFunction[]{molang.compile(fb.stepUV()[0]), molang.compile(fb.stepUV()[1])};
-                    flipbookMaxFrame = molang.compile(fb.maxFrame());
-                    flipbookFPS = fb.framesPerSecond();
-                    flipbookStretch = fb.stretchToLifetime();
-                    flipbookLoop = fb.loop();
-                    flipbookTexW = fb.textureWidth();
-                    flipbookTexH = fb.textureHeight();
-                } else {
-                    flipbookBaseUV = flipbookSizeUV = flipbookStepUV = null;
-                    flipbookMaxFrame = null;
-                }
-            } else {
-                particleSizeW = particleSizeH = null;
-                uvU = uvV = uvW = uvH = null;
-                flipbookBaseUV = flipbookSizeUV = flipbookStepUV = null;
-                flipbookMaxFrame = null;
-            }
-
-            // Tinting
-            ParticleAppearanceTinting tinting = def.findComponent(ParticleAppearanceTinting.class);
-            if (tinting instanceof ParticleAppearanceTinting.StaticColor color) {
-                colorR = molang.compile(color.r());
-                colorG = molang.compile(color.g());
-                colorB = molang.compile(color.b());
-                colorA = color.a() != null ? molang.compile(color.a()) : null;
-                colorInterpolant = null;
-            } else if (tinting instanceof ParticleAppearanceTinting.GradientColor gradient) {
-                colorR = colorG = colorB = colorA = null;
-                colorInterpolant = molang.compile(gradient.interpolant());
-            } else {
-                colorR = colorG = colorB = colorA = colorInterpolant = null;
-            }
-
-            // Motion
-            ParticleMotion motion = def.findComponent(ParticleMotion.class);
-            if (motion instanceof ParticleMotion.Dynamic dynamic) {
-                if (dynamic.linearAcceleration() != null) {
-                    MochaFunction[] accel = compileArray3(molang, dynamic.linearAcceleration());
-                    accelX = accel[0];
-                    accelY = accel[1];
-                    accelZ = accel[2];
-                } else {
-                    accelX = accelY = accelZ = null;
-                }
-                dragCoefficient = dynamic.linearDragCoefficient() != null ? molang.compile(dynamic.linearDragCoefficient()) : null;
-                rotationAcceleration = dynamic.rotationAcceleration() != null ? molang.compile(dynamic.rotationAcceleration()) : null;
-                rotationDragCoefficient = dynamic.rotationDragCoefficient() != null ? molang.compile(dynamic.rotationDragCoefficient()) : null;
-            } else {
-                accelX = accelY = accelZ = null;
-                dragCoefficient = null;
-                rotationAcceleration = null;
-                rotationDragCoefficient = null;
-            }
-
-            // Initial Spin
-            ParticleInitialSpin spin = def.findComponent(ParticleInitialSpin.class);
-            if (spin != null) {
-                initialRotation = molang.compile(spin.rotation());
-                initialRotationRate = molang.compile(spin.rotationRate());
-            } else {
-                initialRotation = null;
-                initialRotationRate = null;
-            }
-
-            // Initialization
-            ParticleInitialization init = def.findComponent(ParticleInitialization.class);
-            if (init != null && init.perRenderExpression() != null && !init.perRenderExpression().isEmpty()) {
-                perRenderExpression = molang.compile(init.perRenderExpression());
-            } else {
-                perRenderExpression = null;
-            }
-        }
-
-        private static MochaFunction[] compileArray3(ParticleMolangEnvironment molang, String[] exprs) {
-            return new MochaFunction[]{
-                    molang.compile(exprs[0]),
-                    molang.compile(exprs[1]),
-                    molang.compile(exprs[2])
-            };
-        }
-    }
 }

@@ -16,21 +16,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * 世界粒子发射器管理器。
- * <p>
- * 管理世界空间中的粒子发射器生命周期。发射器产出的粒子被转换为
- * {@link SnowStormParticle} 并投递到 Minecraft 原版 {@code ParticleEngine}，
- * 由原版管线管理粒子的渲染和碰撞。
- * <p>
- * 使用方式：
- * <pre>
- * WorldEmitterManager manager = WorldEmitterManager.getInstance();
- * manager.addEmitter(clientLevel, position, definition);
- * // 每 tick 调用
- * manager.tick();
- * </pre>
- */
+// 用来管理世界中的粒子发射器
 @OnlyIn(Dist.CLIENT)
 public class WorldEmitterManager {
 

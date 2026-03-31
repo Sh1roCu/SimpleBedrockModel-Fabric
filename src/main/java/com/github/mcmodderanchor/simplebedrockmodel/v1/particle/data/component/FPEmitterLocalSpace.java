@@ -1,5 +1,9 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component;
 
+import com.google.gson.JsonObject;
+
+import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleJsonUtils.getBoolean;
+
 /**
  * 第一人称发射器局部空间组件。对应 "sbm:fp_emitter_local_space"。
  * <p>
@@ -19,4 +23,12 @@ package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component;
  * @param toWorld  脱离定位器后是否投放到世界（仅 position=true 时有效）
  */
 public record FPEmitterLocalSpace(boolean position, boolean rotation, boolean velocity, boolean toWorld) implements IEmitterComponent {
+
+    public static FPEmitterLocalSpace fromJson(JsonObject obj) {
+        return new FPEmitterLocalSpace(
+                getBoolean(obj, "position", false),
+                getBoolean(obj, "rotation", false),
+                getBoolean(obj, "velocity", false),
+                getBoolean(obj, "to_world", false));
+    }
 }

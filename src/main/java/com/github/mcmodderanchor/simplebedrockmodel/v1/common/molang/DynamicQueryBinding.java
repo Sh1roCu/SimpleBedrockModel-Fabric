@@ -1,6 +1,6 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.common.molang;
 
-import team.unnamed.mocha.runtime.value.*;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.*;
 
 import javax.annotation.Nullable;
 import java.util.HashMap;

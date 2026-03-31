@@ -1,5 +1,10 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+
+import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleJsonUtils.getMolang;
+
 /**
  * 发射速率组件。
  * <ul>
@@ -21,4 +26,15 @@ public sealed interface EmitterRate extends IEmitterComponent {
      * @param maxParticles 最大粒子数（Molang 表达式字符串）
      */
     record Steady(String spawnRate, String maxParticles) implements EmitterRate {}
+
+    static EmitterRate fromJson(String key, JsonElement value) {
+        JsonObject obj = value.getAsJsonObject();
+        return switch (key) {
+            case "minecraft:emitter_rate_instant" -> new Instant(getMolang(obj, "num_particles", "10"));
+            case "minecraft:emitter_rate_steady" -> new Steady(
+                    getMolang(obj, "spawn_rate", "1"),
+                    getMolang(obj, "max_particles", "50"));
+            default -> throw new IllegalArgumentException("Unknown emitter rate key: " + key);
+        };
+    }
 }

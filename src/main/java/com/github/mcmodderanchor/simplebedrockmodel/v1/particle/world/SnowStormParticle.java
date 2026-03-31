@@ -112,48 +112,35 @@ public class SnowStormParticle extends TextureSheetParticle {
 
         float dt = 1f / 20f;
 
-        // 保存位置——updateSingleParticle 内部的 p.tick(dt) 会移动位置，
-        // 但世界粒子的位置移动由原版 move() 处理（带碰撞检测），所以需要恢复
         float savedX = particleData.x, savedY = particleData.y, savedZ = particleData.z;
 
-        // 委托发射器的组件驱动更新：Molang 绑定、per_render_expression、
-        // 动态运动（加速度/阻力/旋转）、外观（尺寸/flipbook UV）、颜色、
-        // age/rotation 更新、过期检查
         emitter.updateSingleParticle(particleData, dt);
 
-        // 恢复位置（p.tick(dt) 中的位置移动不适用于世界粒子）
         particleData.x = savedX;
         particleData.y = savedY;
         particleData.z = savedZ;
 
-        // 将组件更新后的速度同步到原版字段（blocks/tick）
         this.xd = particleData.vx / 20f;
         this.yd = particleData.vy / 20f;
         this.zd = particleData.vz / 20f;
 
-        // 移动（原版碰撞检测）
         this.move(this.xd, this.yd, this.zd);
 
-        // 将碰撞后的速度同步回 particleData（blocks/second）
         particleData.vx = (float) this.xd * 20f;
         particleData.vy = (float) this.yd * 20f;
         particleData.vz = (float) this.zd * 20f;
 
-        // 将碰撞后的位置同步回 particleData
         particleData.x = (float) this.x;
         particleData.y = (float) this.y;
         particleData.z = (float) this.z;
 
-        // 旋转（updateSingleParticle 已通过 p.tick(dt) 更新了 particleData.rotation）
         this.roll = (float) Math.toRadians(particleData.rotation);
 
-        // 同步颜色
         this.rCol = particleData.r;
         this.gCol = particleData.g;
         this.bCol = particleData.b;
         this.alpha = particleData.a;
 
-        // 检查生命周期（updateSingleParticle 内部已更新 age 和 alive）
         if (!particleData.alive) {
             this.remove();
         }

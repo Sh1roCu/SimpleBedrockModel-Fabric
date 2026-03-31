@@ -1,10 +1,10 @@
 package example.animation;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.animation.BedrockAnimation;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.common.molang.DynamicQueryBinding;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.common.molang.MolangContext;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangContext;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.molang.MolangEngineHelper;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.event.RegisterBedrockAnimationReloadListenerEvent;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.MochaEngine;
 import com.maydaymemory.mae.basic.Pose;
 import com.maydaymemory.mae.control.runner.AnimationContext;
 import com.maydaymemory.mae.control.runner.AnimationRunner;
@@ -12,7 +12,6 @@ import com.maydaymemory.mae.control.runner.LoopingState;
 import example.resource.KnownResources;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import team.unnamed.mocha.MochaEngine;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -23,33 +22,19 @@ import java.util.List;
  */
 @Mod.EventBusSubscriber(bus = Mod.EventBusSubscriber.Bus.MOD)
 public class MolangTestAnimationContext {
-    private static final MochaEngine<?> SHARED_ENGINE;
-    private static final DynamicQueryBinding QUERY_BINDING;
-    private static final MolangContext<Object> SHARED_CONTEXT;
+    private static final MolangContext<Object> SHARED_CONTEXT = new MolangContext<>();
+    private static final MochaEngine<?> SHARED_ENGINE = MolangEngineHelper.createEngine(SHARED_CONTEXT);
 
     private static BedrockAnimation molangTestAnimation;
     @Nullable
     private static AnimationRunner runner;
 
-    static {
-        SHARED_ENGINE = MolangEngineHelper.createEngine();
-        QUERY_BINDING = new DynamicQueryBinding();
-        SHARED_CONTEXT = new MolangContext<>();
-
-        // 注册 query.anim_time —— runner 求值时会读取当前进度
-        QUERY_BINDING.registerProperty("anim_time", () -> {
-            if (runner != null) {
-                return (double) runner.getAnimationContext().getProgressInSecond();
-            }
-            return 0.0;
-        });
-
-        MolangEngineHelper.registerQueryBinding(SHARED_ENGINE, QUERY_BINDING);
-        MolangEngineHelper.bindContext(SHARED_ENGINE, SHARED_CONTEXT);
-    }
-
     public static MochaEngine<?> getSharedEngine() {
         return SHARED_ENGINE;
+    }
+
+    public static MolangContext<Object> getSharedContext() {
+        return SHARED_CONTEXT;
     }
 
     @SubscribeEvent
@@ -82,11 +67,18 @@ public class MolangTestAnimationContext {
 
     /**
      * 获取当前动画 Pose。
+     * 在求值前设置 ThreadLocal context，求值后清除。
      */
     @Nullable
     public static Pose evaluatePose() {
         if (runner != null) {
-            return runner.evaluate();
+            SHARED_CONTEXT.setAnimTime(runner.getAnimationContext().getProgressInSecond());
+            MolangContext.setCurrent(SHARED_CONTEXT);
+            try {
+                return runner.evaluate();
+            } finally {
+                MolangContext.setCurrent(null);
+            }
         }
         return null;
     }

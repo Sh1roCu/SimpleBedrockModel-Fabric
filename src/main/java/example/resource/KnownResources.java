@@ -9,7 +9,7 @@ import example.init.ExampleModRegister;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import team.unnamed.mocha.MochaEngine;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.MochaEngine;
 
 import java.util.ArrayList;
 

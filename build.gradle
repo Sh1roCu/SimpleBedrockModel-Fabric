@@ -114,8 +114,11 @@ dependencies {
         exclude group: 'it.unimi.dsi', module: 'fastutil'
         exclude group: 'org.joml', module: 'joml'
     }
-    jarJar minecraftLibrary("team.unnamed:mocha:3.0.1") {
-        jarJar.ranged(it, "[3.0.1,)")
+//    jarJar minecraftLibrary("team.unnamed:mocha:3.0.1") {
+//        jarJar.ranged(it, "[3.0.1,)")
+//    }
+    jarJar minecraftLibrary("org.javassist:javassist:3.30.2-GA") {
+        jarJar.ranged(it, "[3.30.2-GA,)")
     }
 
     // 测试用mod

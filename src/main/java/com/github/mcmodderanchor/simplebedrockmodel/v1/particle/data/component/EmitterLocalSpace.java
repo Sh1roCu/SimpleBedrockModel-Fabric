@@ -1,5 +1,9 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component;
 
+import com.google.gson.JsonObject;
+
+import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleJsonUtils.getBoolean;
+
 /**
  * 发射器局部空间组件。对应 "minecraft:emitter_local_space"。
  * <p>
@@ -10,4 +14,11 @@ package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component;
  * @param velocity 是否将发射器速度添加到粒子初速度
  */
 public record EmitterLocalSpace(boolean position, boolean rotation, boolean velocity) implements IEmitterComponent {
+
+    public static EmitterLocalSpace fromJson(JsonObject obj) {
+        return new EmitterLocalSpace(
+                getBoolean(obj, "position", false),
+                getBoolean(obj, "rotation", false),
+                getBoolean(obj, "velocity", false));
+    }
 }
