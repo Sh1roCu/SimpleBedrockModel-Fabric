@@ -1,22 +1,27 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.*;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleMolangEnvironment;
 import com.google.gson.JsonElement;
 
 import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.BiFunction;
 
 /**
  * 粒子组件注册表。
  * <p>
- * 维护 JSON key（如 {@code "minecraft:emitter_rate_instant"}）到组件解析函数的映射。
- * 每个组件类通过 {@code fromJson} 静态方法自行负责解析逻辑。
+ * 维护 JSON key 到组件解析函数的映射。
+ * 解析时接收 {@link ParticleMolangEnvironment}，在反序列化阶段直接编译 Molang 表达式。
  */
 public final class ParticleComponentRegistry {
 
-    private static final Map<String, BiFunction<String, JsonElement, IParticleComponent>> DESERIALIZERS = new HashMap<>();
+    @FunctionalInterface
+    public interface ComponentDeserializer {
+        IParticleComponent deserialize(String key, JsonElement value, ParticleMolangEnvironment molang);
+    }
+
+    private static final Map<String, ComponentDeserializer> DESERIALIZERS = new HashMap<>();
 
     static {
         // Emitter Rate
@@ -27,9 +32,9 @@ public final class ParticleComponentRegistry {
         register("minecraft:emitter_lifetime_looping", EmitterLifetime::fromJson);
         register("minecraft:emitter_lifetime_once", EmitterLifetime::fromJson);
 
-        // Emitter Local Space
-        register("minecraft:emitter_local_space", (key, elem) -> EmitterLocalSpace.fromJson(elem.getAsJsonObject()));
-        register("sbm:fp_emitter_local_space", (key, elem) -> FPEmitterLocalSpace.fromJson(elem.getAsJsonObject()));
+        // Emitter Local Space (不含 Molang 表达式，忽略 molang 参数)
+        register("minecraft:emitter_local_space", (key, elem, molang) -> EmitterLocalSpace.fromJson(elem.getAsJsonObject()));
+        register("sbm:fp_emitter_local_space", (key, elem, molang) -> FPEmitterLocalSpace.fromJson(elem.getAsJsonObject()));
 
         // Emitter Shape
         register("minecraft:emitter_shape_point", EmitterShape::fromJson);
@@ -39,40 +44,33 @@ public final class ParticleComponentRegistry {
         register("minecraft:emitter_shape_entity_aabb", EmitterShape::fromJson);
 
         // Particle Appearance
-        register("minecraft:particle_appearance_billboard", (key, elem) -> ParticleAppearanceBillboard.fromJson(elem.getAsJsonObject()));
-        register("minecraft:particle_appearance_tinting", (key, elem) -> ParticleAppearanceTinting.fromJson(elem.getAsJsonObject()));
+        register("minecraft:particle_appearance_billboard", (key, elem, molang) -> ParticleAppearanceBillboard.fromJson(elem.getAsJsonObject(), molang));
+        register("minecraft:particle_appearance_tinting", (key, elem, molang) -> ParticleAppearanceTinting.fromJson(elem.getAsJsonObject(), molang));
 
         // Particle Motion
         register("minecraft:particle_motion_dynamic", ParticleMotion::fromJson);
         register("minecraft:particle_motion_parametric", ParticleMotion::fromJson);
-        register("minecraft:particle_motion_collision", (key, elem) -> ParticleMotionCollision.fromJson(elem.getAsJsonObject()));
+        register("minecraft:particle_motion_collision", (key, elem, molang) -> ParticleMotionCollision.fromJson(elem.getAsJsonObject()));
 
         // Particle Lifetime
-        register("minecraft:particle_lifetime_expression", (key, elem) -> ParticleLifetimeExpression.fromJson(elem.getAsJsonObject()));
+        register("minecraft:particle_lifetime_expression", (key, elem, molang) -> ParticleLifetimeExpression.fromJson(elem.getAsJsonObject(), molang));
 
         // Particle Initial
-        register("minecraft:particle_initial_speed", (key, elem) -> ParticleInitialSpeed.fromJson(elem));
-        register("minecraft:particle_initial_spin", (key, elem) -> ParticleInitialSpin.fromJson(elem.getAsJsonObject()));
-        register("minecraft:particle_initialization", (key, elem) -> ParticleInitialization.fromJson(elem.getAsJsonObject()));
+        register("minecraft:particle_initial_speed", (key, elem, molang) -> ParticleInitialSpeed.fromJson(elem, molang));
+        register("minecraft:particle_initial_spin", (key, elem, molang) -> ParticleInitialSpin.fromJson(elem.getAsJsonObject(), molang));
+        register("minecraft:particle_initialization", (key, elem, molang) -> ParticleInitialization.fromJson(elem.getAsJsonObject(), molang));
     }
 
     private ParticleComponentRegistry() {}
 
-    private static void register(String key, BiFunction<String, JsonElement, IParticleComponent> deserializer) {
+    private static void register(String key, ComponentDeserializer deserializer) {
         DESERIALIZERS.put(key, deserializer);
     }
 
-    /**
-     * 根据 JSON key 解析对应的组件。
-     *
-     * @param key   组件的 JSON key（如 {@code "minecraft:emitter_rate_instant"}）
-     * @param value 组件的 JSON 值
-     * @return 解析后的组件实例，未知 key 返回 null
-     */
     @Nullable
-    public static IParticleComponent deserialize(String key, JsonElement value) {
+    public static IParticleComponent deserialize(String key, JsonElement value, ParticleMolangEnvironment molang) {
         var deserializer = DESERIALIZERS.get(key);
         if (deserializer == null) return null;
-        return deserializer.apply(key, value);
+        return deserializer.deserialize(key, value, molang);
     }
 }

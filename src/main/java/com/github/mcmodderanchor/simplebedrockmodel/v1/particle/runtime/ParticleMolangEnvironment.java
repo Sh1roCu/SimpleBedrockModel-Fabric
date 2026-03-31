@@ -6,10 +6,6 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangExpr
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.MochaEngine;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.MutableObjectBinding;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.NumberValue;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleEffectDefinition;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * 粒子系统专用的 Molang 运行时环境。
@@ -19,8 +15,8 @@ import java.util.Map;
  */
 public class ParticleMolangEnvironment {
     private final MochaEngine<?> engine;
+
     private final MolangContext<?> context;
-    private final Map<ParticleEffectDefinition, CompiledExpressions> compiledCache = new HashMap<>();
 
     public ParticleMolangEnvironment() {
         this.context = new MolangContext<>();
@@ -70,13 +66,6 @@ public class ParticleMolangEnvironment {
         variableStorage.set("particle_random_2", NumberValue.of(r2));
         variableStorage.set("particle_random_3", NumberValue.of(r3));
         variableStorage.set("particle_random_4", NumberValue.of(r4));
-    }
-
-    /**
-     * 获取或编译粒子效果定义的 Molang 表达式。同一个 definition 只编译一次。
-     */
-    public CompiledExpressions getOrCompile(ParticleEffectDefinition definition) {
-        return compiledCache.computeIfAbsent(definition, def -> CompiledExpressions.compile(def, this));
     }
 
     /**

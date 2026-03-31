@@ -23,10 +23,52 @@ public class ParticleEffectDefinition {
     private final ParticleDescription description;
     private final Map<Class<? extends IParticleComponent>, IParticleComponent> componentMap;
 
+    // 预缓存的常用组件引用，构建时一次性查找
+    @Nullable
+    private final EmitterLifetime lifetime;
+
+    @Nullable
+    private final EmitterRate rate;
+
+    @Nullable
+    private final EmitterShape shape;
+
+    @Nullable
+    private final ParticleInitialSpeed initialSpeed;
+
+    @Nullable
+    private final ParticleLifetimeExpression lifetimeExpression;
+
+    @Nullable
+    private final ParticleAppearanceBillboard billboard;
+
+    @Nullable
+    private final ParticleAppearanceTinting tinting;
+
+    @Nullable
+    private final ParticleMotion motion;
+
+    @Nullable
+    private final ParticleInitialSpin initialSpin;
+
+    @Nullable
+    private final ParticleInitialization initialization;
+
     public ParticleEffectDefinition(ResourceLocation identifier, ParticleDescription description, List<IParticleComponent> components) {
         this.identifier = identifier;
         this.description = description;
         this.componentMap = buildComponentMap(components);
+
+        this.lifetime = findComponent(EmitterLifetime.class);
+        this.rate = findComponent(EmitterRate.class);
+        this.shape = findComponent(EmitterShape.class);
+        this.initialSpeed = findComponent(ParticleInitialSpeed.class);
+        this.lifetimeExpression = findComponent(ParticleLifetimeExpression.class);
+        this.billboard = findComponent(ParticleAppearanceBillboard.class);
+        this.tinting = findComponent(ParticleAppearanceTinting.class);
+        this.motion = findComponent(ParticleMotion.class);
+        this.initialSpin = findComponent(ParticleInitialSpin.class);
+        this.initialization = findComponent(ParticleInitialization.class);
     }
 
     public ResourceLocation getIdentifier() {
@@ -35,6 +77,56 @@ public class ParticleEffectDefinition {
 
     public ParticleDescription getDescription() {
         return description;
+    }
+
+    @Nullable
+    public EmitterLifetime getLifetime() {
+        return lifetime;
+    }
+
+    @Nullable
+    public EmitterRate getRate() {
+        return rate;
+    }
+
+    @Nullable
+    public EmitterShape getShape() {
+        return shape;
+    }
+
+    @Nullable
+    public ParticleInitialSpeed getInitialSpeed() {
+        return initialSpeed;
+    }
+
+    @Nullable
+    public ParticleLifetimeExpression getLifetimeExpression() {
+        return lifetimeExpression;
+    }
+
+    @Nullable
+    public ParticleAppearanceBillboard getBillboard() {
+        return billboard;
+    }
+
+    @Nullable
+    public ParticleAppearanceTinting getTinting() {
+        return tinting;
+    }
+
+    @Nullable
+    public ParticleMotion getMotion() {
+        return motion;
+    }
+
+    @Nullable
+    public ParticleInitialSpin getInitialSpin() {
+        return initialSpin;
+    }
+
+    @Nullable
+    public ParticleInitialization getInitialization() {
+        return initialization;
     }
 
     /**

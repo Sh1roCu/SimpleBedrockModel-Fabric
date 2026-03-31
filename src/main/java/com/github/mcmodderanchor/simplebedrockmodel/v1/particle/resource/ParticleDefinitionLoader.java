@@ -3,9 +3,8 @@ package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.resource;
 import com.github.mcmodderanchor.simplebedrockmodel.SimpleBedrockModel;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleEffectDefinition;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleEffectDeserializer;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleMolangEnvironment;
 import com.google.common.collect.Maps;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import net.minecraft.resources.ResourceLocation;
@@ -28,22 +27,26 @@ import java.util.Map;
  * <p>
  * 扫描 {@code assets/<namespace>/particle_definitions/<name>.json} 路径，
  * 解析基岩版粒子效果定义并缓存。
+ * <p>
+ * 每个粒子效果定义在加载时使用共享的 {@link ParticleMolangEnvironment} 编译 Molang 表达式。
  */
 public class ParticleDefinitionLoader extends SimplePreparableReloadListener<Map<ResourceLocation, JsonElement>> {
     private static final String DIRECTORY = "particle_definitions";
-    private static final Gson GSON = new GsonBuilder()
-            .registerTypeAdapter(ParticleEffectDefinition.class, new ParticleEffectDeserializer())
-            .create();
+    private static final ParticleEffectDeserializer DESERIALIZER = new ParticleEffectDeserializer();
 
     private static ParticleDefinitionLoader INSTANCE;
 
+    private final ParticleMolangEnvironment molang;
     private final Map<ResourceLocation, ParticleEffectDefinition> cache = Maps.newHashMap();
-    /** 按粒子效果的 identifier（JSON 中的 description.identifier）索引 */
     private final Map<ResourceLocation, ParticleEffectDefinition> identifierIndex = Maps.newHashMap();
+
+    public ParticleDefinitionLoader(ParticleMolangEnvironment molang) {
+        this.molang = molang;
+    }
 
     public static ParticleDefinitionLoader getInstance() {
         if (INSTANCE == null) {
-            INSTANCE = new ParticleDefinitionLoader();
+            INSTANCE = new ParticleDefinitionLoader(new ParticleMolangEnvironment());
         }
         return INSTANCE;
     }
@@ -57,9 +60,8 @@ public class ParticleDefinitionLoader extends SimplePreparableReloadListener<Map
                 .forEach((location, resource) -> {
                     try (InputStream stream = resource.open()) {
                         JsonElement json = JsonParser.parseReader(new InputStreamReader(stream, StandardCharsets.UTF_8));
-                        // 从路径中提取 ID：particle_definitions/xxx.json -> xxx
                         String path = location.getPath();
-                        String name = path.substring(DIRECTORY.length() + 1, path.length() - 5); // 去掉 .json
+                        String name = path.substring(DIRECTORY.length() + 1, path.length() - 5);
                         ResourceLocation id = new ResourceLocation(location.getNamespace(), name);
                         result.put(id, json);
                     } catch (IOException e) {
@@ -76,7 +78,7 @@ public class ParticleDefinitionLoader extends SimplePreparableReloadListener<Map
         identifierIndex.clear();
         prepared.forEach((id, json) -> {
             try {
-                ParticleEffectDefinition definition = GSON.fromJson(json, ParticleEffectDefinition.class);
+                ParticleEffectDefinition definition = DESERIALIZER.parse(json, molang);
                 if (definition != null) {
                     cache.put(id, definition);
                     identifierIndex.put(definition.getIdentifier(), definition);
@@ -89,22 +91,18 @@ public class ParticleDefinitionLoader extends SimplePreparableReloadListener<Map
         SimpleBedrockModel.LOGGER.info("Loaded {} particle definitions", cache.size());
     }
 
-    /**
-     * 获取已加载的粒子效果定义（按文件路径 ID 查找）。
-     */
     @Nullable
     public ParticleEffectDefinition getDefinition(ResourceLocation id) {
-        // 先按文件路径查找
         ParticleEffectDefinition def = cache.get(id);
         if (def != null) return def;
-        // 再按 identifier 查找
         return identifierIndex.get(id);
     }
 
-    /**
-     * 获取所有已加载的粒子效果定义。
-     */
     public Map<ResourceLocation, ParticleEffectDefinition> getAllDefinitions() {
         return Collections.unmodifiableMap(cache);
+    }
+
+    public ParticleMolangEnvironment getMolang() {
+        return molang;
     }
 }

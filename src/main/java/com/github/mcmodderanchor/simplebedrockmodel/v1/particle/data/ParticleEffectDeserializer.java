@@ -1,10 +1,10 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.*;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleMolangEnvironment;
 import com.google.gson.*;
 import net.minecraft.resources.ResourceLocation;
 
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -12,26 +12,20 @@ import java.util.Map;
 import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleJsonUtils.*;
 
 /**
- * 基岩版粒子效果 JSON 反序列化器。
+ * 基岩版粒子效果 JSON 解析器。
  * <p>
- * 解析格式：
- * <pre>
- * {
- *   "format_version": "1.10.0",
- *   "particle_effect": {
- *     "description": { "identifier": "...", "basic_render_parameters": { ... } },
- *     "components": { ... }
- *   }
- * }
- * </pre>
- * <p>
- * 各组件的具体解析逻辑由 {@link ParticleComponentRegistry} 分发到各组件类的
- * {@code fromJson} 方法中。
+ * 解析时接收 {@link ParticleMolangEnvironment}，在反序列化阶段直接编译 Molang 表达式到组件中。
  */
-public class ParticleEffectDeserializer implements JsonDeserializer<ParticleEffectDefinition> {
+public class ParticleEffectDeserializer {
 
-    @Override
-    public ParticleEffectDefinition deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+    /**
+     * 解析粒子效果定义 JSON。
+     *
+     * @param json  完整的粒子效果 JSON
+     * @param molang Molang 编译环境
+     * @return 解析后的粒子效果定义
+     */
+    public ParticleEffectDefinition parse(JsonElement json, ParticleMolangEnvironment molang) {
         JsonObject root = json.getAsJsonObject();
         JsonObject effect = root.getAsJsonObject("particle_effect");
         if (effect == null) throw new JsonParseException("Missing 'particle_effect'");
@@ -42,7 +36,7 @@ public class ParticleEffectDeserializer implements JsonDeserializer<ParticleEffe
 
         // components
         JsonObject compObj = effect.getAsJsonObject("components");
-        List<IParticleComponent> components = compObj != null ? parseComponents(compObj) : List.of();
+        List<IParticleComponent> components = compObj != null ? parseComponents(compObj, molang) : List.of();
 
         return new ParticleEffectDefinition(description.getIdentifier(), description, components);
     }
@@ -71,10 +65,10 @@ public class ParticleEffectDeserializer implements JsonDeserializer<ParticleEffe
         return new ParticleDescription(identifier, material, texture, texW, texH);
     }
 
-    private List<IParticleComponent> parseComponents(JsonObject obj) {
+    private List<IParticleComponent> parseComponents(JsonObject obj, ParticleMolangEnvironment molang) {
         List<IParticleComponent> components = new ArrayList<>();
         for (Map.Entry<String, JsonElement> entry : obj.entrySet()) {
-            IParticleComponent component = ParticleComponentRegistry.deserialize(entry.getKey(), entry.getValue());
+            IParticleComponent component = ParticleComponentRegistry.deserialize(entry.getKey(), entry.getValue(), molang);
             if (component != null) {
                 components.add(component);
             }

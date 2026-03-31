@@ -1,5 +1,7 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component;
 
+import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangExpression;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleMolangEnvironment;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -11,83 +13,48 @@ import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.Part
 /**
  * 粒子外观组件 — Billboard 模式。
  * 对应 "minecraft:particle_appearance_billboard"。
- * @param size 粒子尺寸 [width, height]（Molang 表达式字符串）
- * @param faceCameraMode 朝向模式
- * @param uv 静态 UV 配置（flipbook 为 null 时使用）
- * @param flipbook Flipbook UV 动画配置，可为 null
  */
 public record ParticleAppearanceBillboard(
-        String[] size,
+        MolangExpression[] size,
         FaceCameraMode faceCameraMode,
         @Nullable UVConfig uv,
         @Nullable FlipbookConfig flipbook
 ) implements IParticleComponent {
 
     public enum FaceCameraMode {
-        ROTATE_XYZ,
-        ROTATE_Y,
-        LOOKAT_XYZ,
-        LOOKAT_Y,
-        LOOKAT_DIRECTION,
-        DIRECTION_X,
-        DIRECTION_Y,
-        DIRECTION_Z,
-        EMITTER_TRANSFORM_XY,
-        EMITTER_TRANSFORM_XZ,
-        EMITTER_TRANSFORM_YZ
+        ROTATE_XYZ, ROTATE_Y, LOOKAT_XYZ, LOOKAT_Y, LOOKAT_DIRECTION,
+        DIRECTION_X, DIRECTION_Y, DIRECTION_Z,
+        EMITTER_TRANSFORM_XY, EMITTER_TRANSFORM_XZ, EMITTER_TRANSFORM_YZ
     }
 
-    /**
-     * 静态 UV 配置。
-     * @param u U 偏移（Molang）
-     * @param v V 偏移（Molang）
-     * @param width UV 宽度（Molang）
-     * @param height UV 高度（Molang）
-     * @param textureWidth 纹理总宽度（像素）
-     * @param textureHeight 纹理总高度（像素）
-     */
     public record UVConfig(
-            String u, String v,
-            String width, String height,
+            MolangExpression u, MolangExpression v,
+            MolangExpression width, MolangExpression height,
             int textureWidth, int textureHeight
     ) {}
 
-    /**
-     * Flipbook UV 动画配置。
-     * @param baseUV 起始 UV [u, v]（Molang）
-     * @param sizeUV 每帧尺寸 [w, h]（Molang）
-     * @param stepUV 每帧步进 [du, dv]（Molang）
-     * @param framesPerSecond 帧率
-     * @param maxFrame 最大帧数（Molang）
-     * @param stretchToLifetime 是否拉伸到粒子生命周期
-     * @param loop 是否循环
-     * @param textureWidth 纹理总宽度（像素）
-     * @param textureHeight 纹理总高度（像素）
-     */
     public record FlipbookConfig(
-            String[] baseUV, String[] sizeUV, String[] stepUV,
-            float framesPerSecond, String maxFrame,
+            MolangExpression[] baseUV, MolangExpression[] sizeUV, MolangExpression[] stepUV,
+            float framesPerSecond, MolangExpression maxFrame,
             boolean stretchToLifetime, boolean loop,
             int textureWidth, int textureHeight
     ) {}
 
-    public static ParticleAppearanceBillboard fromJson(JsonObject obj) {
-        // size
-        String[] size = getMolangArray(obj, "size", 2, "0.1", "0.1");
+    public static ParticleAppearanceBillboard fromJson(JsonObject obj, ParticleMolangEnvironment molang) {
+        String[] sizeStr = getMolangArray(obj, "size", 2, "0.1", "0.1");
+        MolangExpression[] size = new MolangExpression[]{molang.compile(sizeStr[0]), molang.compile(sizeStr[1])};
 
-        // facing_camera_mode
         String modeStr = getString(obj, "facing_camera_mode", "rotate_xyz");
         FaceCameraMode mode = parseFaceCameraMode(modeStr);
 
-        // uv
         JsonObject uvObj = obj.has("uv") ? obj.getAsJsonObject("uv") : null;
         UVConfig uv = null;
         FlipbookConfig flipbook = null;
 
         if (uvObj != null && uvObj.has("flipbook")) {
-            flipbook = parseFlipbookConfig(uvObj);
+            flipbook = parseFlipbookConfig(uvObj, molang);
         } else {
-            uv = parseUVConfig(uvObj);
+            uv = parseUVConfig(uvObj, molang);
         }
 
         return new ParticleAppearanceBillboard(size, mode, uv, flipbook);
@@ -109,42 +76,46 @@ public record ParticleAppearanceBillboard(
         };
     }
 
-    private static UVConfig parseUVConfig(@Nullable JsonObject uvObj) {
+    private static UVConfig parseUVConfig(@Nullable JsonObject uvObj, ParticleMolangEnvironment molang) {
         if (uvObj == null) {
-            return new UVConfig("0", "0", "1", "1", 1, 1);
+            return new UVConfig(MolangExpression.zero(), MolangExpression.zero(),
+                    MolangExpression.constant(1), MolangExpression.constant(1), 1, 1);
         }
         int texW = uvObj.has("texture_width") ? uvObj.get("texture_width").getAsInt() : 1;
         int texH = uvObj.has("texture_height") ? uvObj.get("texture_height").getAsInt() : 1;
 
-        // 静态 UV
         if (uvObj.has("uv")) {
             JsonElement uvElem = uvObj.get("uv");
             if (uvElem.isJsonArray()) {
                 JsonArray arr = uvElem.getAsJsonArray();
-                String u = molangFromElement(arr.get(0), "0");
-                String v = molangFromElement(arr.get(1), "0");
-                String w = "1";
-                String h = "1";
+                MolangExpression u = molang.compile(molangFromElement(arr.get(0), "0"));
+                MolangExpression v = molang.compile(molangFromElement(arr.get(1), "0"));
+                MolangExpression w = MolangExpression.constant(1);
+                MolangExpression h = MolangExpression.constant(1);
                 if (uvObj.has("uv_size")) {
                     JsonArray sizeArr = uvObj.getAsJsonArray("uv_size");
-                    w = molangFromElement(sizeArr.get(0), "1");
-                    h = molangFromElement(sizeArr.get(1), "1");
+                    w = molang.compile(molangFromElement(sizeArr.get(0), "1"));
+                    h = molang.compile(molangFromElement(sizeArr.get(1), "1"));
                 }
                 return new UVConfig(u, v, w, h, texW, texH);
             }
         }
-        return new UVConfig("0", "0", String.valueOf(texW), String.valueOf(texH), texW, texH);
+        return new UVConfig(MolangExpression.zero(), MolangExpression.zero(),
+                MolangExpression.constant(texW), MolangExpression.constant(texH), texW, texH);
     }
 
-    private static FlipbookConfig parseFlipbookConfig(JsonObject uvObj) {
+    private static FlipbookConfig parseFlipbookConfig(JsonObject uvObj, ParticleMolangEnvironment molang) {
         int texW = uvObj.has("texture_width") ? uvObj.get("texture_width").getAsInt() : 1;
         int texH = uvObj.has("texture_height") ? uvObj.get("texture_height").getAsInt() : 1;
         JsonObject fb = uvObj.getAsJsonObject("flipbook");
-        String[] baseUV = getMolangArray(fb, "base_UV", 2, "0", "0");
-        String[] sizeUV = getMolangArray(fb, "size_UV", 2, "1", "1");
-        String[] stepUV = getMolangArray(fb, "step_UV", 2, "0", "0");
+        String[] baseStr = getMolangArray(fb, "base_UV", 2, "0", "0");
+        String[] sizeStr = getMolangArray(fb, "size_UV", 2, "1", "1");
+        String[] stepStr = getMolangArray(fb, "step_UV", 2, "0", "0");
+        MolangExpression[] baseUV = new MolangExpression[]{molang.compile(baseStr[0]), molang.compile(baseStr[1])};
+        MolangExpression[] sizeUV = new MolangExpression[]{molang.compile(sizeStr[0]), molang.compile(sizeStr[1])};
+        MolangExpression[] stepUV = new MolangExpression[]{molang.compile(stepStr[0]), molang.compile(stepStr[1])};
         float fps = fb.has("frames_per_second") ? fb.get("frames_per_second").getAsFloat() : 1;
-        String maxFrame = getMolang(fb, "max_frame", "1");
+        MolangExpression maxFrame = molang.compile(getMolang(fb, "max_frame", "1"));
         boolean stretch = getBoolean(fb, "stretch_to_lifetime", false);
         boolean loop = getBoolean(fb, "loop", false);
         return new FlipbookConfig(baseUV, sizeUV, stepUV, fps, maxFrame, stretch, loop, texW, texH);
