@@ -379,4 +379,107 @@ class MolangCompilerTest {
             }
         }
     }
+
+    // ==================== 解释器回退测试 ====================
+
+    @Nested
+    class InterpreterFallback {
+        @Test
+        void forceInterpreterMochaFunction() {
+            MochaEngine<?> engine = MochaEngine.createStandard();
+            engine.forceInterpreter(true);
+
+            MochaFunction fn = engine.compile("1 + 2 * 3");
+            assertEquals(7.0, fn.evaluate());
+
+            MochaFunction fn2 = engine.compile("math.abs(-5) + math.floor(3.7)");
+            assertEquals(8.0, fn2.evaluate());
+
+            MochaFunction fn3 = engine.compile("(3 > 2) ? 100 : 200");
+            assertEquals(100.0, fn3.evaluate());
+        }
+
+        @Test
+        void forceInterpreterMolangExpression() {
+            MolangContext<Object> ctx = new MolangContext<>();
+            ctx.setAnimTime(2.0);
+            MochaEngine<?> engine = MolangEngineHelper.createEngine(ctx);
+            engine.forceInterpreter(true);
+
+            MolangExpression expr = MolangEngineHelper.compileExpression(engine, "query.anim_time * 3");
+            assertEquals(6.0, expr.evaluate(ctx));
+
+            ctx.setAnimTime(4.0);
+            assertEquals(12.0, expr.evaluate(ctx));
+        }
+
+        @Test
+        void forceInterpreterVariableReadWrite() {
+            MolangContext<Object> ctx = new MolangContext<>();
+            MochaEngine<?> engine = MolangEngineHelper.createEngine(ctx);
+            engine.forceInterpreter(true);
+
+            MolangExpression writeExpr = MolangEngineHelper.compileExpression(engine, "variable.x = 99");
+            assertEquals(99.0, writeExpr.evaluate(ctx));
+
+            MolangExpression readExpr = MolangEngineHelper.compileExpression(engine, "variable.x");
+            assertEquals(99.0, readExpr.evaluate(ctx));
+        }
+
+        @Test
+        void forceInterpreterEmpty() {
+            MochaEngine<?> engine = MochaEngine.createStandard();
+            engine.forceInterpreter(true);
+
+            MochaFunction fn = engine.compile("");
+            assertEquals(0.0, fn.evaluate());
+        }
+
+        @Test
+        void fallbackConsistencyWithCompiler() {
+            // 同一组表达式，编译模式和解释器回退模式结果应一致
+            String[] expressions = {
+                    "0", "42", "1 + 2 * 3", "math.sqrt(25)",
+                    "math.abs(-7) + math.floor(2.9)",
+                    "(5 > 3) ? 10 : 20", "1 && 0 || 1", "!0",
+                    "-(3 + 4)", "math.pow(2, 8)",
+            };
+
+            MochaEngine<?> compiled = MochaEngine.createStandard();
+            MochaEngine<?> interpreted = MochaEngine.createStandard();
+            interpreted.forceInterpreter(true);
+
+            for (String expr : expressions) {
+                double compiledResult = compiled.compile(expr).evaluate();
+                double interpretedResult = interpreted.compile(expr).evaluate();
+                assertEquals(compiledResult, interpretedResult,
+                        "compiled vs fallback: " + expr);
+            }
+        }
+
+        @Test
+        void fallbackConsistencyMolangExpression() {
+            String[] expressions = {
+                    "query.anim_time",
+                    "query.anim_time * 2 + 1",
+                    "math.sin(query.anim_time * 360)",
+            };
+
+            for (String expr : expressions) {
+                MolangContext<Object> ctx1 = new MolangContext<>();
+                ctx1.setAnimTime(1.5);
+                MochaEngine<?> compiledEngine = MolangEngineHelper.createEngine(ctx1);
+                MolangExpression compiledExpr = MolangEngineHelper.compileExpression(compiledEngine, expr);
+
+                MolangContext<Object> ctx2 = new MolangContext<>();
+                ctx2.setAnimTime(1.5);
+                MochaEngine<?> interpEngine = MolangEngineHelper.createEngine(ctx2);
+                interpEngine.forceInterpreter(true);
+                MolangExpression interpExpr = MolangEngineHelper.compileExpression(interpEngine, expr);
+
+                assertEquals(compiledExpr.evaluate(ctx1), interpExpr.evaluate(ctx2),
+                        "compiled vs fallback MolangExpression: " + expr);
+            }
+        }
+    }
 }

@@ -27,6 +27,8 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.parser.ast.Express
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.binding.Entity;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.compiled.MochaCompiledFunction;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.compiled.Named;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.NumberValue;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.Value;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.util.AsmUtil;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.util.CaseInsensitiveStringHashMap;
 import org.jetbrains.annotations.ApiStatus;
@@ -53,6 +55,7 @@ public final class MolangCompiler {
     private final ClassLoader classLoader;
     private final Scope scope;
     private Consumer<byte @NotNull []> postCompile;
+    private boolean forceInterpreter;
 
     public MolangCompiler(final @Nullable Object entity, final @NotNull ClassLoader classLoader, final @NotNull Scope scope) {
         this.entity = entity;
@@ -68,6 +71,10 @@ public final class MolangCompiler {
         this.postCompile = postCompile;
     }
 
+    public void forceInterpreter(final boolean forceInterpreter) {
+        this.forceInterpreter = forceInterpreter;
+    }
+
     public <T extends MochaCompiledFunction> @NotNull T compile(final @NotNull List<Expression> expressions, final @NotNull Class<T> clazz) {
         requireNonNull(expressions, "expressions");
         requireNonNull(clazz, "clazz");
@@ -75,6 +82,71 @@ public final class MolangCompiler {
         if (clazz == MochaFunction.class && expressions.isEmpty()) {
             return clazz.cast(MochaFunction.nop());
         }
+
+        if (forceInterpreter) {
+            return interpretFallback(expressions, clazz);
+        }
+
+        try {
+            return compileBytecode(expressions, clazz);
+        } catch (final Exception e) {
+            System.err.println("[MoLang] Bytecode compilation failed, falling back to interpreter: " + e.getMessage());
+            return interpretFallback(expressions, clazz);
+        }
+    }
+
+    /**
+     * 解释器回退：将表达式包装为解释执行的 lambda。
+     * 仅支持 {@link MochaFunction} 和 {@link MolangExpression} 两种目标类型。
+     */
+    @SuppressWarnings("unchecked")
+    private <T extends MochaCompiledFunction> @NotNull T interpretFallback(final @NotNull List<Expression> expressions, final @NotNull Class<T> clazz) {
+        if (clazz == MochaFunction.class || clazz.isAssignableFrom(MochaFunction.class)) {
+            final MochaFunction fn = () -> {
+                final ExpressionInterpreter<?> evaluator = new ExpressionInterpreter<>(entity, scope);
+                Value lastResult = NumberValue.zero();
+                for (final Expression expression : expressions) {
+                    lastResult = expression.visit(evaluator);
+                    final Value returnValue = evaluator.popReturnValue();
+                    if (returnValue != null) {
+                        lastResult = returnValue;
+                        break;
+                    }
+                }
+                return lastResult == null ? 0D : lastResult.getAsNumber();
+            };
+            return (T) fn;
+        }
+
+        if (clazz == MolangExpression.class) {
+            final MolangExpression fn = ctx -> {
+                final Scope local = scope.copy();
+                local.set("variable", ctx.getVariableStorage());
+                local.set("v", ctx.getVariableStorage());
+                local.set("query", ctx.getQueryBinding());
+                local.set("q", ctx.getQueryBinding());
+                local.readOnly(true);
+                final ExpressionInterpreter<?> evaluator = new ExpressionInterpreter<>(ctx, local);
+                Value lastResult = NumberValue.zero();
+                for (final Expression expression : expressions) {
+                    lastResult = expression.visit(evaluator);
+                    final Value returnValue = evaluator.popReturnValue();
+                    if (returnValue != null) {
+                        lastResult = returnValue;
+                        break;
+                    }
+                }
+                return lastResult == null ? 0D : lastResult.getAsNumber();
+            };
+            return (T) fn;
+        }
+
+        throw new UnsupportedOperationException(
+                "Interpreter fallback is not supported for custom compiled function type: " + clazz.getName()
+                        + ". Only MochaFunction and MolangExpression are supported.");
+    }
+
+    private <T extends MochaCompiledFunction> @NotNull T compileBytecode(final @NotNull List<Expression> expressions, final @NotNull Class<T> clazz) {
 
         if (!clazz.isInterface()) {
             throw new IllegalArgumentException("Target type must be an interface: " + clazz.getName());
