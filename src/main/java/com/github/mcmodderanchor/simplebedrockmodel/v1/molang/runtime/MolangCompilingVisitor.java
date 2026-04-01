@@ -33,14 +33,13 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.Func
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.NumberValue;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.ObjectValue;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.Value;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.util.AsmUtil;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.util.CaseInsensitiveStringHashMap;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.util.JavassistUtil;
-import javassist.ClassPool;
-import javassist.CtClass;
-import javassist.NotFoundException;
-import javassist.bytecode.Bytecode;
-import javassist.bytecode.Descriptor;
 import org.jetbrains.annotations.NotNull;
+import org.objectweb.asm.Label;
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -51,65 +50,59 @@ import java.util.List;
 import java.util.Map;
 
 final class MolangCompilingVisitor implements ExpressionVisitor<CompileVisitResult> {
-    private static final int[] OPCODES_BY_BINARY_EXPRESSION_OP = new int[]{
-            -1, // AND(300),
-            -1, //        OR(200),
-            Bytecode.IFLT, //        LT(700),
-            Bytecode.IFLE, //        LTE(700),
-            Bytecode.IFGT, //        GT(700),
-            Bytecode.IFGE, //        GTE(700),
-            Bytecode.DADD, //        ADD(900),
-            Bytecode.DSUB, //        SUB(900),
-            Bytecode.DMUL, //        MUL(1000),
-            Bytecode.DDIV, //        DIV(1000),
-            -1, //        ARROW(2000),
-            -1, //        NULL_COALESCE(2),
-            -1, //        ASSIGN(1),
-            -1, //        CONDITIONAL(1),
-            Bytecode.IFEQ, //        EQ(500),
-            Bytecode.IFNE //        NEQ(500);
-    };
+
+    private static final Type STRING_TYPE = Type.getType(String.class);
+    private static final Type OBJECT_VALUE_TYPE = Type.getType(ObjectValue.class);
+    private static final Type VALUE_TYPE = Type.getType(Value.class);
+    private static final Type NUMBER_VALUE_TYPE = Type.getType(NumberValue.class);
 
     private final ExpressionInterpreter<?> interpreter;
-
-    private final ClassPool classPool;
-    private final Bytecode bytecode;
+    private final MethodVisitor mv;
     private final Method method;
-
     private final FunctionCompileState functionCompileState;
     private final Map<String, Object> requirements;
     private final Map<String, Integer> argumentParameterIndexes;
-
     private final Map<String, Integer> localsByName = new CaseInsensitiveStringHashMap<>();
 
-    private final CtClass stringCtType;
-    /**
-     * The method return type
-     */
-    private final CtClass methodReturnType;
-    /**
-     * The type that the current visitor method is expecting
-     * to be pushed to the stack.
-     */
-    private CtClass expectedType = null;
+    private final Type methodReturnType;
+    private Type expectedType = null;
 
     MolangCompilingVisitor(final @NotNull FunctionCompileState compileState) {
         this.interpreter = new ExpressionInterpreter<>(null, compileState.scope());
         this.functionCompileState = compileState;
-        this.classPool = compileState.classPool();
-        this.bytecode = compileState.bytecode();
+        this.mv = compileState.mv();
         this.method = compileState.method();
         this.requirements = compileState.requirements();
         this.argumentParameterIndexes = compileState.argumentParameterIndexes();
-
-        try {
-            this.stringCtType = classPool.get(String.class.getName());
-            this.methodReturnType = classPool.get(method.getReturnType().getName());
-        } catch (final NotFoundException e) {
-            throw new IllegalStateException("Couldn't find CtClass for standard classes", e);
-        }
-
+        this.methodReturnType = Type.getType(method.getReturnType());
         expectedType = methodReturnType;
+    }
+
+    /**
+     * Helper: emit const_0 / const_1 for the current expectedType.
+     */
+    private void emitConst0() {
+        if (expectedType == null || expectedType.equals(Type.DOUBLE_TYPE)) {
+            mv.visitInsn(Opcodes.DCONST_0);
+        } else if (expectedType.equals(Type.FLOAT_TYPE)) {
+            mv.visitInsn(Opcodes.FCONST_0);
+        } else if (expectedType.equals(Type.LONG_TYPE)) {
+            mv.visitInsn(Opcodes.LCONST_0);
+        } else {
+            mv.visitInsn(Opcodes.ICONST_0);
+        }
+    }
+
+    private void emitConst1() {
+        if (expectedType == null || expectedType.equals(Type.DOUBLE_TYPE)) {
+            mv.visitInsn(Opcodes.DCONST_1);
+        } else if (expectedType.equals(Type.FLOAT_TYPE)) {
+            mv.visitInsn(Opcodes.FCONST_1);
+        } else if (expectedType.equals(Type.LONG_TYPE)) {
+            mv.visitInsn(Opcodes.LCONST_1);
+        } else {
+            mv.visitInsn(Opcodes.ICONST_1);
+        }
     }
 
     @Override
@@ -128,143 +121,106 @@ final class MolangCompilingVisitor implements ExpressionVisitor<CompileVisitResu
                         final CompileVisitResult result = expression.right().visit(this);
                         final int localIndex = localsByName.computeIfAbsent(property, k -> {
                             int index = functionCompileState.maxLocals();
-                            if (result.lastPushedType() == CtClass.doubleType || result.lastPushedType() == CtClass.longType) {
+                            if (result.lastPushedType() != null && result.lastPushedType().getSize() == 2) {
                                 functionCompileState.maxLocals(index + 2);
                             } else {
                                 functionCompileState.maxLocals(index + 1);
                             }
                             return index;
                         });
-                        bytecode.addStore(localIndex, CtClass.doubleType);
+                        AsmUtil.addStore(mv, localIndex, Type.DOUBLE_TYPE);
                         return null;
                     }
 
                     if (name.equalsIgnoreCase("variable") || name.equalsIgnoreCase("v")) {
                         final int entityLoadIndex = functionCompileState.entityParameterLoadIndex();
                         if (entityLoadIndex >= 0) {
-                            // Compile the right-hand side expression, pushes a double onto the stack
-                            expectedType = CtClass.doubleType;
+                            expectedType = Type.DOUBLE_TYPE;
                             expression.right().visit(this);
 
-                            // dup2 the double value so we keep a copy on the stack as the expression result
-                            bytecode.addOpcode(Bytecode.DUP2);
+                            // dup2 the double value
+                            mv.visitInsn(Opcodes.DUP2);
 
+                            final String entityInternal = Type.getInternalName(functionCompileState.entityParameterType());
+
+                            // NumberValue.of(double) -> NumberValue
+                            mv.visitMethodInsn(Opcodes.INVOKESTATIC,
+                                    NUMBER_VALUE_TYPE.getInternalName(), "of",
+                                    Type.getMethodDescriptor(NUMBER_VALUE_TYPE, Type.DOUBLE_TYPE), false);
+
+                            // Load entity parameter
+                            mv.visitVarInsn(Opcodes.ALOAD, entityLoadIndex);
+
+                            // Call context.getVariableStorage()
+                            final Method getter;
                             try {
-                                final CtClass entityCtType = classPool.get(functionCompileState.entityParameterType().getName());
-                                final CtClass objectValueCtType = classPool.get(ObjectValue.class.getName());
-                                final CtClass valueCtType = classPool.get(Value.class.getName());
-                                final CtClass numberValueCtType = classPool.get(NumberValue.class.getName());
-
-                                // Wrap double into NumberValue: NumberValue.of(double) -> NumberValue
-                                bytecode.addInvokestatic(numberValueCtType, "of", numberValueCtType, new CtClass[]{CtClass.doubleType});
-
-                                // Load entity parameter (MolangContext)
-                                bytecode.addAload(entityLoadIndex);
-
-                                // Resolve the actual return type of getVariableStorage()
-                                final java.lang.reflect.Method getter = functionCompileState.entityParameterType().getMethod("getVariableStorage");
-                                final CtClass getterReturnType = classPool.get(getter.getReturnType().getName());
-
-                                // Call context.getVariableStorage() -> MutableObjectBinding
-                                bytecode.addInvokevirtual(entityCtType, "getVariableStorage", getterReturnType, new CtClass[]{});
-
-                                // Swap: stack is [NumberValue, MutableObjectBinding] -> [MutableObjectBinding, NumberValue]
-                                bytecode.addOpcode(Bytecode.SWAP);
-
-                                // Load property name
-                                bytecode.addLdc(property);
-
-                                // Swap: stack is [MutableObjectBinding, NumberValue, String] -> [MutableObjectBinding, String, NumberValue]
-                                bytecode.addOpcode(Bytecode.SWAP);
-
-                                // Call objectValue.set(String, Value) -> boolean
-                                bytecode.addInvokeinterface(objectValueCtType, "set", CtClass.booleanType, new CtClass[]{stringCtType, valueCtType}, 3);
-
-                                // Pop the boolean return value
-                                bytecode.addOpcode(Bytecode.POP);
-                            } catch (final NotFoundException | NoSuchMethodException e) {
-                                throw new IllegalStateException("Could not resolve types for variable assignment", e);
+                                getter = functionCompileState.entityParameterType().getMethod("getVariableStorage");
+                            } catch (NoSuchMethodException e) {
+                                throw new IllegalStateException("Could not resolve getVariableStorage", e);
                             }
+                            final Type getterReturnType = Type.getType(getter.getReturnType());
+                            mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, entityInternal, "getVariableStorage",
+                                    Type.getMethodDescriptor(getterReturnType), false);
 
-                            return new CompileVisitResult(CtClass.doubleType);
+                            // Swap: [NumberValue, ObjectBinding] -> [ObjectBinding, NumberValue]
+                            mv.visitInsn(Opcodes.SWAP);
+
+                            // Load property name
+                            mv.visitLdcInsn(property);
+
+                            // Swap: [ObjectBinding, NumberValue, String] -> [ObjectBinding, String, NumberValue]
+                            mv.visitInsn(Opcodes.SWAP);
+
+                            // Call objectValue.set(String, Value) -> boolean
+                            mv.visitMethodInsn(Opcodes.INVOKEINTERFACE,
+                                    OBJECT_VALUE_TYPE.getInternalName(), "set",
+                                    Type.getMethodDescriptor(Type.BOOLEAN_TYPE, STRING_TYPE, VALUE_TYPE), true);
+
+                            // Pop the boolean return value
+                            mv.visitInsn(Opcodes.POP);
+
+                            return new CompileVisitResult(Type.DOUBLE_TYPE);
                         }
                     }
                 }
             }
         }
 
-        final CtClass currentExpectedType = expectedType;
+        final Type currentExpectedType = expectedType;
 
-        //@formatter:off
         switch (op) {
             case AND: {
-                final int const_0;
-                final int const_1;
-
-                if (expectedType == CtClass.doubleType) {
-                    const_0 = Bytecode.DCONST_0;
-                    const_1 = Bytecode.DCONST_1;
-                } else if (expectedType == CtClass.floatType) {
-                    const_0 = Bytecode.FCONST_0;
-                    const_1 = Bytecode.FCONST_1;
-                } else if (expectedType == CtClass.longType) {
-                    const_0 = Bytecode.LCONST_0;
-                    const_1 = Bytecode.LCONST_1;
-                } else {
-                    const_0 = Bytecode.ICONST_0;
-                    const_1 = Bytecode.ICONST_1;
-                }
-
-                expectedType = CtClass.booleanType;
-                expression.left().visit(this); // pushes lhs value to stack as boolean
-                bytecode.addOpcode(Bytecode.IFEQ); // if lhs is false set to zero
-                final int indexPc = bytecode.currentPc();
-                bytecode.addGap(2); // index1, index2 (we don't know how many bytes the next instruction will take)
-                expression.right().visit(this); // pushes rhs value to stack as boolean
-                bytecode.addOpcode(Bytecode.IFEQ); // if rhs is false set to zero
-                bytecode.addIndex(7); // index1, index2, const_1, goto, index1, index2, const_0
-                bytecode.addOpcode(const_1);
-                bytecode.addOpcode(Bytecode.GOTO);
-                bytecode.addIndex(4); // index1, index2, const_0, ((?))
-                // jump here!
-                bytecode.write16bit(indexPc, bytecode.currentPc() - indexPc + 1);
-                bytecode.addOpcode(const_0);
+                expectedType = Type.BOOLEAN_TYPE;
+                expression.left().visit(this);
+                Label falseLabel = new Label();
+                mv.visitJumpInsn(Opcodes.IFEQ, falseLabel);
+                expression.right().visit(this);
+                Label endLabel = new Label();
+                mv.visitJumpInsn(Opcodes.IFEQ, falseLabel);
                 expectedType = currentExpectedType;
+                emitConst1();
+                mv.visitJumpInsn(Opcodes.GOTO, endLabel);
+                mv.visitLabel(falseLabel);
+                emitConst0();
+                mv.visitLabel(endLabel);
                 return new CompileVisitResult(currentExpectedType);
             }
             case OR: {
-                final int const_0;
-                final int const_1;
-
-                if (expectedType == CtClass.doubleType) {
-                    const_0 = Bytecode.DCONST_0;
-                    const_1 = Bytecode.DCONST_1;
-                } else if (expectedType == CtClass.floatType) {
-                    const_0 = Bytecode.FCONST_0;
-                    const_1 = Bytecode.FCONST_1;
-                } else if (expectedType == CtClass.longType) {
-                    const_0 = Bytecode.LCONST_0;
-                    const_1 = Bytecode.LCONST_1;
-                } else {
-                    const_0 = Bytecode.ICONST_0;
-                    const_1 = Bytecode.ICONST_1;
-                }
-
-                expectedType = CtClass.booleanType;
-                expression.left().visit(this); // pushes lhs value to stack as boolean
-                bytecode.addOpcode(Bytecode.IFNE); // if lhs is false set to zero
-                final int indexPc = bytecode.currentPc();
-                bytecode.addGap(2); // index1, index2 (we don't know how many bytes the next instruction will take)
-                expression.right().visit(this); // pushes rhs value to stack as boolean
-                bytecode.addOpcode(Bytecode.IFEQ); // if rhs is false set to zero
-                bytecode.addIndex(7); // index1, index2, const_1, goto, index1, index2, const_0
-                // jump here!
-                bytecode.write16bit(indexPc, bytecode.currentPc() - indexPc + 1);
-                bytecode.addOpcode(const_1);
-                bytecode.addOpcode(Bytecode.GOTO);
-                bytecode.addIndex(4); // index1, index2, const_0, ((?))
-                bytecode.addOpcode(const_0);
+                expectedType = Type.BOOLEAN_TYPE;
+                expression.left().visit(this);
+                Label trueLabel = new Label();
+                mv.visitJumpInsn(Opcodes.IFNE, trueLabel);
+                expression.right().visit(this);
+                Label endLabel = new Label();
+                mv.visitJumpInsn(Opcodes.IFEQ, endLabel);
+                mv.visitLabel(trueLabel);
                 expectedType = currentExpectedType;
+                emitConst1();
+                Label realEnd = new Label();
+                mv.visitJumpInsn(Opcodes.GOTO, realEnd);
+                mv.visitLabel(endLabel);
+                emitConst0();
+                mv.visitLabel(realEnd);
                 return new CompileVisitResult(currentExpectedType);
             }
             case EQ:
@@ -273,114 +229,119 @@ final class MolangCompilingVisitor implements ExpressionVisitor<CompileVisitResu
             case LTE:
             case GT:
             case GTE: {
-                expectedType = CtClass.doubleType;
-                expression.left().visit(this);   // pushes lhs value to stack
-                expression.right().visit(this);  // pushes rhs value to stack
+                expectedType = Type.DOUBLE_TYPE;
+                expression.left().visit(this);
+                expression.right().visit(this);
                 expectedType = currentExpectedType;
 
-                final int const_0;
-                final int const_1;
+                mv.visitInsn(Opcodes.DCMPL);
 
-                if (expectedType == CtClass.doubleType) {
-                    const_0 = Bytecode.DCONST_0;
-                    const_1 = Bytecode.DCONST_1;
-                } else if (expectedType == CtClass.floatType) {
-                    const_0 = Bytecode.FCONST_0;
-                    const_1 = Bytecode.FCONST_1;
-                } else if (expectedType == CtClass.longType) {
-                    const_0 = Bytecode.LCONST_0;
-                    const_1 = Bytecode.LCONST_1;
-                } else {
-                    const_0 = Bytecode.ICONST_0;
-                    const_1 = Bytecode.ICONST_1;
+                Label trueLabel = new Label();
+                Label endLabel = new Label();
+
+                switch (op) {
+                    case LT:  mv.visitJumpInsn(Opcodes.IFLT, trueLabel); break;
+                    case LTE: mv.visitJumpInsn(Opcodes.IFLE, trueLabel); break;
+                    case GT:  mv.visitJumpInsn(Opcodes.IFGT, trueLabel); break;
+                    case GTE: mv.visitJumpInsn(Opcodes.IFGE, trueLabel); break;
+                    case EQ:  mv.visitJumpInsn(Opcodes.IFEQ, trueLabel); break;
+                    case NEQ: mv.visitJumpInsn(Opcodes.IFNE, trueLabel); break;
                 }
 
-                bytecode.addOpcode(Bytecode.DCMPL); // compare both numbers
-                bytecode.addOpcode(OPCODES_BY_BINARY_EXPRESSION_OP[op.ordinal()]); // branch
-                bytecode.addIndex(7);
-                bytecode.addOpcode(const_0);
-                bytecode.addOpcode(Bytecode.GOTO);
-                bytecode.addIndex(4);
-                bytecode.addOpcode(const_1);
-                return new CompileVisitResult(expectedType == null ? CtClass.booleanType : expectedType);
+                emitConst0();
+                mv.visitJumpInsn(Opcodes.GOTO, endLabel);
+                mv.visitLabel(trueLabel);
+                emitConst1();
+                mv.visitLabel(endLabel);
+                return new CompileVisitResult(expectedType == null ? Type.BOOLEAN_TYPE : expectedType);
             }
-            case ADD:
-            case SUB:
-            case MUL:
-            case DIV: {
-                expectedType = CtClass.doubleType;
-                expression.left().visit(this);   // pushes lhs value to stack
-                expression.right().visit(this);  // pushes rhs value to stack
+            case ADD: {
+                expectedType = Type.DOUBLE_TYPE;
+                expression.left().visit(this);
+                expression.right().visit(this);
                 expectedType = currentExpectedType;
-
-                bytecode.addOpcode(OPCODES_BY_BINARY_EXPRESSION_OP[op.ordinal()]);
-                return new CompileVisitResult(CtClass.doubleType);
+                mv.visitInsn(Opcodes.DADD);
+                return new CompileVisitResult(Type.DOUBLE_TYPE);
+            }
+            case SUB: {
+                expectedType = Type.DOUBLE_TYPE;
+                expression.left().visit(this);
+                expression.right().visit(this);
+                expectedType = currentExpectedType;
+                mv.visitInsn(Opcodes.DSUB);
+                return new CompileVisitResult(Type.DOUBLE_TYPE);
+            }
+            case MUL: {
+                expectedType = Type.DOUBLE_TYPE;
+                expression.left().visit(this);
+                expression.right().visit(this);
+                expectedType = currentExpectedType;
+                mv.visitInsn(Opcodes.DMUL);
+                return new CompileVisitResult(Type.DOUBLE_TYPE);
+            }
+            case DIV: {
+                expectedType = Type.DOUBLE_TYPE;
+                expression.left().visit(this);
+                expression.right().visit(this);
+                expectedType = currentExpectedType;
+                mv.visitInsn(Opcodes.DDIV);
+                return new CompileVisitResult(Type.DOUBLE_TYPE);
             }
             case ARROW:
             case NULL_COALESCE:
             case CONDITIONAL:
                 break;
         }
-        //@formatter:on
         return null;
     }
 
     public void endVisit() {
-        bytecode.addReturn(methodReturnType);
+        AsmUtil.addReturn(mv, methodReturnType);
     }
 
     @Override
     public @NotNull CompileVisitResult visitDouble(final @NotNull DoubleExpression expression) {
         final double value = expression.value();
-        if (expectedType == CtClass.voidType) {
-            // nothing!
-            return new CompileVisitResult(CtClass.voidType);
-        } else if (expectedType == null || expectedType == CtClass.doubleType) {
-            // expects a double, happy!
+        if (expectedType != null && expectedType.equals(Type.VOID_TYPE)) {
+            return new CompileVisitResult(Type.VOID_TYPE);
+        } else if (expectedType == null || expectedType.equals(Type.DOUBLE_TYPE)) {
             if (value == 1.0D) {
-                bytecode.addOpcode(Bytecode.DCONST_1);
+                mv.visitInsn(Opcodes.DCONST_1);
             } else if (value == 0.0D) {
-                bytecode.addOpcode(Bytecode.DCONST_0);
+                mv.visitInsn(Opcodes.DCONST_0);
             } else {
-                bytecode.addLdc2w(value);
+                mv.visitLdcInsn(value);
             }
-            return new CompileVisitResult(CtClass.doubleType);
-        } else if (expectedType == CtClass.booleanType) {
-            // expects a boolean, push boolean
+            return new CompileVisitResult(Type.DOUBLE_TYPE);
+        } else if (expectedType.equals(Type.BOOLEAN_TYPE)) {
             if (value != 0.0D) {
-                bytecode.addOpcode(Bytecode.ICONST_1);
+                mv.visitInsn(Opcodes.ICONST_1);
             } else {
-                bytecode.addOpcode(Bytecode.ICONST_0);
+                mv.visitInsn(Opcodes.ICONST_0);
             }
-            return new CompileVisitResult(CtClass.booleanType);
-        } else if (expectedType == CtClass.intType) {
-            // expects an int, push int
-            bytecode.addLdc((int) value);
-            return new CompileVisitResult(CtClass.intType);
-        } else if (expectedType == CtClass.longType) {
-            // expects a long, push long
-            bytecode.addLdc2w((long) value);
-            return new CompileVisitResult(CtClass.longType);
+            return new CompileVisitResult(Type.BOOLEAN_TYPE);
+        } else if (expectedType.equals(Type.INT_TYPE)) {
+            mv.visitLdcInsn((int) value);
+            return new CompileVisitResult(Type.INT_TYPE);
+        } else if (expectedType.equals(Type.LONG_TYPE)) {
+            mv.visitLdcInsn((long) value);
+            return new CompileVisitResult(Type.LONG_TYPE);
         } else {
             System.err.println("[warning] expected type " + expectedType + " has no possible cast from double (" + expression + ")");
-            // evaluate to zero
-            bytecode.addConstZero(expectedType);
+            AsmUtil.addConstZero(mv, expectedType);
             return new CompileVisitResult(expectedType);
         }
     }
 
     @Override
     public @NotNull CompileVisitResult visitString(final @NotNull StringExpression expression) {
-        if (expectedType == CtClass.voidType) {
-            // nothing!
-            return new CompileVisitResult(CtClass.voidType);
-        } else if (expectedType == null || expectedType == stringCtType) {
-            // expected a string, happy
-            bytecode.addLdc(expression.value());
-            return new CompileVisitResult(stringCtType);
+        if (expectedType != null && expectedType.equals(Type.VOID_TYPE)) {
+            return new CompileVisitResult(Type.VOID_TYPE);
+        } else if (expectedType == null || expectedType.equals(STRING_TYPE)) {
+            mv.visitLdcInsn(expression.value());
+            return new CompileVisitResult(STRING_TYPE);
         } else {
-            // evaluate to zero
-            bytecode.addConstZero(expectedType);
+            AsmUtil.addConstZero(mv, expectedType);
             return new CompileVisitResult(expectedType);
         }
     }
@@ -392,82 +353,67 @@ final class MolangCompilingVisitor implements ExpressionVisitor<CompileVisitResu
                 expectedType = methodReturnType;
                 expression.expression().visit(this);
                 expectedType = null;
-                bytecode.addReturn(methodReturnType);
+                AsmUtil.addReturn(mv, methodReturnType);
                 return new CompileVisitResult(methodReturnType, true);
             }
             case LOGICAL_NEGATION: {
-                if (expectedType == CtClass.voidType) {
-                    // void,
-                    // we must evaluate in case of weird expressions
-                    // like: !query.print('hello')
-                    // won't push anything since expectedType is set to voidType
+                if (expectedType != null && expectedType.equals(Type.VOID_TYPE)) {
                     expression.expression().visit(this);
-                    return new CompileVisitResult(CtClass.voidType);
+                    return new CompileVisitResult(Type.VOID_TYPE);
                 }
 
-                final CtClass currentExpectedType = expectedType;
+                final Type currentExpectedType = expectedType;
 
-                if (currentExpectedType != null && !currentExpectedType.isPrimitive()) {
-                    // an unknown Object type, evaluate without pushing anything
-                    // and then just push null in the stack
-                    expectedType = CtClass.voidType; // set to void so that doesn't push anything
+                if (currentExpectedType != null && currentExpectedType.getSort() == Type.OBJECT) {
+                    expectedType = Type.VOID_TYPE;
                     expression.expression().visit(this);
                     expectedType = currentExpectedType;
-                    bytecode.addConstZero(currentExpectedType);
+                    AsmUtil.addConstZero(mv, currentExpectedType);
                     return new CompileVisitResult(currentExpectedType);
                 }
 
-                // todo: wrap primitives to their wrapper class if needed
-
-                expectedType = CtClass.booleanType;
-                expression.expression().visit(this); // push boolean value to stack
+                expectedType = Type.BOOLEAN_TYPE;
+                expression.expression().visit(this);
                 expectedType = currentExpectedType;
 
-                if (currentExpectedType == CtClass.booleanType) {
-                    // booleans just leave it ready to branch
-                    bytecode.addOpcode(Bytecode.IFNE);
-                    return new CompileVisitResult(CtClass.booleanType);
+                if (currentExpectedType != null && currentExpectedType.equals(Type.BOOLEAN_TYPE)) {
+                    // For boolean, just leave the IFNE for branching
+                    Label falseLabel = new Label();
+                    Label endLabel = new Label();
+                    mv.visitJumpInsn(Opcodes.IFNE, falseLabel);
+                    mv.visitInsn(Opcodes.ICONST_1);
+                    mv.visitJumpInsn(Opcodes.GOTO, endLabel);
+                    mv.visitLabel(falseLabel);
+                    mv.visitInsn(Opcodes.ICONST_0);
+                    mv.visitLabel(endLabel);
+                    return new CompileVisitResult(Type.BOOLEAN_TYPE);
                 }
 
-                final int const_1;
-                final int const_0;
-
-                if (currentExpectedType == CtClass.doubleType) {
-                    const_1 = Bytecode.DCONST_1;
-                    const_0 = Bytecode.DCONST_0;
-                } else if (currentExpectedType == CtClass.floatType) {
-                    const_1 = Bytecode.FCONST_1;
-                    const_0 = Bytecode.FCONST_0;
-                } else if (currentExpectedType == CtClass.longType) {
-                    const_1 = Bytecode.LCONST_1;
-                    const_0 = Bytecode.LCONST_0;
-                } else {
-                    const_1 = Bytecode.ICONST_1;
-                    const_0 = Bytecode.ICONST_0;
-                }
-
-                bytecode.addOpcode(Bytecode.IFNE);
-                bytecode.addIndex(7); // index1, index2, const_1, goto, index1, index2, ((const_0))
-                bytecode.addOpcode(const_1);
-                bytecode.addOpcode(Bytecode.GOTO);
-                bytecode.addIndex(4); // index1, index2, const_0, ((?))
-                bytecode.addOpcode(const_0);
+                Label falseLabel = new Label();
+                Label endLabel = new Label();
+                mv.visitJumpInsn(Opcodes.IFNE, falseLabel);
+                // was false (0), so negation is true (1)
+                emitConst1();
+                mv.visitJumpInsn(Opcodes.GOTO, endLabel);
+                mv.visitLabel(falseLabel);
+                // was true (nonzero), so negation is false (0)
+                emitConst0();
+                mv.visitLabel(endLabel);
                 return new CompileVisitResult(currentExpectedType);
             }
             case ARITHMETICAL_NEGATION: {
-                final CompileVisitResult result = expression.expression().visit(this); // push value to stack
-                if (result.is(CtClass.doubleType)) {
-                    bytecode.addOpcode(Bytecode.DNEG);
-                } else if (result.is(CtClass.longType)) {
-                    bytecode.addOpcode(Bytecode.LNEG);
-                } else if (result.is(CtClass.floatType)) {
-                    bytecode.addOpcode(Bytecode.FNEG);
-                } else if (result.is(CtClass.intType)) {
-                    bytecode.addOpcode(Bytecode.INEG);
-                } else if (result.is(CtClass.booleanType)) {
-                    // logical negation
-                    bytecode.addOpcode(Bytecode.ICONST_1);
-                    bytecode.addOpcode(Bytecode.IXOR);
+                final CompileVisitResult result = expression.expression().visit(this);
+                if (result.is(Type.DOUBLE_TYPE)) {
+                    mv.visitInsn(Opcodes.DNEG);
+                } else if (result.is(Type.LONG_TYPE)) {
+                    mv.visitInsn(Opcodes.LNEG);
+                } else if (result.is(Type.FLOAT_TYPE)) {
+                    mv.visitInsn(Opcodes.FNEG);
+                } else if (result.is(Type.INT_TYPE)) {
+                    mv.visitInsn(Opcodes.INEG);
+                } else if (result.is(Type.BOOLEAN_TYPE)) {
+                    mv.visitInsn(Opcodes.ICONST_1);
+                    mv.visitInsn(Opcodes.IXOR);
                 } else {
                     throw new IllegalStateException("Unsupported type for negation: " + result);
                 }
@@ -481,41 +427,36 @@ final class MolangCompilingVisitor implements ExpressionVisitor<CompileVisitResu
 
     @Override
     public @NotNull CompileVisitResult visitTernaryConditional(final @NotNull TernaryConditionalExpression expression) {
-        final Expression conditionExpr = expression.condition();
         final Expression trueExpr = expression.trueExpression();
         final Expression falseExpr = expression.falseExpression();
 
-        final CtClass currentExpectedType = expectedType;
-        expectedType = CtClass.booleanType;
-        final CompileVisitResult conditionRes = expression.condition().visit(this); // push boolean value to stack
+        final Type currentExpectedType = expectedType;
+        expectedType = Type.BOOLEAN_TYPE;
+        final CompileVisitResult conditionRes = expression.condition().visit(this);
         expectedType = currentExpectedType;
 
-        if (conditionRes != null && conditionRes.lastPushedType() != null && !conditionRes.is(CtClass.booleanType) && !conditionRes.is(CtClass.intType)) {
-            bytecode.addConstZero(conditionRes.lastPushedType()); // push 0
-            // compare
-            if (conditionRes.is(CtClass.doubleType)) {
-                bytecode.addOpcode(Bytecode.DCMPL);
-            } else if (conditionRes.is(CtClass.floatType)) {
-                bytecode.addOpcode(Bytecode.FCMPL);
-            } else if (conditionRes.is(CtClass.longType)) {
-                bytecode.addOpcode(Bytecode.LCMP);
+        if (conditionRes != null && conditionRes.lastPushedType() != null
+                && !conditionRes.is(Type.BOOLEAN_TYPE) && !conditionRes.is(Type.INT_TYPE)) {
+            AsmUtil.addConstZero(mv, conditionRes.lastPushedType());
+            if (conditionRes.is(Type.DOUBLE_TYPE)) {
+                mv.visitInsn(Opcodes.DCMPL);
+            } else if (conditionRes.is(Type.FLOAT_TYPE)) {
+                mv.visitInsn(Opcodes.FCMPL);
+            } else if (conditionRes.is(Type.LONG_TYPE)) {
+                mv.visitInsn(Opcodes.LCMP);
             } else {
                 throw new IllegalStateException("Unsupported type for comparison: " + conditionRes);
             }
         }
 
-        bytecode.addOpcode(Bytecode.IFEQ); // if false skip
-        final int indexPc = bytecode.currentPc();
-        bytecode.addGap(2);
-        trueExpr.visit(this); // push true value to stack
-        bytecode.addOpcode(Bytecode.GOTO); // skip pushing false value
-        final int indexPc2 = bytecode.currentPc();
-        bytecode.addGap(2);
-        // jump here if false
-        bytecode.write16bit(indexPc, bytecode.currentPc() - indexPc + 1);
-        falseExpr.visit(this); // push false value to stack
-        // jump here if true
-        bytecode.write16bit(indexPc2, bytecode.currentPc() - indexPc2 + 1);
+        Label falseLabel = new Label();
+        Label endLabel = new Label();
+        mv.visitJumpInsn(Opcodes.IFEQ, falseLabel);
+        trueExpr.visit(this);
+        mv.visitJumpInsn(Opcodes.GOTO, endLabel);
+        mv.visitLabel(falseLabel);
+        falseExpr.visit(this);
+        mv.visitLabel(endLabel);
         return new CompileVisitResult(currentExpectedType);
     }
 
@@ -531,8 +472,7 @@ final class MolangCompilingVisitor implements ExpressionVisitor<CompileVisitResu
         final Parameter parameter = parameters[paramIndex];
         int loadIndex = 1;
         for (int i = 0; i < paramIndex; i++) {
-            final Parameter param = parameters[i];
-            final Class<?> paramType = param.getType();
+            final Class<?> paramType = parameters[i].getType();
             if (paramType.equals(double.class) || paramType.equals(long.class)) {
                 loadIndex += 2;
             } else {
@@ -540,23 +480,14 @@ final class MolangCompilingVisitor implements ExpressionVisitor<CompileVisitResu
             }
         }
 
-        final CtClass parameterCtType;
-
-        try {
-            parameterCtType = classPool.get(parameter.getType().getName());
-        } catch (NotFoundException e) {
-            throw new RuntimeException(e);
-        }
-
-        bytecode.addLoad(loadIndex, parameterCtType);
+        final Type parameterType = Type.getType(parameter.getType());
+        AsmUtil.addLoad(mv, loadIndex, parameterType);
 
         if (expectedType == null) {
-            // we are free to use anything, no need to cast
-            return new CompileVisitResult(parameterCtType);
+            return new CompileVisitResult(parameterType);
         }
 
-        // convert to the expected type
-        JavassistUtil.addCast(bytecode, parameterCtType, expectedType);
+        AsmUtil.addCast(mv, parameterType, expectedType);
         return new CompileVisitResult(expectedType);
     }
 
@@ -568,17 +499,15 @@ final class MolangCompilingVisitor implements ExpressionVisitor<CompileVisitResu
         if (objectExpr instanceof IdentifierExpression) {
             final String name = ((IdentifierExpression) objectExpr).name();
             if (name.equals("temp") || name.equals("t")) {
-                // temps are locals
                 final Integer localIndex = localsByName.get(property);
                 if (localIndex == null) {
-                    bytecode.addConstZero(CtClass.doubleType);
+                    mv.visitInsn(Opcodes.DCONST_0);
                 } else {
-                    bytecode.addLoad(localIndex, CtClass.doubleType);
+                    AsmUtil.addLoad(mv, localIndex, Type.DOUBLE_TYPE);
                 }
-                return new CompileVisitResult(CtClass.doubleType);
+                return new CompileVisitResult(Type.DOUBLE_TYPE);
             }
 
-            // When @Entity MolangContext parameter is available, resolve query/variable from it at runtime
             final int entityLoadIndex = functionCompileState.entityParameterLoadIndex();
             if (entityLoadIndex >= 0) {
                 final String getterMethod;
@@ -591,28 +520,26 @@ final class MolangCompilingVisitor implements ExpressionVisitor<CompileVisitResu
                 }
 
                 if (getterMethod != null) {
+                    final String entityInternal = Type.getInternalName(functionCompileState.entityParameterType());
+                    final Method getter;
                     try {
-                        final CtClass entityCtType = classPool.get(functionCompileState.entityParameterType().getName());
-                        final CtClass objectValueCtType = classPool.get(ObjectValue.class.getName());
-                        final CtClass valueCtType = classPool.get(Value.class.getName());
-
-                        // Resolve the actual return type of the getter method
-                        final java.lang.reflect.Method getter = functionCompileState.entityParameterType().getMethod(getterMethod);
-                        final CtClass getterReturnType = classPool.get(getter.getReturnType().getName());
-
-                        // load entity parameter (MolangContext)
-                        bytecode.addAload(entityLoadIndex);
-                        // call getQueryBinding() or getVariableStorage() — actual return type
-                        bytecode.addInvokevirtual(entityCtType, getterMethod, getterReturnType, new CtClass[]{});
-                        // .get("property") — call on ObjectValue interface
-                        bytecode.addLdc(property);
-                        bytecode.addInvokeinterface(objectValueCtType, "get", valueCtType, new CtClass[]{stringCtType}, 2);
-                        // .getAsNumber()
-                        bytecode.addInvokeinterface(valueCtType, "getAsNumber", CtClass.doubleType, new CtClass[]{}, 1);
-                        return new CompileVisitResult(CtClass.doubleType);
-                    } catch (final NotFoundException | NoSuchMethodException e) {
-                        throw new IllegalStateException("Could not resolve types for MolangContext dynamic access", e);
+                        getter = functionCompileState.entityParameterType().getMethod(getterMethod);
+                    } catch (NoSuchMethodException e) {
+                        throw new IllegalStateException("Could not resolve " + getterMethod, e);
                     }
+                    final Type getterReturnType = Type.getType(getter.getReturnType());
+
+                    mv.visitVarInsn(Opcodes.ALOAD, entityLoadIndex);
+                    mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, entityInternal, getterMethod,
+                            Type.getMethodDescriptor(getterReturnType), false);
+                    mv.visitLdcInsn(property);
+                    mv.visitMethodInsn(Opcodes.INVOKEINTERFACE,
+                            OBJECT_VALUE_TYPE.getInternalName(), "get",
+                            Type.getMethodDescriptor(VALUE_TYPE, STRING_TYPE), true);
+                    mv.visitMethodInsn(Opcodes.INVOKEINTERFACE,
+                            VALUE_TYPE.getInternalName(), "getAsNumber",
+                            Type.getMethodDescriptor(Type.DOUBLE_TYPE), true);
+                    return new CompileVisitResult(Type.DOUBLE_TYPE);
                 }
             }
         }
@@ -621,8 +548,7 @@ final class MolangCompilingVisitor implements ExpressionVisitor<CompileVisitResu
         final Value objectValue = objectExpr.visit(new ExpressionVisitor<Value>() {
             @Override
             public @NotNull Value visitIdentifier(final @NotNull IdentifierExpression expression) {
-                final String name = expression.name();
-                return scope.get(name);
+                return scope.get(expression.name());
             }
 
             @Override
@@ -644,103 +570,86 @@ final class MolangCompilingVisitor implements ExpressionVisitor<CompileVisitResu
         if (objectValue instanceof ObjectValue) {
             final ObjectValue actualObjectValue = (ObjectValue) objectValue;
 
-            // --- EntityDerivedBinding: load from entity parameter at runtime ---
+            // EntityDerivedBinding: load from entity parameter at runtime
             if (actualObjectValue instanceof EntityDerivedBinding) {
                 final EntityDerivedBinding derived = (EntityDerivedBinding) actualObjectValue;
                 final Method accessor = derived.accessor();
                 final int entityLoadIndex = functionCompileState.entityParameterLoadIndex();
 
                 if (entityLoadIndex >= 0) {
-                    try {
-                        final CtClass entityCtType = classPool.get(functionCompileState.entityParameterType().getName());
-                        final CtClass accessorReturnCtType = classPool.get(accessor.getReturnType().getName());
-                        final CtClass objectValueCtType = classPool.get(ObjectValue.class.getName());
-                        final CtClass valueCtType = classPool.get(Value.class.getName());
+                    final String entityInternal = Type.getInternalName(functionCompileState.entityParameterType());
+                    final Type accessorReturnType = Type.getType(accessor.getReturnType());
 
-                        // entity.getXxx()
-                        bytecode.addAload(entityLoadIndex);
-                        bytecode.addInvokevirtual(entityCtType, accessor.getName(), accessorReturnCtType, new CtClass[]{});
-                        // .get("property")
-                        bytecode.addLdc(property);
-                        bytecode.addInvokeinterface(objectValueCtType, "get", valueCtType, new CtClass[]{stringCtType}, 2);
-                        // .getAsNumber()
-                        bytecode.addInvokeinterface(valueCtType, "getAsNumber", CtClass.doubleType, new CtClass[]{}, 1);
-                        return new CompileVisitResult(CtClass.doubleType);
-                    } catch (final NotFoundException e) {
-                        throw new IllegalStateException("Could not resolve types for EntityDerivedBinding", e);
-                    }
+                    mv.visitVarInsn(Opcodes.ALOAD, entityLoadIndex);
+                    mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, entityInternal, accessor.getName(),
+                            Type.getMethodDescriptor(accessorReturnType), false);
+                    mv.visitLdcInsn(property);
+                    mv.visitMethodInsn(Opcodes.INVOKEINTERFACE,
+                            OBJECT_VALUE_TYPE.getInternalName(), "get",
+                            Type.getMethodDescriptor(VALUE_TYPE, STRING_TYPE), true);
+                    mv.visitMethodInsn(Opcodes.INVOKEINTERFACE,
+                            VALUE_TYPE.getInternalName(), "getAsNumber",
+                            Type.getMethodDescriptor(Type.DOUBLE_TYPE), true);
+                    return new CompileVisitResult(Type.DOUBLE_TYPE);
                 }
-                // Fall through to generic ObjectValue path below
             }
 
-            // --- JavaObjectBinding: fields and bindings ---
+            // JavaObjectBinding: fields and bindings
             if (actualObjectValue instanceof JavaObjectBinding) {
                 final JavaFieldBinding javaFieldBinding = ((JavaObjectBinding) actualObjectValue).getField(property);
                 if (javaFieldBinding == null) {
-                    // push zero only
-                    bytecode.addDconst(0D);
+                    mv.visitInsn(Opcodes.DCONST_0);
                 } else if (javaFieldBinding.constant()) {
-                    // inline const
-                    bytecode.addDconst(javaFieldBinding.get().getAsNumber());
+                    mv.visitLdcInsn(javaFieldBinding.get().getAsNumber());
                 } else {
-                    // get field
                     final Field field = javaFieldBinding.field();
                     if (Modifier.isStatic(field.getModifiers())) {
-                        try {
-                            bytecode.addGetstatic(
-                                    classPool.get(field.getDeclaringClass().getName()),
-                                    field.getName(),
-                                    Descriptor.of(field.getType().toString())
-                            );
-                        } catch (final NotFoundException ignored) {
-                        }
+                        mv.visitFieldInsn(Opcodes.GETSTATIC,
+                                Type.getInternalName(field.getDeclaringClass()),
+                                field.getName(),
+                                Type.getDescriptor(field.getType()));
                     } else {
-                        // Non-static field: capture the holder object as a requirement
                         final Object holder = javaFieldBinding.holder();
                         if (holder != null) {
                             final String fieldName = "holder_" + Integer.toHexString(System.identityHashCode(holder));
                             requirements.put(fieldName, holder);
-                            try {
-                                final CtClass holderCtType = classPool.get(holder.getClass().getName());
-                                final CtClass fieldCtType = classPool.get(field.getType().getName());
-                                bytecode.addAload(0); // load this
-                                bytecode.addGetfield(functionCompileState.type(), fieldName, Descriptor.of(holderCtType));
-                                bytecode.addGetfield(classPool.get(field.getDeclaringClass().getName()), field.getName(), Descriptor.of(fieldCtType));
-                                // Cast to expected type if needed
-                                if (expectedType != null && !fieldCtType.equals(expectedType)) {
-                                    JavassistUtil.addCast(bytecode, fieldCtType, expectedType);
-                                }
-                            } catch (final NotFoundException e) {
-                                throw new IllegalStateException("Could not resolve types for non-static field binding", e);
+                            final String holderInternal = Type.getInternalName(holder.getClass());
+                            final String holderDesc = Type.getDescriptor(holder.getClass());
+                            final Type fieldType = Type.getType(field.getType());
+
+                            mv.visitVarInsn(Opcodes.ALOAD, 0);
+                            mv.visitFieldInsn(Opcodes.GETFIELD, functionCompileState.className(), fieldName, holderDesc);
+                            mv.visitFieldInsn(Opcodes.GETFIELD,
+                                    Type.getInternalName(field.getDeclaringClass()),
+                                    field.getName(),
+                                    Type.getDescriptor(field.getType()));
+                            if (expectedType != null && !fieldType.equals(expectedType)) {
+                                AsmUtil.addCast(mv, fieldType, expectedType);
                             }
                         } else {
-                            bytecode.addDconst(0D);
+                            mv.visitInsn(Opcodes.DCONST_0);
                         }
                     }
                 }
-                return new CompileVisitResult(expectedType != null ? expectedType : CtClass.doubleType);
+                return new CompileVisitResult(expectedType != null ? expectedType : Type.DOUBLE_TYPE);
             }
 
-            // --- Generic ObjectValue: dynamic property access at runtime ---
+            // Generic ObjectValue: dynamic property access at runtime
             {
                 final String reqFieldName = "objval_" + Integer.toHexString(System.identityHashCode(actualObjectValue));
                 requirements.put(reqFieldName, actualObjectValue);
-                try {
-                    final CtClass objectValueCtType = classPool.get(ObjectValue.class.getName());
-                    final CtClass valueCtType = classPool.get(Value.class.getName());
+                final String objValDesc = Type.getDescriptor(actualObjectValue.getClass());
 
-                    // this.<field>
-                    bytecode.addAload(0);
-                    bytecode.addGetfield(functionCompileState.type(), reqFieldName, Descriptor.of(objectValueCtType));
-                    // .get("property")
-                    bytecode.addLdc(property);
-                    bytecode.addInvokeinterface(objectValueCtType, "get", valueCtType, new CtClass[]{stringCtType}, 2);
-                    // .getAsNumber()
-                    bytecode.addInvokeinterface(valueCtType, "getAsNumber", CtClass.doubleType, new CtClass[]{}, 1);
-                    return new CompileVisitResult(CtClass.doubleType);
-                } catch (final NotFoundException e) {
-                    throw new IllegalStateException("Could not resolve types for generic ObjectValue access", e);
-                }
+                mv.visitVarInsn(Opcodes.ALOAD, 0);
+                mv.visitFieldInsn(Opcodes.GETFIELD, functionCompileState.className(), reqFieldName, objValDesc);
+                mv.visitLdcInsn(property);
+                mv.visitMethodInsn(Opcodes.INVOKEINTERFACE,
+                        OBJECT_VALUE_TYPE.getInternalName(), "get",
+                        Type.getMethodDescriptor(VALUE_TYPE, STRING_TYPE), true);
+                mv.visitMethodInsn(Opcodes.INVOKEINTERFACE,
+                        VALUE_TYPE.getInternalName(), "getAsNumber",
+                        Type.getMethodDescriptor(Type.DOUBLE_TYPE), true);
+                return new CompileVisitResult(Type.DOUBLE_TYPE);
             }
         }
 
@@ -755,8 +664,7 @@ final class MolangCompilingVisitor implements ExpressionVisitor<CompileVisitResu
         final Value functionValue = functionExpr.visit(new ExpressionVisitor<Value>() {
             @Override
             public @NotNull Value visitIdentifier(final @NotNull IdentifierExpression expression) {
-                final String name = expression.name();
-                return scope.get(name);
+                return scope.get(expression.name());
             }
 
             @Override
@@ -776,28 +684,21 @@ final class MolangCompilingVisitor implements ExpressionVisitor<CompileVisitResu
         });
 
         if (!(functionValue instanceof Function<?>)) {
-            // not a function, just add 0
-            bytecode.addDconst(0D);
-            return new CompileVisitResult(CtClass.doubleType);
+            mv.visitInsn(Opcodes.DCONST_0);
+            return new CompileVisitResult(Type.DOUBLE_TYPE);
         }
 
         final Function<?> function = (Function<?>) functionValue;
 
         if (function instanceof JavaFunction<?>) {
-            // we can compile to directly call this function (Java Method)
             final JavaFunction<?> javaFunction = (JavaFunction<?>) function;
             final Method nativeMethod = javaFunction.method();
             final Parameter[] parameters = nativeMethod.getParameters();
             final List<Expression> arguments = expression.arguments();
 
-            final CtClass[] ctParameters = new CtClass[parameters.length];
+            final Type[] ctParameters = new Type[parameters.length];
             for (int i = 0; i < parameters.length; i++) {
-                final Parameter parameter = parameters[i];
-                try {
-                    ctParameters[i] = classPool.get(parameter.getType().getName());
-                } catch (final NotFoundException e) {
-                    throw new IllegalStateException("Parameter type not found", e);
-                }
+                ctParameters[i] = Type.getType(parameters[i].getType());
             }
 
             final Object object = javaFunction.object();
@@ -810,85 +711,61 @@ final class MolangCompilingVisitor implements ExpressionVisitor<CompileVisitResu
                 if (parameter.isAnnotationPresent(Entity.class)) {
                     int entityLoadIndex = functionCompileState.entityParameterLoadIndex();
                     if (entityLoadIndex >= 0) {
-                        // Load from user interface method parameter
-                        bytecode.addAload(entityLoadIndex);
-                        // Add checkcast if the binding parameter type differs from the entity parameter type
+                        mv.visitVarInsn(Opcodes.ALOAD, entityLoadIndex);
                         Class<?> entityParamType = functionCompileState.entityParameterType();
                         if (entityParamType != null && !parameter.getType().isAssignableFrom(entityParamType)) {
-                            try {
-                                bytecode.addCheckcast(classPool.get(parameter.getType().getName()));
-                            } catch (final NotFoundException ignored) {
-                            }
+                            mv.visitTypeInsn(Opcodes.CHECKCAST, Type.getInternalName(parameter.getType()));
                         }
                     } else {
-                        // Fallback: old behavior (load from field, backward compatible)
-                        Object entity = functionCompileState.compiler().entity();
-                        if (entity == null || !parameter.getType().isInstance(entity)) {
-                            // load null
-                            bytecode.addConstZero(ctParameters[i]);
+                        Object entityObj = functionCompileState.compiler().entity();
+                        if (entityObj == null || !parameter.getType().isInstance(entityObj)) {
+                            AsmUtil.addConstZero(mv, ctParameters[i]);
                         } else {
-                            // add entity requirement
-                            requirements.put("__entity__", entity);
-
-                            // load entity requirement (field)
-                            bytecode.addAload(0); // load this
-                            bytecode.addGetfield(
-                                    functionCompileState.type(),
+                            requirements.put("__entity__", entityObj);
+                            mv.visitVarInsn(Opcodes.ALOAD, 0);
+                            mv.visitFieldInsn(Opcodes.GETFIELD,
+                                    functionCompileState.className(),
                                     "__entity__",
-                                    Descriptor.of(ctParameters[i])
-                            );
+                                    ctParameters[i].getDescriptor());
                         }
                     }
                     continue;
                 }
 
                 if (!it.hasNext()) {
-                    bytecode.addConstZero(ctParameters[i]);
+                    AsmUtil.addConstZero(mv, ctParameters[i]);
                     continue;
                 }
 
-                // Set the expected type, then load
                 expectedType = ctParameters[i];
                 it.next().visit(this);
             }
 
-            final CtClass nativeMethodDeclaringCtClass;
-            final CtClass ctReturnType;
-
-            try {
-                nativeMethodDeclaringCtClass = classPool.get(nativeMethod.getDeclaringClass().getName());
-                ctReturnType = classPool.get(nativeMethod.getReturnType().getName());
-            } catch (final NotFoundException e) {
-                throw new IllegalStateException("Return type not found", e);
-            }
+            final String nativeMethodOwner = Type.getInternalName(nativeMethod.getDeclaringClass());
+            final Type ctReturnType = Type.getType(nativeMethod.getReturnType());
+            final String nativeMethodDesc = Type.getMethodDescriptor(ctReturnType, ctParameters);
 
             if (Modifier.isStatic(nativeMethod.getModifiers())) {
-                // invoke static
-                bytecode.addInvokestatic(nativeMethodDeclaringCtClass, nativeMethod.getName(), ctReturnType, ctParameters);
+                mv.visitMethodInsn(Opcodes.INVOKESTATIC, nativeMethodOwner,
+                        nativeMethod.getName(), nativeMethodDesc, false);
             } else {
                 final String fieldName = object.getClass().getSimpleName().toLowerCase() + Integer.toHexString(object.hashCode());
                 requirements.put(fieldName, object);
 
-                final CtClass requirementType;
+                final String requirementDesc = Type.getDescriptor(object.getClass());
 
-                try {
-                    requirementType = classPool.get(object.getClass().getName());
-                } catch (final NotFoundException e) {
-                    throw new IllegalStateException("Field not found", e);
-                }
-
-                // we must load object
-                bytecode.addAload(0);
-                bytecode.addGetfield(functionCompileState.type(), fieldName, Descriptor.of(requirementType));
-                bytecode.addInvokevirtual(nativeMethodDeclaringCtClass, nativeMethod.getName(), ctReturnType, ctParameters);
+                mv.visitVarInsn(Opcodes.ALOAD, 0);
+                mv.visitFieldInsn(Opcodes.GETFIELD, functionCompileState.className(), fieldName, requirementDesc);
+                mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                        nativeMethodOwner, nativeMethod.getName(), nativeMethodDesc, false);
             }
 
             if (nativeMethod.getReturnType() == void.class) {
-                if (expectedType != CtClass.voidType) {
-                    bytecode.addConstZero(expectedType);
+                if (!expectedType.equals(Type.VOID_TYPE)) {
+                    AsmUtil.addConstZero(mv, expectedType);
                 }
-            } else if (!nativeMethod.getReturnType().getName().equals(expectedType.getName())) {
-                JavassistUtil.addCast(bytecode, ctReturnType, expectedType);
+            } else if (!nativeMethod.getReturnType().getName().equals(expectedType.getClassName())) {
+                AsmUtil.addCast(mv, ctReturnType, expectedType);
             }
         } else {
             throw new UnsupportedOperationException("Not supporting non-Java functions yet");

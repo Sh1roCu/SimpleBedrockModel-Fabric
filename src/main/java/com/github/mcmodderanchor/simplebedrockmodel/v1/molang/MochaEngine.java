@@ -33,8 +33,6 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.compiled.M
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.standard.MochaMath;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.MutableObjectBinding;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.ObjectValue;
-import javassist.ClassPool;
-import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -281,17 +279,6 @@ public interface MochaEngine<T> {
             return compile(reader);
         }
     }
-
-    /**
-     * Returns the internal {@link ClassPool} used by
-     * the compiler.
-     *
-     * @return The compiler class pool
-     * @since 3.0.0
-     * @apiNote This method might be removed in a future minor version.
-     */
-    @ApiStatus.Internal
-    @NotNull ClassPool classPool();
     //#endregion END COMPILING API
 
     //#region BINDING API

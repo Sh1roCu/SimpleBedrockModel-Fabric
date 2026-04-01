@@ -14,6 +14,7 @@ plugins {
     id 'idea'
     id 'net.minecraftforge.gradle' version '[6.0.16,6.2)'
     id 'org.parchmentmc.librarian.forgegradle' version '1.+'
+    id 'me.champeau.jmh' version '0.7.2'
 }
 
 apply plugin: 'org.spongepowered.mixin'
@@ -102,6 +103,7 @@ repositories {
 //        url 'https://maven.kosmx.dev/'
 //    }
     mavenLocal()
+    mavenCentral()
 }
 
 dependencies {
@@ -117,9 +119,9 @@ dependencies {
 //    jarJar minecraftLibrary("team.unnamed:mocha:3.0.1") {
 //        jarJar.ranged(it, "[3.0.1,)")
 //    }
-    jarJar minecraftLibrary("org.javassist:javassist:3.30.2-GA") {
-        jarJar.ranged(it, "[3.30.2-GA,)")
-    }
+//    jarJar minecraftLibrary("org.javassist:javassist:3.30.2-GA") {
+//        jarJar.ranged(it, "[3.30.2-GA,)")
+//    }
 
     // 测试用mod
     compileOnly fg.deobf("curse.maven:epic-fight-mod-405076:7316952")
@@ -130,6 +132,13 @@ dependencies {
     runtimeOnly fg.deobf('libs:oculus:mc1.20.1-1.7.0')
 
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+
+    // Test
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
+
+    // JMH: mocha 原版 (javassist) 用于性能对比
+    jmhImplementation 'team.unnamed:mocha:3.0.1'
 }
 
 tasks.named('processResources', ProcessResources).configure {
@@ -195,6 +204,15 @@ tasks.named('jarJar', Jar).configure {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+jmh {
+    zip64 = true
+    jmhVersion = '1.37'
 }
 
 java {

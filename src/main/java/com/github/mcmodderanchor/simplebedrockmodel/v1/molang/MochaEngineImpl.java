@@ -35,7 +35,6 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.compiled.M
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.MutableObjectBinding;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.NumberValue;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.Value;
-import javassist.ClassPool;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -184,11 +183,6 @@ final class MochaEngineImpl<T> implements MochaEngine<T> {
             throw new RuntimeException("Failed to read from given reader", e);
         }
         return compiler.compile(parsed, interfaceType);
-    }
-
-    @Override
-    public @NotNull ClassPool classPool() {
-        return compiler.classPool();
     }
 
     @Override

@@ -27,18 +27,17 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.parser.ast.Express
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.binding.Entity;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.compiled.MochaCompiledFunction;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.compiled.Named;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.util.AsmUtil;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.util.CaseInsensitiveStringHashMap;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.util.JavassistUtil;
-import javassist.*;
-import javassist.bytecode.*;
-import javassist.bytecode.stackmap.MapMaker;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
 
-import java.io.IOException;
 import java.lang.reflect.*;
-import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -52,24 +51,17 @@ public final class MolangCompiler {
 
     private final Object entity;
     private final ClassLoader classLoader;
-    private final ClassPool classPool;
-
     private final Scope scope;
     private Consumer<byte @NotNull []> postCompile;
 
     public MolangCompiler(final @Nullable Object entity, final @NotNull ClassLoader classLoader, final @NotNull Scope scope) {
         this.entity = entity;
         this.classLoader = requireNonNull(classLoader, "classLoader");
-        this.classPool = ClassPool.getDefault();
         this.scope = requireNonNull(scope, "scope");
     }
 
     public @Nullable Object entity() {
         return entity;
-    }
-
-    public @NotNull ClassPool classPool() {
-        return classPool;
     }
 
     public void postCompile(final @Nullable Consumer<byte @NotNull []> postCompile) {
@@ -81,8 +73,6 @@ public final class MolangCompiler {
         requireNonNull(clazz, "clazz");
 
         if (clazz == MochaFunction.class && expressions.isEmpty()) {
-            // no expressions and the target type is MochaFunction,
-            // we know the NOP function
             return clazz.cast(MochaFunction.nop());
         }
 
@@ -106,24 +96,15 @@ public final class MolangCompiler {
         }
 
         final Map<String, Integer> argumentParameterIndexes = new CaseInsensitiveStringHashMap<>();
-        final CtClass[] ctParameters;
         int entityParameterLoadIndex = -1;
         Class<?> entityParameterType = null;
 
-        // check method parameter types
+        // check method parameter types and compute load indexes
+        final Parameter[] parameters = implementedMethod.getParameters();
         {
-            final Parameter[] parameters = implementedMethod.getParameters();
-            ctParameters = new CtClass[parameters.length];
-
-            // First pass: compute load indexes and identify @Entity parameter
             int loadIndex = 1; // slot 0 = this
             for (int i = 0; i < parameters.length; ++i) {
                 final Parameter parameter = parameters[i];
-                try {
-                    ctParameters[i] = classPool.get(parameter.getType().getName());
-                } catch (NotFoundException e) {
-                    throw new RuntimeException(e);
-                }
 
                 if (parameter.isAnnotationPresent(Entity.class)) {
                     entityParameterLoadIndex = loadIndex;
@@ -153,37 +134,64 @@ public final class MolangCompiler {
             }
         }
 
-        final CtClass interfaceCtClass = JavassistUtil.getClassUnchecked(classPool, clazz);
-        final String scriptClassName = getClass().getPackage().getName() + ".MolangFunctionImpl_" + clazz.getSimpleName() + "_" + implementedMethod.getName()
+        final String interfaceInternalName = Type.getInternalName(clazz);
+        final String scriptClassName = getClass().getPackage().getName().replace('.', '/') + "/MolangFunctionImpl_" + clazz.getSimpleName() + "_" + implementedMethod.getName()
                 + "_" + Long.toHexString(System.currentTimeMillis()) + "_" + Integer.toHexString(RANDOM.nextInt(2024));
 
-        final CtClass scriptCtClass = classPool.makeClass(scriptClassName);
-        scriptCtClass.addInterface(interfaceCtClass);
-        scriptCtClass.setModifiers(Modifier.PUBLIC);
-
         final Class<?> returnType = implementedMethod.getReturnType();
-        final CtClass returnCtType = JavassistUtil.getClassUnchecked(classPool, returnType);
+        final Type returnAsmType = Type.getType(returnType);
 
-        final Bytecode bytecode = new Bytecode(scriptCtClass.getClassFile().getConstPool());
-        final FunctionCompileState compileState = new FunctionCompileState(this, classPool, scriptCtClass, bytecode, implementedMethod, scope, argumentParameterIndexes, entityParameterLoadIndex, entityParameterType);
+        // Build parameter ASM types
+        final Type[] paramAsmTypes = new Type[parameters.length];
+        for (int i = 0; i < parameters.length; i++) {
+            paramAsmTypes[i] = Type.getType(parameters[i].getType());
+        }
+
+        final String methodDescriptor = Type.getMethodDescriptor(returnAsmType, paramAsmTypes);
+
+        // Create ClassWriter with COMPUTE_FRAMES to auto-compute stack map and max stack/locals
+        final ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES) {
+            @Override
+            protected String getCommonSuperClass(String type1, String type2) {
+                // In mod environment, we may not be able to load all classes from the default classloader.
+                // Fall back to "java/lang/Object" to avoid ClassNotFoundException.
+                try {
+                    return super.getCommonSuperClass(type1, type2);
+                } catch (Exception e) {
+                    return "java/lang/Object";
+                }
+            }
+        };
+
+        cw.visit(Opcodes.V17, Opcodes.ACC_PUBLIC | Opcodes.ACC_FINAL,
+                scriptClassName, null, "java/lang/Object",
+                new String[]{interfaceInternalName});
+
+        // We'll collect requirements during compilation, then add fields + constructor after
+        // First, generate the main method
+        final MethodVisitor mv = cw.visitMethod(
+                Opcodes.ACC_PUBLIC | Opcodes.ACC_FINAL,
+                implementedMethod.getName(),
+                methodDescriptor,
+                null, null);
+        mv.visitCode();
+
+        final FunctionCompileState compileState = new FunctionCompileState(
+                this, scriptClassName, mv, implementedMethod, scope,
+                argumentParameterIndexes, entityParameterLoadIndex, entityParameterType);
 
         // compute initial max locals
         {
             int maxLocals = 1; // 1: this
-            for (final CtClass paramType : ctParameters) {
-                if (paramType == CtClass.doubleType || paramType == CtClass.longType) {
-                    maxLocals += 2; // doubles and longs take 2 places
-                } else {
-                    maxLocals++;
-                }
+            for (final Type paramType : paramAsmTypes) {
+                maxLocals += paramType.getSize();
             }
             compileState.maxLocals(maxLocals);
         }
 
         if (expressions.isEmpty()) {
-            // add only a "return 0", "return" or "return null" instruction
-            bytecode.addConstZero(returnCtType);
-            bytecode.addReturn(returnCtType);
+            AsmUtil.addConstZero(mv, returnAsmType);
+            AsmUtil.addReturn(mv, returnAsmType);
         } else {
             final MolangCompilingVisitor compiler = new MolangCompilingVisitor(compileState);
             CompileVisitResult lastVisitResult = null;
@@ -195,11 +203,11 @@ public final class MolangCompiler {
             }
 
             if (lastVisitResult == null || !lastVisitResult.returned()) {
-                if (lastVisitResult == null || lastVisitResult.lastPushedType() != returnCtType) {
-                    JavassistUtil.addCast(
-                            bytecode,
-                            lastVisitResult == null ? CtClass.doubleType : lastVisitResult.lastPushedType(),
-                            returnCtType
+                if (lastVisitResult == null || !returnAsmType.equals(lastVisitResult.lastPushedType())) {
+                    AsmUtil.addCast(
+                            mv,
+                            lastVisitResult == null ? Type.DOUBLE_TYPE : lastVisitResult.lastPushedType(),
+                            returnAsmType
                     );
                 }
 
@@ -207,98 +215,65 @@ public final class MolangCompiler {
             }
         }
 
-        bytecode.setMaxLocals(compileState.maxLocals());
-
-        final MethodInfo method = new MethodInfo(scriptCtClass.getClassFile().getConstPool(), implementedMethod.getName(), Descriptor.ofMethod(returnCtType, ctParameters));
-        method.setAccessFlags(Modifier.PUBLIC | Modifier.FINAL);
-        method.setCodeAttribute(bytecode.toCodeAttribute());
-        final StackMapTable stackMapTable;
-
-        try {
-            method.getCodeAttribute().computeMaxStack();
-            stackMapTable = MapMaker.make(classPool, method);
-        } catch (final BadBytecode e) {
-            throw new IllegalStateException("Generated bad bytecode, open an issue at https://github.com/unnamed/mocha/issues", e);
-        }
-
-        if (stackMapTable != null) {
-            method.getCodeAttribute().setAttribute(stackMapTable);
-        }
-
-        try {
-            scriptCtClass.addMethod(CtMethod.make(method, scriptCtClass));
-        } catch (final CannotCompileException e) {
-            throw new IllegalStateException("Couldn't compile main function method", e);
-        }
+        mv.visitMaxs(0, 0); // COMPUTE_FRAMES will calculate actual values
+        mv.visitEnd();
 
         final Map<String, Object> requirements = compileState.requirements();
 
-        // add fields for the requirements
+        // Add fields for requirements
         for (final Map.Entry<String, Object> entry : requirements.entrySet()) {
             final String fieldName = entry.getKey();
             final Object fieldValue = entry.getValue();
-            final CtClass fieldType = JavassistUtil.getClassUnchecked(classPool, fieldValue.getClass());
-            try {
-                scriptCtClass.addField(new CtField(fieldType, fieldName, scriptCtClass));
-            } catch (final CannotCompileException e) {
-                throw new IllegalStateException("Couldn't compile field " + fieldName + " with type " + fieldType.getName(), e);
-            }
+            final String fieldDescriptor = Type.getDescriptor(fieldValue.getClass());
+            cw.visitField(Opcodes.ACC_PRIVATE, fieldName, fieldDescriptor, null, null).visitEnd();
         }
 
-        // add constructor that needs requirements and initializes them
-        final CtClass[] constructorParameterCtTypes = new CtClass[requirements.size()];
-        int j = 0;
-        for (final Map.Entry<String, Object> entry : requirements.entrySet()) {
-            constructorParameterCtTypes[j] = JavassistUtil.getClassUnchecked(classPool, entry.getValue().getClass());
-            ++j;
-        }
-
+        // Add constructor that takes requirements and initializes them
         {
-            final CtConstructor ctConstructor = new CtConstructor(constructorParameterCtTypes, scriptCtClass);
-            final Bytecode constructorBytecode = new Bytecode(scriptCtClass.getClassFile().getConstPool());
-            constructorBytecode.addAload(0); // load this
-            constructorBytecode.addInvokespecial(JavassistUtil.getClassUnchecked(classPool, Object.class), "<init>", "()V"); // invoke superclass constructor
-            // put!
-            int parameterIndex = 0;
+            final StringBuilder constructorDesc = new StringBuilder("(");
+            for (final Object value : requirements.values()) {
+                constructorDesc.append(Type.getDescriptor(value.getClass()));
+            }
+            constructorDesc.append(")V");
+
+            final MethodVisitor ctorMv = cw.visitMethod(Opcodes.ACC_PUBLIC, "<init>", constructorDesc.toString(), null, null);
+            ctorMv.visitCode();
+            ctorMv.visitVarInsn(Opcodes.ALOAD, 0); // load this
+            ctorMv.visitMethodInsn(Opcodes.INVOKESPECIAL, "java/lang/Object", "<init>", "()V", false); // super()
+
+            int parameterIndex = 1;
             for (final Map.Entry<String, Object> entry : requirements.entrySet()) {
                 final String fieldName = entry.getKey();
                 final Object fieldValue = entry.getValue();
-                constructorBytecode.addAload(0); // load this
-                constructorBytecode.addAload(parameterIndex + 1); // load parameter
-                constructorBytecode.addPutfield(scriptCtClass, fieldName, Descriptor.of(JavassistUtil.getClassUnchecked(classPool, fieldValue.getClass()))); // set!
+                final String fieldDescriptor = Type.getDescriptor(fieldValue.getClass());
+
+                ctorMv.visitVarInsn(Opcodes.ALOAD, 0); // load this
+                ctorMv.visitVarInsn(Opcodes.ALOAD, parameterIndex); // load parameter
+                ctorMv.visitFieldInsn(Opcodes.PUTFIELD, scriptClassName, fieldName, fieldDescriptor);
                 parameterIndex++;
             }
-            constructorBytecode.addReturn(null); // return
-            ctConstructor.getMethodInfo().setCodeAttribute(constructorBytecode.toCodeAttribute());
-            try {
-                ctConstructor.getMethodInfo().getCodeAttribute().computeMaxStack();
-            } catch (final BadBytecode e) {
-                throw new IllegalStateException("Generated bad bytecode, open an issue at https://github.com/unnamed/mocha/issues", e);
-            }
 
-            ctConstructor.getMethodInfo().getCodeAttribute().setMaxLocals(constructorParameterCtTypes.length + 1);
-            try {
-                scriptCtClass.addConstructor(ctConstructor);
-            } catch (final CannotCompileException e) {
-                throw new IllegalStateException("Couldn't compile script constructor", e);
-            }
+            ctorMv.visitInsn(Opcodes.RETURN);
+            ctorMv.visitMaxs(0, 0); // COMPUTE_FRAMES
+            ctorMv.visitEnd();
         }
+
+        // Also add a no-arg constructor for the case when there are no requirements
+        // (not strictly needed since we always use the parameterized one, but let's keep it clean)
+
+        cw.visitEnd();
+
+        final byte[] bytecode = cw.toByteArray();
 
         if (postCompile != null) {
-            try {
-                postCompile.accept(scriptCtClass.toBytecode());
-            } catch (IOException | CannotCompileException e) {
-                throw new IllegalStateException("Couldn't collect script bytecode", e);
-            }
-        }
-        final Class<?> compiledClass;
-        try {
-            compiledClass = classPool.toClass(scriptCtClass, getClass(), classLoader, null);
-        } catch (final CannotCompileException e) {
-            throw new IllegalStateException("Couldn't compile script class", e);
+            postCompile.accept(bytecode);
         }
 
-        // find the constructor with the requirements
+        // Load the class
+        final MolangClassLoader loader = new MolangClassLoader(classLoader);
+        final Class<?> compiledClass = loader.define(scriptClassName.replace('/', '.'), bytecode);
+
+        // Find the constructor with the requirements
         final Class<?>[] constructorParameterTypes = new Class[requirements.size()];
         final Object[] constructorArguments = new Object[requirements.size()];
         int i = 0;
@@ -321,5 +296,18 @@ public final class MolangCompiler {
             throw new IllegalStateException("Couldn't instantiate script class", e);
         }
         return clazz.cast(instance);
+    }
+
+    /**
+     * Custom ClassLoader for loading generated Molang classes.
+     */
+    private static final class MolangClassLoader extends ClassLoader {
+        MolangClassLoader(ClassLoader parent) {
+            super(parent);
+        }
+
+        Class<?> define(String name, byte[] bytes) {
+            return defineClass(name, bytes, 0, bytes.length);
+        }
     }
 }

@@ -24,10 +24,9 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.util.CaseInsensitiveStringHashMap;
-import javassist.ClassPool;
-import javassist.CtClass;
-import javassist.bytecode.Bytecode;
 import org.jetbrains.annotations.NotNull;
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Type;
 
 import java.lang.reflect.Method;
 import java.util.Map;
@@ -37,9 +36,8 @@ import static java.util.Objects.requireNonNull;
 final class FunctionCompileState {
     private final MolangCompiler compiler;
 
-    private final ClassPool classPool;
-    private final CtClass ctClass;
-    private final Bytecode bytecode;
+    private final String className; // internal name (slash-separated)
+    private final MethodVisitor mv;
     private final Method method;
 
     private final Map<String, Object> requirements = new CaseInsensitiveStringHashMap<>();
@@ -51,8 +49,8 @@ final class FunctionCompileState {
 
     FunctionCompileState(
             MolangCompiler compiler,
-            ClassPool classPool,
-            CtClass ctClass, Bytecode bytecode,
+            String className,
+            MethodVisitor mv,
             Method method,
             Scope scope,
             Map<String, Integer> argumentParameterIndexes,
@@ -60,9 +58,8 @@ final class FunctionCompileState {
             Class<?> entityParameterType
     ) {
         this.compiler = requireNonNull(compiler, "compiler");
-        this.classPool = requireNonNull(classPool, "classPool");
-        this.ctClass = requireNonNull(ctClass, "ctClass");
-        this.bytecode = requireNonNull(bytecode, "bytecode");
+        this.className = requireNonNull(className, "className");
+        this.mv = requireNonNull(mv, "mv");
         this.method = requireNonNull(method, "method");
         this.scope = requireNonNull(scope, "scope");
         this.argumentParameterIndexes = requireNonNull(argumentParameterIndexes, "argumentParameterIndexes");
@@ -74,16 +71,12 @@ final class FunctionCompileState {
         return compiler;
     }
 
-    public @NotNull ClassPool classPool() {
-        return classPool;
+    public @NotNull String className() {
+        return className;
     }
 
-    public @NotNull CtClass type() {
-        return ctClass;
-    }
-
-    public @NotNull Bytecode bytecode() {
-        return bytecode;
+    public @NotNull MethodVisitor mv() {
+        return mv;
     }
 
     public @NotNull Method method() {
