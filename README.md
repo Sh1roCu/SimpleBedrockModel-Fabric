@@ -13,6 +13,7 @@
 - ✅ **Animation Running**: A full-featured animation player.
 - ✅ **Animation Blending**: Support for blendspace, layered, kinematic interpolation blending
 - ✅ **Resource Pack Support**: Load models and animations from resource packs
+- ⌛ **SnowStorm Particle Support**: In progress...
 
 ## 🚀 Quick Start
 

@@ -138,6 +138,57 @@ final class MolangCompilingVisitor implements ExpressionVisitor<CompileVisitResu
                         bytecode.addStore(localIndex, CtClass.doubleType);
                         return null;
                     }
+
+                    if (name.equalsIgnoreCase("variable") || name.equalsIgnoreCase("v")) {
+                        final int entityLoadIndex = functionCompileState.entityParameterLoadIndex();
+                        if (entityLoadIndex >= 0) {
+                            // Compile the right-hand side expression, pushes a double onto the stack
+                            expectedType = CtClass.doubleType;
+                            expression.right().visit(this);
+
+                            // dup2 the double value so we keep a copy on the stack as the expression result
+                            bytecode.addOpcode(Bytecode.DUP2);
+
+                            try {
+                                final CtClass entityCtType = classPool.get(functionCompileState.entityParameterType().getName());
+                                final CtClass objectValueCtType = classPool.get(ObjectValue.class.getName());
+                                final CtClass valueCtType = classPool.get(Value.class.getName());
+                                final CtClass numberValueCtType = classPool.get(NumberValue.class.getName());
+
+                                // Wrap double into NumberValue: NumberValue.of(double) -> NumberValue
+                                bytecode.addInvokestatic(numberValueCtType, "of", numberValueCtType, new CtClass[]{CtClass.doubleType});
+
+                                // Load entity parameter (MolangContext)
+                                bytecode.addAload(entityLoadIndex);
+
+                                // Resolve the actual return type of getVariableStorage()
+                                final java.lang.reflect.Method getter = functionCompileState.entityParameterType().getMethod("getVariableStorage");
+                                final CtClass getterReturnType = classPool.get(getter.getReturnType().getName());
+
+                                // Call context.getVariableStorage() -> MutableObjectBinding
+                                bytecode.addInvokevirtual(entityCtType, "getVariableStorage", getterReturnType, new CtClass[]{});
+
+                                // Swap: stack is [NumberValue, MutableObjectBinding] -> [MutableObjectBinding, NumberValue]
+                                bytecode.addOpcode(Bytecode.SWAP);
+
+                                // Load property name
+                                bytecode.addLdc(property);
+
+                                // Swap: stack is [MutableObjectBinding, NumberValue, String] -> [MutableObjectBinding, String, NumberValue]
+                                bytecode.addOpcode(Bytecode.SWAP);
+
+                                // Call objectValue.set(String, Value) -> boolean
+                                bytecode.addInvokeinterface(objectValueCtType, "set", CtClass.booleanType, new CtClass[]{stringCtType, valueCtType}, 3);
+
+                                // Pop the boolean return value
+                                bytecode.addOpcode(Bytecode.POP);
+                            } catch (final NotFoundException | NoSuchMethodException e) {
+                                throw new IllegalStateException("Could not resolve types for variable assignment", e);
+                            }
+
+                            return new CompileVisitResult(CtClass.doubleType);
+                        }
+                    }
                 }
             }
         }
