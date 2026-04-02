@@ -20,8 +20,8 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 世界粒子的自定义 {@link ParticleRenderType}。
  * <p>
- * 每个纹理+材质组合对应一个实例，通过 {@link #get(ParticleDescription.Material, ResourceLocation)} 获取。
- * 不使用 sprite atlas，直接绑定粒子定义中的纹理。
+ * 每个纹理+材质组合对应一个实例，通过 {@link #get(ParticleDescription.Material, ResourceLocation)} 获取。<br/>
+ * todo 目前没用atlas，一个贴图一个，考虑优化 ？
  */
 @OnlyIn(Dist.CLIENT)
 public final class MolangWorldParticleRenderType implements ParticleRenderType {

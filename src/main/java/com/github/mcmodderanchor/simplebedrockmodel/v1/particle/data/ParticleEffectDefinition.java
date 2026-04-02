@@ -1,9 +1,11 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.*;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.curve.ParticleCurve;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.event.IEventNode;
 import net.minecraft.resources.ResourceLocation;
 
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
 import java.util.*;
 
 /**
@@ -13,6 +15,8 @@ import java.util.*;
  *   "format_version": "1.10.0",
  *   "particle_effect": {
  *     "description": { ... },
+ *     "curves": { ... },
+ *     "events": { ... },
  *     "components": { ... }
  *   }
  * }
@@ -54,10 +58,19 @@ public class ParticleEffectDefinition {
     @Nullable
     private final ParticleInitialization initialization;
 
-    public ParticleEffectDefinition(ResourceLocation identifier, ParticleDescription description, List<IParticleComponent> components) {
+    // 曲线和事件（顶层字段，非组件）
+    private final Map<String, ParticleCurve> curves;
+    private final Map<String, List<IEventNode>> events;
+
+    public ParticleEffectDefinition(ResourceLocation identifier, ParticleDescription description,
+                                    List<IParticleComponent> components,
+                                    @Nullable Map<String, ParticleCurve> curves,
+                                    @Nullable Map<String, List<IEventNode>> events) {
         this.identifier = identifier;
         this.description = description;
         this.componentMap = buildComponentMap(components);
+        this.curves = curves != null ? curves : Map.of();
+        this.events = events != null ? events : Map.of();
 
         this.lifetime = findComponent(EmitterLifetime.class);
         this.rate = findComponent(EmitterRate.class);
@@ -127,6 +140,14 @@ public class ParticleEffectDefinition {
     @Nullable
     public ParticleInitialization getInitialization() {
         return initialization;
+    }
+
+    public Map<String, ParticleCurve> getCurves() {
+        return curves;
+    }
+
+    public Map<String, List<IEventNode>> getEvents() {
+        return events;
     }
 
     /**

@@ -17,12 +17,13 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 基准测试：ASM 编译 vs Javassist 编译 vs AST 解释执行
- *
+ * 基准测试：ASM 编译 vs Javassist 编译 vs AST 解释执行<br/>
+ * 用于验证迁移后性能相比原实现是否存在明显退化
+ * <p>
  * 场景设计原则：
  * - 避免常量折叠：所有表达式都包含运行时参数，确保测的是真实执行开销
  * - 覆盖实际使用场景：从简单到复杂，从纯算术到带上下文的动画表达式
- *
+ * <p>
  * 场景列表：
  * 1. simple_arith    — 简单算术 (a + b * 2)
  * 2. math_func       — 单个 math 函数调用 (math.sin(x))
@@ -38,7 +39,7 @@ import java.util.concurrent.TimeUnit;
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @Warmup(iterations = 3, time = 1)
 @Measurement(iterations = 5, time = 1)
-@Fork(1)
+@Fork(3)
 public class MolangBenchmark {
 
     // ==================== 表达式定义 ====================

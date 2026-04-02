@@ -4,7 +4,7 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.exclusion
 import com.google.gson.JsonElement;
 import com.google.gson.annotations.SerializedName;
 
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
 import java.util.Map;
 
 public class BonesItem {

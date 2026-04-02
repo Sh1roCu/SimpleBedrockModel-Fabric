@@ -3,7 +3,7 @@ package com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.pojo;
 import it.unimi.dsi.fastutil.doubles.Double2ObjectRBTreeMap;
 import org.joml.Vector3f;
 
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 @SuppressWarnings("MapOrSetKeyShouldOverrideHashCodeEquals")
 public class AnimationKeyframes {

@@ -8,7 +8,7 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.world.SnowStormP
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -389,13 +389,13 @@ public class ParticleEmitterInstance {
         }
     }
 
-    private void applyGradientColor(ParticleInstance p, float[] stops, float[][] colors, float t) {
+    private void applyGradientColor(ParticleInstance p, float[] stops, MolangExpression[][] colors, float t) {
         if (colors.length == 0) return;
         if (colors.length == 1) {
-            p.r = colors[0][0];
-            p.g = colors[0][1];
-            p.b = colors[0][2];
-            p.a = colors[0][3];
+            p.r = (float) colors[0][0].evaluate(ctx());
+            p.g = (float) colors[0][1].evaluate(ctx());
+            p.b = (float) colors[0][2].evaluate(ctx());
+            p.a = (float) colors[0][3].evaluate(ctx());
             return;
         }
         t = Math.max(stops[0], Math.min(stops[stops.length - 1], t));
@@ -407,11 +407,15 @@ public class ParticleEmitterInstance {
         float segStart = stops[idx], segEnd = stops[idx + 1];
         float frac = (segEnd > segStart) ? (t - segStart) / (segEnd - segStart) : 0;
         frac = Math.max(0, Math.min(1, frac));
-        float[] c0 = colors[idx], c1 = colors[idx + 1];
-        p.r = c0[0] + (c1[0] - c0[0]) * frac;
-        p.g = c0[1] + (c1[1] - c0[1]) * frac;
-        p.b = c0[2] + (c1[2] - c0[2]) * frac;
-        p.a = c0[3] + (c1[3] - c0[3]) * frac;
+        MolangExpression[] c0 = colors[idx], c1 = colors[idx + 1];
+        float r0 = (float) c0[0].evaluate(ctx()), r1 = (float) c1[0].evaluate(ctx());
+        float g0 = (float) c0[1].evaluate(ctx()), g1 = (float) c1[1].evaluate(ctx());
+        float b0 = (float) c0[2].evaluate(ctx()), b1 = (float) c1[2].evaluate(ctx());
+        float a0 = (float) c0[3].evaluate(ctx()), a1 = (float) c1[3].evaluate(ctx());
+        p.r = r0 + (r1 - r0) * frac;
+        p.g = g0 + (g1 - g0) * frac;
+        p.b = b0 + (b1 - b0) * frac;
+        p.a = a0 + (a1 - a0) * frac;
     }
 
     private void updateParticles(float dt) {

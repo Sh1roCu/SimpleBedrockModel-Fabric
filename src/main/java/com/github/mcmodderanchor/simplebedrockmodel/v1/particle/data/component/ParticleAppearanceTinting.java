@@ -6,7 +6,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -23,7 +23,14 @@ public sealed interface ParticleAppearanceTinting extends IParticleComponent {
     record StaticColor(MolangExpression r, MolangExpression g, MolangExpression b,
                        @Nullable MolangExpression a) implements ParticleAppearanceTinting {}
 
-    record GradientColor(MolangExpression interpolant, float[] stops, float[][] colors) implements ParticleAppearanceTinting {}
+    /**
+     * 渐变颜色。每个颜色停靠点的 RGBA 通道均为 {@link MolangExpression}，支持动态求值。
+     *
+     * @param interpolant 插值因子（Molang 表达式）
+     * @param stops       停靠点位置数组
+     * @param colors      每个停靠点的颜色，每行 4 个 MolangExpression：[r, g, b, a]
+     */
+    record GradientColor(MolangExpression interpolant, float[] stops, MolangExpression[][] colors) implements ParticleAppearanceTinting {}
 
     static ParticleAppearanceTinting fromJson(JsonObject obj, ParticleMolangEnvironment molang) {
         if (obj.has("color")) {
@@ -63,29 +70,61 @@ public sealed interface ParticleAppearanceTinting extends IParticleComponent {
 
     private static GradientColor parseGradientColor(JsonObject obj, ParticleMolangEnvironment molang) {
         MolangExpression interpolant = molang.compile(getMolang(obj, "interpolant", "0"));
-        JsonObject gradient = obj.getAsJsonObject("gradient");
-        if (gradient == null) {
-            return new GradientColor(interpolant, new float[]{0}, new float[][]{{1, 1, 1, 1}});
+        JsonElement gradientElem = obj.get("gradient");
+
+        // gradient 可以是对象（key 为停靠点）或数组（自动等分）
+        if (gradientElem == null) {
+            return new GradientColor(interpolant, new float[]{0},
+                    new MolangExpression[][]{{MolangExpression.constant(1), MolangExpression.constant(1),
+                            MolangExpression.constant(1), MolangExpression.constant(1)}});
         }
 
-        List<Map.Entry<String, JsonElement>> entries = new ArrayList<>(gradient.entrySet());
-        entries.sort(Comparator.comparingDouble(a -> Double.parseDouble(a.getKey())));
+        List<Float> stopList = new ArrayList<>();
+        List<MolangExpression[]> colorList = new ArrayList<>();
 
-        float[] stops = new float[entries.size()];
-        float[][] colors = new float[entries.size()][4];
-        for (int i = 0; i < entries.size(); i++) {
-            stops[i] = Float.parseFloat(entries.get(i).getKey());
-            JsonElement colorElem = entries.get(i).getValue();
-            if (colorElem.isJsonPrimitive() && colorElem.getAsJsonPrimitive().isString()) {
-                colors[i] = parseHexColor(colorElem.getAsString());
-            } else if (colorElem.isJsonArray()) {
-                JsonArray arr = colorElem.getAsJsonArray();
-                colors[i][0] = arr.get(0).getAsFloat();
-                colors[i][1] = arr.get(1).getAsFloat();
-                colors[i][2] = arr.get(2).getAsFloat();
-                colors[i][3] = arr.size() > 3 ? arr.get(3).getAsFloat() : 1f;
+        if (gradientElem.isJsonObject()) {
+            JsonObject gradient = gradientElem.getAsJsonObject();
+            List<Map.Entry<String, JsonElement>> entries = new ArrayList<>(gradient.entrySet());
+            entries.sort(Comparator.comparingDouble(a -> Double.parseDouble(a.getKey())));
+            for (Map.Entry<String, JsonElement> entry : entries) {
+                stopList.add(Float.parseFloat(entry.getKey()));
+                colorList.add(parseColorField(entry.getValue(), molang));
+            }
+        } else if (gradientElem.isJsonArray()) {
+            JsonArray arr = gradientElem.getAsJsonArray();
+            int size = arr.size();
+            for (int i = 0; i < size; i++) {
+                stopList.add(size > 1 ? (float) i / (size - 1) : 0f);
+                colorList.add(parseColorField(arr.get(i), molang));
             }
         }
-        return new GradientColor(interpolant, stops, colors);
+
+        float[] stops = new float[stopList.size()];
+        for (int i = 0; i < stopList.size(); i++) stops[i] = stopList.get(i);
+        return new GradientColor(interpolant, stops, colorList.toArray(new MolangExpression[0][]));
+    }
+
+    /**
+     * 解析单个颜色字段为 MolangExpression[4]（r, g, b, a）。
+     * 支持十六进制字符串、数组（每个元素可为数字或 Molang 表达式）。
+     */
+    private static MolangExpression[] parseColorField(JsonElement elem, ParticleMolangEnvironment molang) {
+        if (elem.isJsonPrimitive() && elem.getAsJsonPrimitive().isString()) {
+            float[] rgba = parseHexColor(elem.getAsString());
+            return new MolangExpression[]{
+                    MolangExpression.constant(rgba[0]), MolangExpression.constant(rgba[1]),
+                    MolangExpression.constant(rgba[2]), MolangExpression.constant(rgba[3])};
+        }
+        if (elem.isJsonArray()) {
+            JsonArray arr = elem.getAsJsonArray();
+            MolangExpression r = molang.compile(molangFromElement(arr.get(0), "1"));
+            MolangExpression g = molang.compile(molangFromElement(arr.get(1), "1"));
+            MolangExpression b = molang.compile(molangFromElement(arr.get(2), "1"));
+            MolangExpression a = arr.size() > 3 ? molang.compile(molangFromElement(arr.get(3), "1")) : MolangExpression.constant(1);
+            return new MolangExpression[]{r, g, b, a};
+        }
+        return new MolangExpression[]{
+                MolangExpression.constant(1), MolangExpression.constant(1),
+                MolangExpression.constant(1), MolangExpression.constant(1)};
     }
 }

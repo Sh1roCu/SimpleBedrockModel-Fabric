@@ -3,7 +3,7 @@ package com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.molang.DynamicQueryBinding;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.MutableObjectBinding;
 
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Molang 求值上下文。持有当前关联对象的可变引用、独立的 variable 存储和 query 绑定。

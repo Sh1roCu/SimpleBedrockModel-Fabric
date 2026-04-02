@@ -38,6 +38,20 @@ public sealed interface EmitterLifetime extends IEmitterComponent {
      */
     record Once(MolangExpression activeTime) implements EmitterLifetime {}
 
+    /**
+     * 基于表达式的生命周期。对应 "minecraft:emitter_lifetime_expression"。
+     * <p>
+     * {@code activationExpression} 非零时发射器处于活跃状态；
+     * {@code expirationExpression} 非零时发射器过期。
+     */
+    record Expression(MolangExpression activationExpression, MolangExpression expirationExpression) implements EmitterLifetime {
+        @Override
+        public MolangExpression activeTime() {
+            // Expression 模式不使用固定 activeTime，返回一个极大值以避免基于时间的过期
+            return MolangExpression.constant(Float.MAX_VALUE);
+        }
+    }
+
     static EmitterLifetime fromJson(String key, JsonElement value, ParticleMolangEnvironment molang) {
         JsonObject obj = value.getAsJsonObject();
         return switch (key) {
@@ -46,6 +60,9 @@ public sealed interface EmitterLifetime extends IEmitterComponent {
                     molang.compile(getMolang(obj, "sleep_time", "0")));
             case "minecraft:emitter_lifetime_once" -> new Once(
                     molang.compile(getMolang(obj, "active_time", "1")));
+            case "minecraft:emitter_lifetime_expression" -> new Expression(
+                    molang.compile(getMolang(obj, "activation_expression", "1")),
+                    molang.compile(getMolang(obj, "expiration_expression", "0")));
             default -> throw new IllegalArgumentException("Unknown emitter lifetime key: " + key);
         };
     }

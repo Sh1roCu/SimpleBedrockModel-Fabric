@@ -1,13 +1,13 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.*;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.curve.ParticleCurve;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.event.*;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleMolangEnvironment;
 import com.google.gson.*;
 import net.minecraft.resources.ResourceLocation;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleJsonUtils.*;
 
@@ -38,7 +38,15 @@ public class ParticleEffectDeserializer {
         JsonObject compObj = effect.getAsJsonObject("components");
         List<IParticleComponent> components = compObj != null ? parseComponents(compObj, molang) : List.of();
 
-        return new ParticleEffectDefinition(description.getIdentifier(), description, components);
+        // curves
+        JsonObject curvesObj = effect.getAsJsonObject("curves");
+        Map<String, ParticleCurve> curves = curvesObj != null ? parseCurves(curvesObj, molang) : null;
+
+        // events
+        JsonObject eventsObj = effect.getAsJsonObject("events");
+        Map<String, List<IEventNode>> events = eventsObj != null ? parseEvents(eventsObj) : null;
+
+        return new ParticleEffectDefinition(description.getIdentifier(), description, components, curves, events);
     }
 
     private ParticleDescription parseDescription(JsonObject obj) {
@@ -74,5 +82,104 @@ public class ParticleEffectDeserializer {
             }
         }
         return components;
+    }
+
+    // ---- Curves ----
+
+    private Map<String, ParticleCurve> parseCurves(JsonObject obj, ParticleMolangEnvironment molang) {
+        Map<String, ParticleCurve> curves = new LinkedHashMap<>();
+        for (Map.Entry<String, JsonElement> entry : obj.entrySet()) {
+            if (entry.getValue().isJsonObject()) {
+                curves.put(entry.getKey(), ParticleCurve.fromJson(entry.getValue().getAsJsonObject(), molang));
+            }
+        }
+        return curves.isEmpty() ? null : curves;
+    }
+
+    // ---- Events ----
+
+    private Map<String, List<IEventNode>> parseEvents(JsonObject obj) {
+        Map<String, List<IEventNode>> events = new LinkedHashMap<>();
+        for (Map.Entry<String, JsonElement> entry : obj.entrySet()) {
+            if (entry.getValue().isJsonObject()) {
+                List<IEventNode> nodes = parseEventNodeObject(entry.getValue().getAsJsonObject());
+                if (!nodes.isEmpty()) {
+                    events.put(entry.getKey(), nodes);
+                }
+            }
+        }
+        return events.isEmpty() ? null : events;
+    }
+
+    /**
+     * 解析单个事件定义对象。一个事件可以包含多个节点类型（particle_effect、sound_effect、sequence、randomize、log、expression）。
+     */
+    private List<IEventNode> parseEventNodeObject(JsonObject obj) {
+        List<IEventNode> nodes = new ArrayList<>();
+
+        if (obj.has("particle_effect")) {
+            nodes.add(parseParticleEffectEvent(obj.getAsJsonObject("particle_effect")));
+        }
+        if (obj.has("sound_effect")) {
+            nodes.add(parseSoundEffectEvent(obj.get("sound_effect")));
+        }
+        if (obj.has("sequence")) {
+            nodes.add(parseSequence(obj.getAsJsonArray("sequence")));
+        }
+        if (obj.has("randomize")) {
+            nodes.add(parseRandomize(obj.getAsJsonArray("randomize")));
+        }
+        if (obj.has("log")) {
+            nodes.add(new EventLog(obj.get("log").getAsString()));
+        }
+        if (obj.has("expression")) {
+            nodes.add(new MolangExpressionEvent(obj.get("expression").getAsString()));
+        }
+
+        return nodes;
+    }
+
+    private ParticleEffectEvent parseParticleEffectEvent(JsonObject obj) {
+        String effect = obj.has("effect") ? obj.get("effect").getAsString() : "";
+        ParticleEffectEvent.Type type = ParticleEffectEvent.Type.EMITTER;
+        if (obj.has("type")) {
+            type = ParticleEffectEvent.Type.fromString(obj.get("type").getAsString());
+        }
+        String preExpr = obj.has("pre_effect_expression") ? obj.get("pre_effect_expression").getAsString() : null;
+        return new ParticleEffectEvent(effect, type, preExpr);
+    }
+
+    private SoundEffectEvent parseSoundEffectEvent(JsonElement elem) {
+        if (elem.isJsonObject()) {
+            JsonObject obj = elem.getAsJsonObject();
+            String eventName = obj.has("event_name") ? obj.get("event_name").getAsString() : "";
+            return new SoundEffectEvent(eventName);
+        }
+        return new SoundEffectEvent(elem.getAsString());
+    }
+
+    private EventSequence parseSequence(JsonArray arr) {
+        List<IEventNode> nodes = new ArrayList<>();
+        for (JsonElement elem : arr) {
+            if (elem.isJsonObject()) {
+                nodes.addAll(parseEventNodeObject(elem.getAsJsonObject()));
+            }
+        }
+        return new EventSequence(nodes);
+    }
+
+    private EventRandomize parseRandomize(JsonArray arr) {
+        List<EventRandomize.WeightedEntry> entries = new ArrayList<>();
+        for (JsonElement elem : arr) {
+            if (elem.isJsonObject()) {
+                JsonObject entryObj = elem.getAsJsonObject();
+                float weight = entryObj.has("weight") ? entryObj.get("weight").getAsFloat() : 1f;
+                List<IEventNode> nodes = parseEventNodeObject(entryObj);
+                for (IEventNode node : nodes) {
+                    entries.add(new EventRandomize.WeightedEntry(weight, node));
+                }
+            }
+        }
+        return new EventRandomize(entries);
     }
 }

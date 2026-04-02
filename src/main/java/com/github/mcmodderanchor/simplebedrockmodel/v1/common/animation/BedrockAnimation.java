@@ -13,7 +13,7 @@ import net.minecraft.resources.ResourceLocation;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
 
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
