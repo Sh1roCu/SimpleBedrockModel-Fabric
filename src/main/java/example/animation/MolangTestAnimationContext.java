@@ -1,10 +1,12 @@
 package example.animation;
 
+import com.github.mcmodderanchor.simplebedrockmodel.v1.animation.time.AnimationClock;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.animation.time.AnimationClocks;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.animation.BedrockAnimation;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangContext;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.molang.MolangEngineHelper;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.event.RegisterBedrockAnimationReloadListenerEvent;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.MochaEngine;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangContext;
 import com.maydaymemory.mae.basic.Pose;
 import com.maydaymemory.mae.control.runner.AnimationContext;
 import com.maydaymemory.mae.control.runner.AnimationRunner;
@@ -14,6 +16,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 import org.jetbrains.annotations.Nullable;
+
 import java.util.List;
 
 /**
@@ -24,6 +27,7 @@ import java.util.List;
 public class MolangTestAnimationContext {
     private static final MolangContext<Object> SHARED_CONTEXT = new MolangContext<>();
     private static final MochaEngine<?> SHARED_ENGINE = MolangEngineHelper.createEngine(SHARED_CONTEXT);
+    private static final AnimationClock CLOCK = AnimationClocks.client();
 
     private static BedrockAnimation molangTestAnimation;
     @Nullable
@@ -46,29 +50,24 @@ public class MolangTestAnimationContext {
                         .filter(a -> a.getName().equals("molang_test"))
                         .findFirst()
                         .orElse(null);
-                // 动画加载后创建 runner
                 if (molangTestAnimation != null) {
                     AnimationContext ctx = new AnimationContext(molangTestAnimation.getSpecifiedEndTimeS());
-                    ctx.setState(new LoopingState(System::nanoTime));
+                    ctx.setState(new LoopingState(CLOCK));
                     runner = new AnimationRunner(molangTestAnimation, ctx);
                 }
             }
         });
     }
 
-    /**
-     * 每帧调用，驱动 AnimationRunner 更新进度。
-     */
     public static void tick() {
+        if (!CLOCK.shouldTick()) {
+            return;
+        }
         if (runner != null) {
             runner.tick();
         }
     }
 
-    /**
-     * 获取当前动画 Pose。
-     * 在求值前设置 ThreadLocal context，求值后清除。
-     */
     @Nullable
     public static Pose evaluatePose() {
         if (runner != null) {

@@ -1,5 +1,7 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.client.handler;
 
+import com.github.mcmodderanchor.simplebedrockmodel.v1.animation.time.AnimationClock;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.animation.time.AnimationClocks;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.animation.IFPAnimationInstance;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.event.SwapItemWithOffHand;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.renderer.IFPGeoItemRenderer;
@@ -20,6 +22,7 @@ import java.util.Optional;
 
 @Mod.EventBusSubscriber(Dist.CLIENT)
 public class FirstPersonRenderHandler {
+    private static final AnimationClock CLOCK = AnimationClocks.client();
 
     private static int realSelectedSlot = -1;
     private static ItemStack realMainHand = ItemStack.EMPTY;
@@ -41,7 +44,6 @@ public class FirstPersonRenderHandler {
 
     @SubscribeEvent
     public static void onPlayerLoggedOut(ClientPlayerNetworkEvent.LoggingOut event) {
-        // 离开游戏时重置客户端状态
         realSelectedSlot = -1;
         realMainHand = ItemStack.EMPTY;
         transitioning = false;
@@ -51,8 +53,9 @@ public class FirstPersonRenderHandler {
         lockVanilla = false;
         nextIsCustom = false;
         forceHandSwapFlag = false;
+        switchStartTime = 0L;
+        currentSheatheDuration = 0L;
     }
-
 
     @SubscribeEvent
     public static void onRenderHand(SwapItemWithOffHand event) {
@@ -61,10 +64,14 @@ public class FirstPersonRenderHandler {
 
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
-        if (event.phase != TickEvent.Phase.START) return;
+        if (event.phase != TickEvent.Phase.START || !CLOCK.shouldTick()) {
+            return;
+        }
 
         LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null) return;
+        if (player == null) {
+            return;
+        }
 
         int newSlot = player.getInventory().selected;
         ItemStack newMain = player.getMainHandItem();
@@ -80,7 +87,9 @@ public class FirstPersonRenderHandler {
             onSlotChanged(newMain);
         } else if (itemChanged) {
             onItemChangedInSameSlot(newMain);
-        }if (activeInstance != null) {
+        }
+
+        if (activeInstance != null) {
             activeInstance.updateItem(newMain);
         }
 
@@ -101,16 +110,12 @@ public class FirstPersonRenderHandler {
         activeInstance = createInstance(newStack);
 
         if (oldIsCustom) {
-            // Custom → Any：播放 Putaway
             transitioning = true;
             lockVanilla = true;
-
-            switchStartTime = System.currentTimeMillis();
+            switchStartTime = CLOCK.nowMillis();
             currentSheatheDuration = calculateSheatheDuration(previousInstance.currentItem());
-
             previousInstance.triggerPutAway();
         } else {
-            // Vanilla → Custom / Vanilla：直接切
             transitioning = false;
             lockVanilla = false;
         }
@@ -132,36 +137,29 @@ public class FirstPersonRenderHandler {
         if (oldIsCustom) {
             transitioning = true;
             lockVanilla = true;
-
-            switchStartTime = System.currentTimeMillis();
+            switchStartTime = CLOCK.nowMillis();
             currentSheatheDuration = calculateSheatheDuration(previousInstance.currentItem());
-
             previousInstance.triggerPutAway();
         } else {
-            // Vanilla → Custom
             lockVanilla = false;
         }
     }
 
     private static void tickStates() {
-        if (transitioning) {
-            if (getSheatheProgress() >= 1.0f) {
-                // Putaway 完成
-                transitioning = false;
-                lockVanilla = false;
-
-                activeInstance = createInstance(pendingTarget);
-                previousInstance = null;
-            }
+        if (transitioning && getSheatheProgress() >= 1.0f) {
+            transitioning = false;
+            lockVanilla = false;
+            activeInstance = createInstance(pendingTarget);
+            previousInstance = null;
         }
     }
 
     @SubscribeEvent
     public static void tickAnimation(TickEvent.RenderTickEvent event) {
-        if (event.phase != TickEvent.Phase.START) {
+        if (event.phase != TickEvent.Phase.START || !CLOCK.shouldTick()) {
             return;
         }
-        var ani = getActiveAnimationInstance();
+        IFPAnimationInstance ani = getActiveAnimationInstance();
         if (ani != null) {
             ani.triggerDraw();
             ani.tick(event.renderTickTime);
@@ -171,13 +169,19 @@ public class FirstPersonRenderHandler {
     @SubscribeEvent
     public static void onRenderHand(RenderHandEvent event) {
         LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null) return;
+        if (player == null) {
+            return;
+        }
 
         IFPAnimationInstance inst = getActiveAnimationInstance();
-        if (inst == null) return;
+        if (inst == null) {
+            return;
+        }
 
         ItemStack stack = inst.currentItem();
-        if (stack.isEmpty()) return;
+        if (stack.isEmpty()) {
+            return;
+        }
 
         getRenderer(stack).ifPresent(renderer -> {
             if (event.getHand() == InteractionHand.OFF_HAND) {
@@ -187,12 +191,9 @@ public class FirstPersonRenderHandler {
                 return;
             }
 
-            ItemDisplayContext transformType;
-            if (event.getHand() == InteractionHand.MAIN_HAND) {
-                transformType = ItemDisplayContext.FIRST_PERSON_RIGHT_HAND;
-            } else {
-                transformType = ItemDisplayContext.FIRST_PERSON_LEFT_HAND;
-            }
+            ItemDisplayContext transformType = event.getHand() == InteractionHand.MAIN_HAND
+                    ? ItemDisplayContext.FIRST_PERSON_RIGHT_HAND
+                    : ItemDisplayContext.FIRST_PERSON_LEFT_HAND;
             renderer.renderFirstPerson(
                     player,
                     stack,
@@ -209,7 +210,6 @@ public class FirstPersonRenderHandler {
     public static boolean shouldLockVanilla() {
         return lockVanilla;
     }
-
 
     public static float getTargetHeight() {
         return nextIsCustom ? 1.0F : 0.0F;
@@ -236,24 +236,33 @@ public class FirstPersonRenderHandler {
     }
 
     private static float getSheatheProgress() {
-        if (currentSheatheDuration <= 0) return 1.0f;
-        long elapsed = System.currentTimeMillis() - switchStartTime;
+        if (currentSheatheDuration <= 0) {
+            return 1.0f;
+        }
+        long elapsed = CLOCK.nowMillis() - switchStartTime;
         return Math.min(1.0f, (float) elapsed / currentSheatheDuration);
     }
 
     private static Optional<IFPGeoItemRenderer> getRenderer(ItemStack stack) {
-        if (stack.isEmpty()) return Optional.empty();
-        if (IClientItemExtensions.of(stack.getItem()).getCustomRenderer()
-                instanceof IFPGeoItemRenderer renderer) {
+        if (stack.isEmpty()) {
+            return Optional.empty();
+        }
+        if (IClientItemExtensions.of(stack.getItem()).getCustomRenderer() instanceof IFPGeoItemRenderer renderer) {
             return Optional.of(renderer);
         }
         return Optional.empty();
     }
 
     private static boolean isSameItemStacks(ItemStack oldStack, ItemStack newStack) {
-        if (oldStack == newStack) return true;
-        if (oldStack.isEmpty() && newStack.isEmpty()) return true;
-        if (oldStack.isEmpty() || newStack.isEmpty()) return false;
+        if (oldStack == newStack) {
+            return true;
+        }
+        if (oldStack.isEmpty() && newStack.isEmpty()) {
+            return true;
+        }
+        if (oldStack.isEmpty() || newStack.isEmpty()) {
+            return false;
+        }
 
         return getRenderer(oldStack)
                 .map(r -> r.isSameItem(oldStack, newStack))

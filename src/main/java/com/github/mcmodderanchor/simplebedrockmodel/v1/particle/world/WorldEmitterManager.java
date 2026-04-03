@@ -1,6 +1,8 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.world;
 
 import com.github.mcmodderanchor.simplebedrockmodel.SimpleBedrockModel;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.animation.time.AnimationClock;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.animation.time.AnimationClocks;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleEffectDefinition;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleEmitterInstance;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleInstance;
@@ -10,6 +12,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -23,6 +26,7 @@ import java.util.List;
 @OnlyIn(Dist.CLIENT)
 @Mod.EventBusSubscriber(modid = SimpleBedrockModel.MOD_ID, value = Dist.CLIENT)
 public class WorldEmitterManager {
+    private static final AnimationClock CLOCK = AnimationClocks.client();
 
     private static WorldEmitterManager INSTANCE;
 
@@ -80,7 +84,15 @@ public class WorldEmitterManager {
         if (event.phase != TickEvent.Phase.START) {
             return;
         }
+        if (!CLOCK.shouldTick()) {
+            return;
+        }
         getInstance().tick();
+    }
+
+    @SubscribeEvent
+    public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
+        getInstance().clear();
     }
 
     /**
@@ -149,9 +161,7 @@ public class WorldEmitterManager {
         particle.y = (float) py;
         particle.z = (float) pz;
 
-        SnowStormParticle worldParticle = new SnowStormParticle(
-                active.level, particle, active.definition, active.molang, active.emitter);
-
+        SnowStormParticle worldParticle = new SnowStormParticle(active.level, particle, active.definition, active.molang, active.emitter);
         mc.particleEngine.add(worldParticle);
     }
 
