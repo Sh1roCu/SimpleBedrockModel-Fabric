@@ -7,6 +7,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import org.jetbrains.annotations.Nullable;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 
 import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleJsonUtils.getMolang;
@@ -55,10 +58,12 @@ public record ParticleCurve(
             if (type == CurveType.BEZIER_CHAIN && nodesElem.isJsonObject()) {
                 // Bezier Chain: nodes 是对象，每个 key 是位置，value 是 {value, slope}
                 JsonObject nodesObj = nodesElem.getAsJsonObject();
-                chainNodes = new CurveNode[nodesObj.size()];
-                nodes = new float[nodesObj.size()]; // 存储位置 key
+                List<Map.Entry<String, JsonElement>> entries = new ArrayList<>(nodesObj.entrySet());
+                entries.sort(Comparator.comparingDouble(entry -> Double.parseDouble(entry.getKey())));
+                chainNodes = new CurveNode[entries.size()];
+                nodes = new float[entries.size()]; // 存储位置 key
                 int i = 0;
-                for (Map.Entry<String, JsonElement> entry : nodesObj.entrySet()) {
+                for (Map.Entry<String, JsonElement> entry : entries) {
                     nodes[i] = Float.parseFloat(entry.getKey());
                     JsonElement val = entry.getValue();
                     if (val.isJsonObject()) {
@@ -81,10 +86,12 @@ public record ParticleCurve(
             } else if (nodesElem.isJsonObject()) {
                 // 对象格式的普通节点（带 key 的 CurveNode）
                 JsonObject nodesObj = nodesElem.getAsJsonObject();
-                chainNodes = new CurveNode[nodesObj.size()];
-                nodes = new float[nodesObj.size()];
+                List<Map.Entry<String, JsonElement>> entries = new ArrayList<>(nodesObj.entrySet());
+                entries.sort(Comparator.comparingDouble(entry -> Double.parseDouble(entry.getKey())));
+                chainNodes = new CurveNode[entries.size()];
+                nodes = new float[entries.size()];
                 int i = 0;
-                for (Map.Entry<String, JsonElement> entry : nodesObj.entrySet()) {
+                for (Map.Entry<String, JsonElement> entry : entries) {
                     nodes[i] = Float.parseFloat(entry.getKey());
                     JsonElement val = entry.getValue();
                     if (val.isJsonObject()) {

@@ -6,6 +6,7 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangCont
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangExpression;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.compiled.MochaCompiledFunction;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.compiled.Named;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.standard.MochaMath;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.Function;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.NumberValue;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.ObjectProperty;
@@ -128,6 +129,38 @@ class MolangCompilerTest {
             assertEquals(6.0D, round.apply(5.5D));
             assertEquals(6.0D, round.apply(5.6D));
             assertEquals(-5.0D, round.apply(-5.4D));
+        }
+
+        @Test
+        void randomAcceptsReversedBounds() {
+            for (int i = 0; i < 100; i++) {
+                final double value = MochaMath.random(60, -60);
+                assertTrue(value >= -60 && value < 60, () -> "unexpected value: " + value);
+            }
+        }
+
+        @Test
+        void randomIntegerAcceptsReversedBounds() {
+            for (int i = 0; i < 100; i++) {
+                final int value = MochaMath.randomInteger(10, 3);
+                assertTrue(value >= 3 && value < 10, () -> "unexpected value: " + value);
+            }
+        }
+
+        @Test
+        void dieRollAcceptsReversedBounds() {
+            for (int i = 0; i < 100; i++) {
+                final double value = MochaMath.dieRoll(1, 60, -60);
+                assertTrue(value >= -15 && value < 15, () -> "unexpected value: " + value);
+            }
+        }
+
+        @Test
+        void dieRollIntegerAcceptsReversedBounds() {
+            for (int i = 0; i < 100; i++) {
+                final double value = MochaMath.dieRollInteger(1, 10, 3);
+                assertTrue(value >= 3 && value < 10, () -> "unexpected value: " + value);
+            }
         }
 
         public interface MathFunction extends MochaCompiledFunction {

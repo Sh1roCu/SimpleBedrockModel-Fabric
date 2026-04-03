@@ -10,14 +10,18 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 
-import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
 // 用来管理世界中的粒子发射器
 @OnlyIn(Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = SimpleBedrockModel.MOD_ID, value = Dist.CLIENT)
 public class WorldEmitterManager {
 
     private static WorldEmitterManager INSTANCE;
@@ -36,11 +40,12 @@ public class WorldEmitterManager {
      *
      * @param level      客户端世界
      * @param pos        发射器世界坐标
+     * @param velocity   发射器世界速度（blocks/second）
      * @param definition 粒子效果定义
      * @return 创建的发射器实例，可用于后续控制；如果 definition 为 null 则返回 null
      */
     @Nullable
-    public ParticleEmitterInstance addEmitter(ClientLevel level, Vec3 pos, @Nullable ParticleEffectDefinition definition) {
+    public ParticleEmitterInstance addEmitter(ClientLevel level, Vec3 pos, Vec3 velocity, @Nullable ParticleEffectDefinition definition) {
         if (definition == null) {
             SimpleBedrockModel.LOGGER.warn("Attempted to add world emitter with null definition");
             return null;
@@ -56,21 +61,26 @@ public class WorldEmitterManager {
         active.worldX = pos.x;
         active.worldY = pos.y;
         active.worldZ = pos.z;
+        active.velocityX = velocity.x;
+        active.velocityY = velocity.y;
+        active.velocityZ = velocity.z;
         active.definition = definition;
 
-        // 设置发射器变换：世界粒子不需要 locator 变换，
-        // emitterTransform 为单位矩阵，worldTransform 为平移到世界坐标的矩阵
-        Matrix4f identity = new Matrix4f();
-        Matrix4f worldTransform = new Matrix4f().translation((float) pos.x, (float) pos.y, (float) pos.z);
-        emitter.setEmitterTransform(identity, worldTransform);
+        updateEmitterTransform(active);
 
         // 设置外部粒子管理：新生成的粒子通过回调投递到 ParticleEngine
-        emitter.setExternalParticleManagement(particle -> {
-            deliverParticle(active, particle);
-        });
+        emitter.setExternalParticleManagement(particle -> deliverParticle(active, particle));
 
         emitters.add(active);
         return emitter;
+    }
+
+    @SubscribeEvent
+    public static void onClientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.START) {
+            return;
+        }
+        getInstance().tick();
     }
 
     /**
@@ -90,6 +100,11 @@ public class WorldEmitterManager {
                 continue;
             }
 
+            active.worldX += active.velocityX * dt;
+            active.worldY += active.velocityY * dt;
+            active.worldZ += active.velocityZ * dt;
+            updateEmitterTransform(active);
+
             active.emitter.tick(dt);
 
             if (active.emitter.isFinished()) {
@@ -103,12 +118,22 @@ public class WorldEmitterManager {
      */
     private void deliverParticle(ActiveWorldEmitter active, ParticleInstance particle) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.particleEngine == null || active.level == null) return;
+        if (mc.particleEngine == null || active.level == null) {
+            return;
+        }
+
+        if (active.emitter.isLocalVelocity()) {
+            particle.vx += active.velocityX;
+            particle.vy += active.velocityY;
+            particle.vz += active.velocityZ;
+        }
 
         // 粒子坐标已经在世界空间中（ParticleEmitterInstance 的 applyLocalSpaceOnSpawn 已处理）
         // 如果粒子是世界空间的，坐标已经是绝对世界坐标
         // 如果粒子是局部空间的（localPosition=true），需要加上发射器位置
-        double px, py, pz;
+        double px;
+        double py;
+        double pz;
         if (particle.worldSpace) {
             px = particle.x;
             py = particle.y;
@@ -130,11 +155,21 @@ public class WorldEmitterManager {
         mc.particleEngine.add(worldParticle);
     }
 
+    private void updateEmitterTransform(ActiveWorldEmitter active) {
+        Matrix4f identity = new Matrix4f();
+        Matrix4f worldTransform = new Matrix4f().translation((float) active.worldX, (float) active.worldY, (float) active.worldZ);
+        active.emitter.setEmitterTransform(identity, worldTransform);
+    }
+
     /**
      * 清空所有发射器。
      */
     public void clear() {
         emitters.clear();
+    }
+
+    public List<ActiveWorldEmitter> getEmitters() {
+        return emitters;
     }
 
     /**
@@ -147,11 +182,12 @@ public class WorldEmitterManager {
     /**
      * 活跃的世界发射器上下文。
      */
-    private static class ActiveWorldEmitter {
-        ParticleEmitterInstance emitter;
-        ParticleMolangEnvironment molang;
-        ClientLevel level;
-        double worldX, worldY, worldZ;
-        ParticleEffectDefinition definition;
+    public static class ActiveWorldEmitter {
+        public ParticleEmitterInstance emitter;
+        public ParticleMolangEnvironment molang;
+        public ClientLevel level;
+        public double worldX, worldY, worldZ;
+        public double velocityX, velocityY, velocityZ;
+        public ParticleEffectDefinition definition;
     }
 }

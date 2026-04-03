@@ -2,15 +2,19 @@ package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangContext;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangExpression;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.NumberValue;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleEffectDefinition;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.*;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.curve.ParticleCurve;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.world.SnowStormParticle;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 
 import org.jetbrains.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 public class ParticleEmitterInstance {
@@ -24,6 +28,7 @@ public class ParticleEmitterInstance {
     private float emitterAge;
     private float emitterLifetime;
     private boolean active = true;
+    private boolean removed;
     private boolean sleeping;
     private float sleepTimer;
     private boolean hasEmittedInstant;
@@ -71,6 +76,10 @@ public class ParticleEmitterInstance {
     private final ParticleInitialSpin spinComponent;
     @Nullable
     private final ParticleInitialization initComponent;
+    @Nullable
+    private final EmitterInitialization emitterInitComponent;
+
+    private final Map<String, ParticleCurve> curves;
 
     @Nullable
     private ParticleSpawnCallback spawnCallback;
@@ -95,6 +104,8 @@ public class ParticleEmitterInstance {
         this.motionComponent = definition.getMotion();
         this.spinComponent = definition.getInitialSpin();
         this.initComponent = definition.getInitialization();
+        this.emitterInitComponent = definition.findComponent(EmitterInitialization.class);
+        this.curves = definition.getCurves();
 
         EmitterLocalSpace localSpace = definition.findComponent(EmitterLocalSpace.class);
         if (localSpace != null) {
@@ -107,12 +118,7 @@ public class ParticleEmitterInstance {
             this.localVelocity = false;
         }
 
-        bindEmitterContext();
-        if (lifetimeComponent != null) {
-            this.emitterLifetime = lifetimeComponent.activeTime(ctx());
-        } else {
-            this.emitterLifetime = Float.MAX_VALUE;
-        }
+        startEmitterCycle();
     }
 
     private MolangContext<?> ctx() {
@@ -142,30 +148,59 @@ public class ParticleEmitterInstance {
     }
 
     public void tick(float dt) {
-        if (!active) {
+        if (removed) {
             updateParticles(dt);
             return;
         }
+
         if (sleeping) {
             sleepTimer -= dt;
             if (sleepTimer <= 0) {
-                sleeping = false;
-                emitterAge = 0;
-                hasEmittedInstant = false;
-                spawnAccumulator = 0;
-                bindEmitterContext();
-                if (lifetimeComponent != null) {
-                    emitterLifetime = lifetimeComponent.activeTime(ctx());
-                }
+                startEmitterCycle();
             }
             updateParticles(dt);
             return;
         }
+
+        if (lifetimeComponent instanceof EmitterLifetime.Expression expression) {
+            tickExpressionLifetime(expression, dt);
+            return;
+        }
+
+        tickTimedLifetime(dt);
+    }
+
+    private void tickTimedLifetime(float dt) {
         emitterAge += dt;
         bindEmitterContext();
+        runEmitterPerUpdateExpressions();
+
         if (emitterAge >= emitterLifetime) {
             handleLifetimeEnd();
-        } else {
+        } else if (active) {
+            emitParticles(dt);
+        }
+        updateParticles(dt);
+    }
+
+    private void tickExpressionLifetime(EmitterLifetime.Expression expression, float dt) {
+        emitterAge += dt;
+        emitterLifetime = emitterAge;
+        bindEmitterContext();
+        runEmitterPerUpdateExpressions();
+
+        if (expression.expirationExpression().evaluate(ctx()) != 0) {
+            removed = true;
+            active = false;
+            updateParticles(dt);
+            return;
+        }
+
+        active = expression.activationExpression().evaluate(ctx()) != 0;
+        emitterLifetime = emitterAge;
+        bindEmitterContext();
+
+        if (active) {
             emitParticles(dt);
         }
         updateParticles(dt);
@@ -174,17 +209,14 @@ public class ParticleEmitterInstance {
     private void handleLifetimeEnd() {
         if (lifetimeComponent instanceof EmitterLifetime.Looping looping) {
             sleeping = true;
+            active = false;
             bindEmitterContext();
             sleepTimer = looping.sleepTime(ctx());
             if (sleepTimer <= 0) {
-                sleeping = false;
-                emitterAge = 0;
-                hasEmittedInstant = false;
-                spawnAccumulator = 0;
-                bindEmitterContext();
-                emitterLifetime = lifetimeComponent.activeTime(ctx());
+                startEmitterCycle();
             }
         } else {
+            removed = true;
             active = false;
         }
     }
@@ -206,7 +238,23 @@ public class ParticleEmitterInstance {
                 spawnAccumulator -= 1f;
                 spawnParticle();
             }
+        } else if (rateComponent instanceof EmitterRate.Manual) {
+            // 手动发射模式不自动生成粒子，由 emitManual(int) 触发。
         }
+    }
+
+    public int emitManual(int count) {
+        if (!(rateComponent instanceof EmitterRate.Manual manual)) return 0;
+        if (count <= 0 || removed || sleeping || !active) return 0;
+
+        bindEmitterContext();
+        int maxParticles = (int) manual.maxParticles().evaluate(ctx());
+        int available = Math.min(Math.max(0, maxParticles - particles.size()), MAX_PARTICLES - particles.size());
+        int spawnCount = Math.min(count, available);
+        for (int i = 0; i < spawnCount; i++) {
+            spawnParticle();
+        }
+        return spawnCount;
     }
 
     private void spawnParticle() {
@@ -462,8 +510,54 @@ public class ParticleEmitterInstance {
         }
     }
 
+    private void startEmitterCycle() {
+        removed = false;
+        sleeping = false;
+        active = true;
+        resetLoopState();
+        bindEmitterContext();
+        runEmitterCreationExpressions();
+        refreshEmitterLifetime();
+        bindEmitterContext();
+    }
+
+    private void resetLoopState() {
+        emitterAge = 0;
+        hasEmittedInstant = false;
+        spawnAccumulator = 0;
+    }
+
+    private void refreshEmitterLifetime() {
+        if (lifetimeComponent instanceof EmitterLifetime.Expression) {
+            emitterLifetime = emitterAge;
+        } else if (lifetimeComponent != null) {
+            emitterLifetime = lifetimeComponent.activeTime(ctx());
+        } else {
+            emitterLifetime = Float.MAX_VALUE;
+        }
+    }
+
+    private void runEmitterCreationExpressions() {
+        if (emitterInitComponent != null && emitterInitComponent.creationExpression() != null) {
+            emitterInitComponent.creationExpression().evaluate(ctx());
+        }
+    }
+
+    private void runEmitterPerUpdateExpressions() {
+        if (emitterInitComponent != null && emitterInitComponent.perUpdateExpression() != null) {
+            emitterInitComponent.perUpdateExpression().evaluate(ctx());
+        }
+    }
+
     private void bindEmitterContext() {
         molang.bindEmitter(emitterAge, emitterLifetime, emitterRandom1, emitterRandom2, emitterRandom3, emitterRandom4);
+        if (curves.isEmpty()) return;
+
+        var variableStorage = molang.getVariableStorage();
+        for (Map.Entry<String, ParticleCurve> entry : curves.entrySet()) {
+            float value = CurveEvaluator.evaluate(entry.getValue(), ctx(), entry.getKey());
+            variableStorage.set(entry.getKey(), NumberValue.of(value));
+        }
     }
 
     private ParticleInstance obtainParticle() {
@@ -490,7 +584,7 @@ public class ParticleEmitterInstance {
     }
 
     public boolean isFinished() {
-        return !active && particles.isEmpty();
+        return removed && particles.isEmpty();
     }
 
     public boolean isActive() {
@@ -506,21 +600,15 @@ public class ParticleEmitterInstance {
     }
 
     public void restart() {
-        emitterAge = 0;
         active = true;
+        removed = false;
         sleeping = false;
-        hasEmittedInstant = false;
-        spawnAccumulator = 0;
+        sleepTimer = 0;
         particles.clear();
         hasTransform = false;
         emitterTransform.identity();
         worldTransform.identity();
-        bindEmitterContext();
-        if (lifetimeComponent != null) {
-            emitterLifetime = lifetimeComponent.activeTime(ctx());
-        } else {
-            emitterLifetime = Float.MAX_VALUE;
-        }
+        startEmitterCycle();
     }
 
     public void setExternalParticleManagement(@Nullable ParticleSpawnCallback callback) {

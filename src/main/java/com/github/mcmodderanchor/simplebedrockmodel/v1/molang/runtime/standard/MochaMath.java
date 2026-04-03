@@ -133,7 +133,7 @@ public final class MochaMath implements ObjectValue {
     public static double dieRoll(final double amount, final double low, final double high) {
         double result = 0;
         for (int i = 0; i < amount; i++) {
-            result += RANDOM.nextInt((int) high) + low;
+            result += random(low, high);
         }
         return result / DECIMAL_PART;
     }
@@ -142,7 +142,7 @@ public final class MochaMath implements ObjectValue {
     public static double dieRollInteger(final double amount, final double low, final double high) {
         int result = 0;
         for (int i = 0; i < amount; i++) {
-            result += RANDOM.nextInt((int) low, (int) high);
+            result += randomInteger(low, high);
         }
         return result;
     }
@@ -195,12 +195,16 @@ public final class MochaMath implements ObjectValue {
 
     @Binding("random")
     public static double random(final double min, final double max) {
-        return RANDOM.nextDouble(min, max);
+        final double lower = Math.min(min, max);
+        final double upper = Math.max(min, max);
+        return RANDOM.nextDouble(lower, upper);
     }
 
     @Binding("random_integer")
     public static int randomInteger(final double min, final double max) {
-        return RANDOM.nextInt((int) min, (int) max);
+        final int lower = (int) Math.min(min, max);
+        final int upper = (int) Math.max(min, max);
+        return RANDOM.nextInt(lower, upper);
     }
 
     @Binding(value = "sin", pure = true)
