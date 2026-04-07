@@ -1,7 +1,7 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.client.event;
 
 import com.github.mcmodderanchor.simplebedrockmodel.SimpleBedrockModel;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.animation.time.AnimationClock;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.common.time.AnimationClock;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.animation.PausedClientAnimationClock;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;

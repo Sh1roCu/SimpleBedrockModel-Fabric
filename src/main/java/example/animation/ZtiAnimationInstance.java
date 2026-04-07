@@ -1,7 +1,7 @@
 package example.animation;
 
-import com.github.mcmodderanchor.simplebedrockmodel.v1.animation.time.AnimationClock;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.animation.time.AnimationClocks;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.common.time.AnimationClock;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.common.time.AnimationClocks;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.animation.SimpleAnimationState;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.animation.SimpleTransition;
 import com.maydaymemory.mae.control.statemachine.AnimationStateMachine;

@@ -1,6 +1,6 @@
 package example.animation;
 
-import com.github.mcmodderanchor.simplebedrockmodel.v1.animation.time.AnimationClock;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.common.time.AnimationClock;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.animation.BedrockAnimation;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.event.RegisterBedrockAnimationReloadListenerEvent;
 import com.maydaymemory.mae.basic.ArrayPoseBuilder;

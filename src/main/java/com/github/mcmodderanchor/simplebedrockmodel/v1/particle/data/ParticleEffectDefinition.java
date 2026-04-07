@@ -137,6 +137,7 @@ public class ParticleEffectDefinition {
         return initialSpin;
     }
 
+
     @Nullable
     public ParticleInitialization getInitialization() {
         return initialization;
@@ -151,7 +152,7 @@ public class ParticleEffectDefinition {
     }
 
     /**
-     * 按类型查找组件。O(1) 查找。
+     * 按类型查找组件
      */
     @Nullable
     @SuppressWarnings("unchecked")

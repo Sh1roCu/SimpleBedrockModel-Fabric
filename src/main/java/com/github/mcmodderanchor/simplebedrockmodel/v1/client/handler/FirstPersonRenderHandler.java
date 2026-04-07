@@ -1,7 +1,7 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.client.handler;
 
-import com.github.mcmodderanchor.simplebedrockmodel.v1.animation.time.AnimationClock;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.animation.time.AnimationClocks;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.common.time.AnimationClock;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.common.time.AnimationClocks;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.animation.IFPAnimationInstance;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.event.SwapItemWithOffHand;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.renderer.IFPGeoItemRenderer;

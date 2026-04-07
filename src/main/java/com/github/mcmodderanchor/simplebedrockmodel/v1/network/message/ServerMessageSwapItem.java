@@ -19,7 +19,7 @@ public record ServerMessageSwapItem() {
     public static void handle(ServerMessageSwapItem message, Supplier<NetworkEvent.Context> contextSupplier) {
         NetworkEvent.Context context = contextSupplier.get();
         if (context.getDirection().getReceptionSide().isClient()) {
-            MinecraftForge.EVENT_BUS.post(new SwapItemWithOffHand());
+            context.enqueueWork(() -> MinecraftForge.EVENT_BUS.post(new SwapItemWithOffHand()));
         }
         context.setPacketHandled(true);
     }

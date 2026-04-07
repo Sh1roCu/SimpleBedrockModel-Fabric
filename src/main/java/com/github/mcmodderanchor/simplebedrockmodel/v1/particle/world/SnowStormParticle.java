@@ -53,9 +53,7 @@ public class SnowStormParticle extends TextureSheetParticle {
         this.molang = molang;
         this.emitter = emitter;
 
-        // 初始速度（blocks/tick，原版粒子用 blocks/tick）
-        // ParticleInstance 的速度单位是 blocks/second，需要转换
-        // TextureSheetParticle.tick() 中 move(xd, yd, zd) 每 tick 调用一次
+        // 初始速度（blocks/tick）
         this.xd = particleData.vx / 20f;
         this.yd = particleData.vy / 20f;
         this.zd = particleData.vz / 20f;
@@ -70,9 +68,8 @@ public class SnowStormParticle extends TextureSheetParticle {
         this.lifetime = (int) (particleData.maxLifetime * 20);
         this.age = 0;
 
-        // 不使用原版的重力
+        // 不使用原版的重力和摩擦
         this.gravity = 0;
-        // 不使用原版的摩擦
         this.friction = 1.0f;
 
         // billboard 朝向模式
@@ -151,16 +148,16 @@ public class SnowStormParticle extends TextureSheetParticle {
     @Override
     public void move(double x, double y, double z) {
         if (!hasCollision) {
-            // 无碰撞，直接移动
-            this.x += x;
-            this.y += y;
-            this.z += z;
+            if (x != 0.0 || y != 0.0 || z != 0.0) {
+                this.setBoundingBox(this.getBoundingBox().move(x, y, z));
+                this.setLocationFromBoundingbox();
+            }
             return;
         }
 
         double origX = x, origY = y, origZ = z;
 
-        // 速度平方上限（与原版 Particle 一致，值为 10000.0）
+        // 速度上限
         double velSqr = x * x + y * y + z * z;
         if (this.hasPhysics && (x != 0.0 || y != 0.0 || z != 0.0) && velSqr < 10000.0) {
             Vec3 collided = Entity.collideBoundingBox(null, new Vec3(x, y, z), this.getBoundingBox(), this.level, List.of());

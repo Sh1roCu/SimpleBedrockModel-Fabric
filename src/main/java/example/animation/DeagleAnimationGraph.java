@@ -1,7 +1,7 @@
 package example.animation;
 
-import com.github.mcmodderanchor.simplebedrockmodel.v1.animation.time.AnimationClock;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.animation.time.AnimationClocks;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.common.time.AnimationClock;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.common.time.AnimationClocks;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.animation.BedrockAnimation;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.model.BedrockModel;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.pojo.ParticleEffectData;

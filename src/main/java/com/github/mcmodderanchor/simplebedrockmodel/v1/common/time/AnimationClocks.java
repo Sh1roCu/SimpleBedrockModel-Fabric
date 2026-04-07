@@ -1,4 +1,4 @@
-package com.github.mcmodderanchor.simplebedrockmodel.v1.animation.time;
+package com.github.mcmodderanchor.simplebedrockmodel.v1.common.time;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.animation.PausedClientAnimationClock;
 import net.minecraftforge.api.distmarker.Dist;
@@ -17,7 +17,7 @@ public final class AnimationClocks {
     }
 
     public static AnimationClock client() {
-        return CLIENT_OR_SYSTEM;
+        return CLIENT_OR_SYSTEM != null ? CLIENT_OR_SYSTEM : SYSTEM;
     }
 
     public static AnimationClock forEnvironment(boolean clientSide) {

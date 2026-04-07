@@ -1,6 +1,6 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.client.animation;
 
-import com.github.mcmodderanchor.simplebedrockmodel.v1.animation.time.AnimationClock;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.common.time.AnimationClock;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
@@ -12,7 +12,7 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 public final class PausedClientAnimationClock implements AnimationClock {
     private static final PausedClientAnimationClock INSTANCE = new PausedClientAnimationClock();
 
-    private long logicalNanos;
+    private volatile long logicalNanos;
     private long lastRealNanos;
     private boolean initialized;
 

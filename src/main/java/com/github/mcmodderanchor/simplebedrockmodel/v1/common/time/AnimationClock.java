@@ -1,4 +1,4 @@
-package com.github.mcmodderanchor.simplebedrockmodel.v1.animation.time;
+package com.github.mcmodderanchor.simplebedrockmodel.v1.common.time;
 
 import com.maydaymemory.mae.util.LongSupplier;
 
