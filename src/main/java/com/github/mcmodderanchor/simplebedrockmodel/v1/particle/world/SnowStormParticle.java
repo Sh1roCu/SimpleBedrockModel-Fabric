@@ -3,6 +3,9 @@ package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.world;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleDescription;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleEffectDefinition;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.ParticleAppearanceBillboard;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.ParticleAppearanceLighting;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.ParticleExpireIfInBlocks;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.ParticleExpireIfNotInBlocks;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.ParticleMotionCollision;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleEmitterInstance;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleInstance;
@@ -13,11 +16,17 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.ParticleRenderType;
 import net.minecraft.client.particle.TextureSheetParticle;
+import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import org.jetbrains.annotations.Nullable;
 import org.joml.*;
 
 import java.lang.Math;
@@ -35,10 +44,21 @@ public class SnowStormParticle extends TextureSheetParticle {
     private final ParticleAppearanceBillboard.FaceCameraMode faceCameraMode;
 
     // 碰撞参数
-    private final boolean hasCollision;
+    @Nullable
+    private final ParticleMotionCollision collisionComponent;
+    private boolean hasCollision;
     private final float collisionDrag;
     private final float coefficientOfRestitution;
     private final boolean expireOnContact;
+
+    // 光照
+    private final boolean environmentLighting;
+
+    // 方块过期组件
+    @Nullable
+    private final ParticleExpireIfInBlocks expireIfInBlocks;
+    @Nullable
+    private final ParticleExpireIfNotInBlocks expireIfNotInBlocks;
 
     // 自定义 RenderType（按纹理+材质缓存）
     private final ParticleRenderType renderType;
@@ -80,8 +100,14 @@ public class SnowStormParticle extends TextureSheetParticle {
 
         // 碰撞
         ParticleMotionCollision collision = definition.findComponent(ParticleMotionCollision.class);
+        this.collisionComponent = collision;
         if (collision != null) {
-            this.hasCollision = true;
+            // enabled 初始值：如果有 enabled 表达式则求值，否则默认启用
+            if (collision.enabled() != null) {
+                this.hasCollision = collision.enabled().evaluate(molang.getContext()) != 0;
+            } else {
+                this.hasCollision = true;
+            }
             this.collisionDrag = collision.collisionDrag();
             this.coefficientOfRestitution = collision.coefficientOfRestitution();
             this.expireOnContact = collision.expireOnContact();
@@ -94,6 +120,13 @@ public class SnowStormParticle extends TextureSheetParticle {
             this.coefficientOfRestitution = 1;
             this.expireOnContact = false;
         }
+
+        // 光照：组件存在时使用世界光照，否则全亮
+        this.environmentLighting = definition.findComponent(ParticleAppearanceLighting.class) != null;
+
+        // 方块过期组件
+        this.expireIfInBlocks = definition.findComponent(ParticleExpireIfInBlocks.class);
+        this.expireIfNotInBlocks = definition.findComponent(ParticleExpireIfNotInBlocks.class);
 
         // RenderType
         ParticleDescription desc = definition.getDescription();
@@ -108,6 +141,11 @@ public class SnowStormParticle extends TextureSheetParticle {
         this.oRoll = this.roll;
 
         float dt = 1f / 20f;
+
+        // 每帧更新 collision.enabled
+        if (collisionComponent != null && collisionComponent.enabled() != null) {
+            this.hasCollision = collisionComponent.enabled().evaluate(molang.getContext()) != 0;
+        }
 
         float savedX = particleData.x, savedY = particleData.y, savedZ = particleData.z;
 
@@ -138,7 +176,13 @@ public class SnowStormParticle extends TextureSheetParticle {
         this.bCol = particleData.b;
         this.alpha = particleData.a;
 
+        // 方块过期检测
+        if (particleData.alive) {
+            checkBlockExpiration();
+        }
+
         if (!particleData.alive) {
+            emitter.fireParticleExpirationEvents(particleData);
             this.remove();
         }
 
@@ -186,6 +230,15 @@ public class SnowStormParticle extends TextureSheetParticle {
         boolean collided = origX != x || origY != y || origZ != z;
         if (collided) {
             this.onGround = origY != y && origY < 0.0;
+
+            // 触发碰撞事件
+            float speed = (float) Math.sqrt(
+                    particleData.vx * particleData.vx +
+                    particleData.vy * particleData.vy +
+                    particleData.vz * particleData.vz
+            );
+            emitter.fireCollisionEvents(particleData, speed);
+
             if (expireOnContact) {
                 this.remove();
             }
@@ -353,5 +406,27 @@ public class SnowStormParticle extends TextureSheetParticle {
      */
     public ParticleEmitterInstance getEmitter() {
         return emitter;
+    }
+
+    @Override
+    public int getLightColor(float partialTick) {
+        return environmentLighting ? super.getLightColor(partialTick) : LightTexture.FULL_BRIGHT;
+    }
+
+    /**
+     * 检查粒子是否因所在方块而过期。
+     */
+    private void checkBlockExpiration() {
+        if (expireIfInBlocks == null && expireIfNotInBlocks == null) return;
+
+        BlockPos pos = BlockPos.containing(this.x, this.y, this.z);
+        String blockId = BuiltInRegistries.BLOCK.getKey(this.level.getBlockState(pos).getBlock()).toString();
+
+        if (expireIfInBlocks != null && expireIfInBlocks.blocks().contains(blockId)) {
+            particleData.alive = false;
+        }
+        if (expireIfNotInBlocks != null && !expireIfNotInBlocks.blocks().contains(blockId)) {
+            particleData.alive = false;
+        }
     }
 }

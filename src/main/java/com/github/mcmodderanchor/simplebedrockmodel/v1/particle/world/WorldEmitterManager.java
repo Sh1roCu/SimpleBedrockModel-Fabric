@@ -4,6 +4,7 @@ import com.github.mcmodderanchor.simplebedrockmodel.SimpleBedrockModel;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.time.AnimationClock;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.time.AnimationClocks;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleEffectDefinition;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.EventExecutor;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleEmitterInstance;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleInstance;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleMolangEnvironment;
@@ -57,6 +58,10 @@ public class WorldEmitterManager {
 
         ParticleMolangEnvironment molang = new ParticleMolangEnvironment();
         ParticleEmitterInstance emitter = new ParticleEmitterInstance(definition, molang);
+
+        // 设置事件上下文
+        EventExecutor.EventContext eventCtx = new EventExecutor.EventContext(emitter, molang, level, pos);
+        emitter.setEventContext(eventCtx);
 
         ActiveWorldEmitter active = new ActiveWorldEmitter();
         active.emitter = emitter;
@@ -116,6 +121,11 @@ public class WorldEmitterManager {
             active.worldY += active.velocityY * dt;
             active.worldZ += active.velocityZ * dt;
             updateEmitterTransform(active);
+
+            // 更新事件上下文中的位置
+            Vec3 currentPos = new Vec3(active.worldX, active.worldY, active.worldZ);
+            active.emitter.setEventContext(new EventExecutor.EventContext(
+                    active.emitter, active.molang, active.level, currentPos));
 
             active.emitter.tick(dt);
 

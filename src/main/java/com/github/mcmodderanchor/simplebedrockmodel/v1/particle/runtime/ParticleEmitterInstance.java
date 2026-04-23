@@ -6,16 +6,14 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.Numb
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleEffectDefinition;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.*;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.curve.ParticleCurve;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.event.IEventNode;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.world.SnowStormParticle;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 
 public class ParticleEmitterInstance {
     private static final int MAX_PARTICLES = 1000;
@@ -79,7 +77,26 @@ public class ParticleEmitterInstance {
     @Nullable
     private final EmitterInitialization emitterInitComponent;
 
+    // 事件相关组件
+    @Nullable
+    private final EmitterLifetimeEvents lifetimeEventsComponent;
+    @Nullable
+    private final ParticleLifetimeEvents particleLifetimeEventsComponent;
+    @Nullable
+    private final ParticleLifetimeKillPlane killPlaneComponent;
+
     private final Map<String, ParticleCurve> curves;
+
+    // 事件系统状态
+    private int lastTimelineIndex;
+    private int lastTravelDistIndex;
+    private float[] loopingTravelDistAccum;
+    private float travelDistance;
+    private float prevEmitterX, prevEmitterY, prevEmitterZ;
+    private boolean hasPrevPosition;
+
+    @Nullable
+    private EventExecutor.EventContext eventContext;
 
     @Nullable
     private ParticleSpawnCallback spawnCallback;
@@ -105,7 +122,17 @@ public class ParticleEmitterInstance {
         this.spinComponent = definition.getInitialSpin();
         this.initComponent = definition.getInitialization();
         this.emitterInitComponent = definition.findComponent(EmitterInitialization.class);
+        this.lifetimeEventsComponent = definition.findComponent(EmitterLifetimeEvents.class);
+        this.particleLifetimeEventsComponent = definition.findComponent(ParticleLifetimeEvents.class);
+        this.killPlaneComponent = definition.findComponent(ParticleLifetimeKillPlane.class);
         this.curves = definition.getCurves();
+
+        // 初始化 looping travel distance 累计数组
+        if (lifetimeEventsComponent != null && !lifetimeEventsComponent.loopingTravelDistanceEvents().isEmpty()) {
+            this.loopingTravelDistAccum = new float[lifetimeEventsComponent.loopingTravelDistanceEvents().size()];
+        } else {
+            this.loopingTravelDistAccum = new float[0];
+        }
 
         EmitterLocalSpace localSpace = definition.findComponent(EmitterLocalSpace.class);
         if (localSpace != null) {
@@ -174,6 +201,7 @@ public class ParticleEmitterInstance {
         emitterAge += dt;
         bindEmitterContext();
         runEmitterPerUpdateExpressions();
+        updateEmitterLifetimeEvents();
 
         if (emitterAge >= emitterLifetime) {
             handleLifetimeEnd();
@@ -188,8 +216,10 @@ public class ParticleEmitterInstance {
         emitterLifetime = emitterAge;
         bindEmitterContext();
         runEmitterPerUpdateExpressions();
+        updateEmitterLifetimeEvents();
 
         if (expression.expirationExpression().evaluate(ctx()) != 0) {
+            fireEmitterExpirationEvents();
             removed = true;
             active = false;
             updateParticles(dt);
@@ -208,6 +238,7 @@ public class ParticleEmitterInstance {
 
     private void handleLifetimeEnd() {
         if (lifetimeComponent instanceof EmitterLifetime.Looping looping) {
+            fireEmitterExpirationEvents();
             sleeping = true;
             active = false;
             bindEmitterContext();
@@ -216,6 +247,7 @@ public class ParticleEmitterInstance {
                 startEmitterCycle();
             }
         } else {
+            fireEmitterExpirationEvents();
             removed = true;
             active = false;
         }
@@ -283,11 +315,19 @@ public class ParticleEmitterInstance {
 
         if (hasTransform) applyLocalSpaceOnSpawn(p);
 
+        // 初始化 KillPlane 状态
+        if (killPlaneComponent != null) {
+            p.insideKillPlane = evaluateKillPlane(killPlaneComponent, p) < 0;
+        }
+
         if (spawnCallback != null && (externalParticleManagement || p.worldSpace)) {
             spawnCallback.onParticleSpawned(p);
         } else {
             particles.add(p);
         }
+
+        // 触发粒子创建事件
+        fireParticleCreationEvents(p);
     }
 
     private void applyShape(ParticleInstance p) {
@@ -471,6 +511,7 @@ public class ParticleEmitterInstance {
             ParticleInstance p = particles.get(i);
             updateSingleParticle(p, dt);
             if (!p.alive) {
+                fireParticleExpirationEvents(p);
                 particles.remove(i);
                 recycleParticle(p);
             }
@@ -502,9 +543,20 @@ public class ParticleEmitterInstance {
         applyTinting(p);
         p.tick(dt);
 
+        // 粒子 timeline 事件
+        updateParticleTimelineEvents(p);
+
         // 过期条件
         if (lifetimeExprComponent != null && lifetimeExprComponent.expirationExpression() != null) {
             if (lifetimeExprComponent.expirationExpression().evaluate(ctx()) != 0) {
+                p.alive = false;
+            }
+        }
+
+        // KillPlane：检测粒子是否穿过平面（符号变化）
+        if (p.alive && killPlaneComponent != null) {
+            boolean nowInside = evaluateKillPlane(killPlaneComponent, p) < 0;
+            if (nowInside != p.insideKillPlane) {
                 p.alive = false;
             }
         }
@@ -519,12 +571,19 @@ public class ParticleEmitterInstance {
         runEmitterCreationExpressions();
         refreshEmitterLifetime();
         bindEmitterContext();
+        fireEmitterCreationEvents();
     }
 
     private void resetLoopState() {
         emitterAge = 0;
         hasEmittedInstant = false;
         spawnAccumulator = 0;
+        // 重置事件追踪状态
+        lastTimelineIndex = 0;
+        lastTravelDistIndex = 0;
+        travelDistance = 0;
+        hasPrevPosition = false;
+        Arrays.fill(loopingTravelDistAccum, 0f);
     }
 
     private void refreshEmitterLifetime() {
@@ -634,5 +693,170 @@ public class ParticleEmitterInstance {
 
     public boolean isFPMode() {
         return fpMode;
+    }
+
+    // ==================== 事件系统 ====================
+
+    /**
+     * 设置事件执行上下文。必须在需要事件功能时由外部调用设置。
+     */
+    public void setEventContext(@Nullable EventExecutor.EventContext context) {
+        this.eventContext = context;
+    }
+
+    @Nullable
+    public EventExecutor.EventContext getEventContext() {
+        return eventContext;
+    }
+
+    private void fireEmitterCreationEvents() {
+        if (lifetimeEventsComponent == null || eventContext == null) return;
+        EventExecutor.fireEvents(lifetimeEventsComponent.creationEvent(), definition, eventContext);
+    }
+
+    private void fireEmitterExpirationEvents() {
+        if (lifetimeEventsComponent == null || eventContext == null) return;
+        EventExecutor.fireEvents(lifetimeEventsComponent.expirationEvent(), definition, eventContext);
+    }
+
+    /**
+     * 每帧检查发射器 timeline、travel_distance 和 looping_travel_distance 事件。
+     */
+    private void updateEmitterLifetimeEvents() {
+        if (lifetimeEventsComponent == null || eventContext == null) return;
+
+        // timeline 事件：按时间顺序检查
+        TreeMap<Float, List<String>> timeline = lifetimeEventsComponent.timeline();
+        if (!timeline.isEmpty()) {
+            int idx = 0;
+            for (Map.Entry<Float, List<String>> entry : timeline.entrySet()) {
+                if (idx < lastTimelineIndex) {
+                    idx++;
+                    continue;
+                }
+                if (emitterAge >= entry.getKey()) {
+                    lastTimelineIndex = idx + 1;
+                    EventExecutor.fireEvents(entry.getValue(), definition, eventContext);
+                }
+                idx++;
+            }
+        }
+
+        // 计算移动距离
+        updateTravelDistance();
+
+        // travel_distance_events：按距离顺序检查
+        TreeMap<Float, List<String>> travelDistEvents = lifetimeEventsComponent.travelDistanceEvents();
+        if (!travelDistEvents.isEmpty()) {
+            int idx = 0;
+            for (Map.Entry<Float, List<String>> entry : travelDistEvents.entrySet()) {
+                if (idx < lastTravelDistIndex) {
+                    idx++;
+                    continue;
+                }
+                if (travelDistance >= entry.getKey()) {
+                    lastTravelDistIndex = idx + 1;
+                    EventExecutor.fireEvents(entry.getValue(), definition, eventContext);
+                }
+                idx++;
+            }
+        }
+
+        // looping_travel_distance_events
+        List<EmitterLifetimeEvents.LoopingTravelDistanceEvent> loopingEvents = lifetimeEventsComponent.loopingTravelDistanceEvents();
+        for (int i = 0; i < loopingEvents.size(); i++) {
+            EmitterLifetimeEvents.LoopingTravelDistanceEvent loopEvent = loopingEvents.get(i);
+            if (travelDistance - loopingTravelDistAccum[i] >= loopEvent.distance()) {
+                loopingTravelDistAccum[i] = travelDistance;
+                EventExecutor.fireEvents(loopEvent.effects(), definition, eventContext);
+            }
+        }
+    }
+
+    /**
+     * 根据发射器世界变换矩阵的平移分量计算移动距离。
+     */
+    private void updateTravelDistance() {
+        float curX = worldTransform.m30();
+        float curY = worldTransform.m31();
+        float curZ = worldTransform.m32();
+        if (hasPrevPosition) {
+            float dx = curX - prevEmitterX;
+            float dy = curY - prevEmitterY;
+            float dz = curZ - prevEmitterZ;
+            float dist = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
+            if (dist > 0) {
+                travelDistance += dist;
+            }
+        }
+        prevEmitterX = curX;
+        prevEmitterY = curY;
+        prevEmitterZ = curZ;
+        hasPrevPosition = true;
+    }
+
+    private void fireParticleCreationEvents(ParticleInstance p) {
+        if (particleLifetimeEventsComponent == null || eventContext == null) return;
+        molang.bindParticle(p.age, p.maxLifetime, p.random1, p.random2, p.random3, p.random4);
+        EventExecutor.fireEvents(particleLifetimeEventsComponent.creationEvent(), definition, eventContext);
+    }
+
+    /**
+     * 触发粒子过期事件。也可由外部（如 {@link SnowStormParticle}）调用。
+     */
+    public void fireParticleExpirationEvents(ParticleInstance p) {
+        if (particleLifetimeEventsComponent == null || eventContext == null) return;
+        molang.bindParticle(p.age, p.maxLifetime, p.random1, p.random2, p.random3, p.random4);
+        EventExecutor.fireEvents(particleLifetimeEventsComponent.expirationEvent(), definition, eventContext);
+    }
+
+    /**
+     * 检查粒子 timeline 事件。也可由外部（如 {@link SnowStormParticle}）调用。
+     */
+    public void updateParticleTimelineEvents(ParticleInstance p) {
+        if (particleLifetimeEventsComponent == null || eventContext == null) return;
+        TreeMap<Float, List<String>> timeline = particleLifetimeEventsComponent.timeline();
+        if (timeline.isEmpty()) return;
+
+        int idx = 0;
+        for (Map.Entry<Float, List<String>> entry : timeline.entrySet()) {
+            if (idx < p.lastTimelineIndex) {
+                idx++;
+                continue;
+            }
+            if (p.age >= entry.getKey()) {
+                p.lastTimelineIndex = idx + 1;
+                EventExecutor.fireEvents(entry.getValue(), definition, eventContext);
+            }
+            idx++;
+        }
+    }
+
+    /**
+     * 触发碰撞事件。由 {@link SnowStormParticle} 在碰撞检测后调用。
+     *
+     * @param p     碰撞的粒子
+     * @param speed 碰撞时的速度大小（blocks/second）
+     */
+    public void fireCollisionEvents(ParticleInstance p, float speed) {
+        if (eventContext == null) return;
+        ParticleMotionCollision collision = definition.findComponent(ParticleMotionCollision.class);
+        if (collision == null || collision.events().isEmpty()) return;
+
+        molang.bindParticle(p.age, p.maxLifetime, p.random1, p.random2, p.random3, p.random4);
+        for (ParticleMotionCollision.CollisionEvent event : collision.events()) {
+            if (speed >= event.minSpeed()) {
+                List<IEventNode> nodes = definition.getEvents().get(event.event());
+                if (nodes != null) {
+                    for (IEventNode node : nodes) {
+                        EventExecutor.execute(node, eventContext);
+                    }
+                }
+            }
+        }
+    }
+
+    private static float evaluateKillPlane(ParticleLifetimeKillPlane plane, ParticleInstance p) {
+        return plane.a() * p.x + plane.b() * p.y + plane.c() * p.z + plane.d();
     }
 }
