@@ -22,6 +22,15 @@ import org.jetbrains.annotations.Nullable;
 @OnlyIn(Dist.CLIENT)
 public final class BillboardHelper {
 
+    // 可复用的临时变量，避免每个粒子渲染时分配新对象
+    private static final Matrix4f TEMP_POSE = new Matrix4f();
+    private static final Vector4f TEMP_VIEW_POS = new Vector4f();
+    private static final Vector3f TEMP_AXIS_X = new Vector3f();
+    private static final Vector3f TEMP_AXIS_Y = new Vector3f();
+    private static final Vector3f TEMP_DIR = new Vector3f();
+    private static final Matrix4f IDENTITY_POSE = new Matrix4f();
+    private static final Matrix3f IDENTITY_NORMAL = new Matrix3f();
+
     private BillboardHelper() {}
 
     /**
@@ -46,13 +55,14 @@ public final class BillboardHelper {
         // - fpDetached 或非 localPos：用 pose（在模型空间中自由运动）
         Matrix4f effectivePose;
         if (localPos && !particle.fpDetached) {
-            effectivePose = new Matrix4f(pose).mul(emitterTransform);
+            effectivePose = TEMP_POSE.set(pose).mul(emitterTransform);
         } else {
             effectivePose = pose;
         }
 
         // 用 effectivePose 把粒子坐标变换到视图空间
-        Vector4f viewPos = effectivePose.transform(new Vector4f(particle.x, particle.y, particle.z, 1));
+        TEMP_VIEW_POS.set(particle.x, particle.y, particle.z, 1);
+        effectivePose.transform(TEMP_VIEW_POS);
 
         // 使用发射时的骨骼缩放快照计算粒子大小
         float scale = particle.spawnScale;
@@ -70,8 +80,8 @@ public final class BillboardHelper {
         }
 
         // 计算 billboard 的两个轴向量（视图空间中）
-        Vector3f axisX = new Vector3f(1, 0, 0);
-        Vector3f axisY = new Vector3f(0, 1, 0);
+        Vector3f axisX = TEMP_AXIS_X.set(1, 0, 0);
+        Vector3f axisY = TEMP_AXIS_Y.set(0, 1, 0);
         applyBillboardAxes(axisX, axisY, mode, velX, velY, velZ, velPose, pose, cameraPitch, cameraRoll);
 
         // 应用粒子自旋旋转
@@ -86,22 +96,22 @@ public final class BillboardHelper {
         }
 
         // 直接在视图空间中构建 4 个顶点
-        float cx = viewPos.x, cy = viewPos.y, cz = viewPos.z;
+        float cx = TEMP_VIEW_POS.x, cy = TEMP_VIEW_POS.y, cz = TEMP_VIEW_POS.z;
 
         // 使用 identity pose，顶点已经在视图空间中
-        Matrix4f identity = new Matrix4f();
-        Matrix3f normalId = new Matrix3f();
+        IDENTITY_POSE.identity();
+        IDENTITY_NORMAL.identity();
 
-        vertex(consumer, identity, normalId,
+        vertex(consumer, IDENTITY_POSE, IDENTITY_NORMAL,
                 cx - axisX.x * hw - axisY.x * hh, cy - axisX.y * hw - axisY.y * hh, cz - axisX.z * hw - axisY.z * hh,
                 particle.u0, particle.v1, particle, light);
-        vertex(consumer, identity, normalId,
+        vertex(consumer, IDENTITY_POSE, IDENTITY_NORMAL,
                 cx - axisX.x * hw + axisY.x * hh, cy - axisX.y * hw + axisY.y * hh, cz - axisX.z * hw + axisY.z * hh,
                 particle.u0, particle.v0, particle, light);
-        vertex(consumer, identity, normalId,
+        vertex(consumer, IDENTITY_POSE, IDENTITY_NORMAL,
                 cx + axisX.x * hw + axisY.x * hh, cy + axisX.y * hw + axisY.y * hh, cz + axisX.z * hw + axisY.z * hh,
                 particle.u1, particle.v0, particle, light);
-        vertex(consumer, identity, normalId,
+        vertex(consumer, IDENTITY_POSE, IDENTITY_NORMAL,
                 cx + axisX.x * hw - axisY.x * hh, cy + axisX.y * hw - axisY.y * hh, cz + axisX.z * hw - axisY.z * hh,
                 particle.u1, particle.v1, particle, light);
     }
@@ -160,43 +170,42 @@ public final class BillboardHelper {
                 }
             }
             case LOOKAT_DIRECTION -> {
-                Vector3f viewVel = transformDirection(velPose, velX, velY, velZ);
-                float velLen = viewVel.length();
+                transformDirection(TEMP_DIR, velPose, velX, velY, velZ);
+                float velLen = TEMP_DIR.length();
                 if (velLen > 0.0001f) {
-                    Vector3f dir = new Vector3f(viewVel).normalize();
-                    Vector3f forward = new Vector3f(0, 0, 1);
-                    Vector3f up = new Vector3f(forward).cross(dir);
-                    float upLen = up.length();
+                    TEMP_DIR.normalize();
+                    // forward = (0,0,1), up = forward × dir
+                    float upX = -TEMP_DIR.y, upY = TEMP_DIR.x, upZ = 0; // (0,0,1) × dir
+                    // 修正：(0,0,1) × (dx,dy,dz) = (-dy, dx, 0)
+                    float upLen = (float) Math.sqrt(upX * upX + upY * upY);
                     if (upLen > 0.0001f) {
-                        up.normalize();
-                        axisX.set(dir);
-                        axisY.set(up);
+                        axisX.set(TEMP_DIR);
+                        axisY.set(upX / upLen, upY / upLen, upZ / upLen);
                     }
                 }
             }
             case DIRECTION_X -> {
                 // 面片法线朝世界 X 轴，面片在 YZ 平面上
-                // 用视图矩阵将世界 Y 和 Z 轴变换到视图空间
-                Vector3f viewY = transformDirection(viewPose, 0, 1, 0).normalize();
-                Vector3f viewZ = transformDirection(viewPose, 0, 0, 1).normalize();
-                axisX.set(viewZ);
-                axisY.set(viewY);
+                // 用视图矩阵将世界 Z 轴变换到视图空间 → axisX
+                transformDirection(axisX, viewPose, 0, 0, 1);
+                axisX.normalize();
+                // 用视图矩阵将世界 Y 轴变换到视图空间 → axisY
+                transformDirection(axisY, viewPose, 0, 1, 0);
+                axisY.normalize();
             }
             case DIRECTION_Y -> {
                 // 面片法线朝世界 Y 轴，面片在 XZ 平面上
-                // 用视图矩阵将世界 X 和 Z 轴变换到视图空间
-                Vector3f viewX = transformDirection(viewPose, 1, 0, 0).normalize();
-                Vector3f viewZ = transformDirection(viewPose, 0, 0, 1).normalize();
-                axisX.set(viewX);
-                axisY.set(viewZ);
+                transformDirection(axisX, viewPose, 1, 0, 0);
+                axisX.normalize();
+                transformDirection(axisY, viewPose, 0, 0, 1);
+                axisY.normalize();
             }
             case DIRECTION_Z -> {
                 // 面片法线朝世界 Z 轴，面片在 XY 平面上
-                // 用视图矩阵将世界 X 和 Y 轴变换到视图空间
-                Vector3f viewX = transformDirection(viewPose, 1, 0, 0).normalize();
-                Vector3f viewY = transformDirection(viewPose, 0, 1, 0).normalize();
-                axisX.set(viewX);
-                axisY.set(viewY);
+                transformDirection(axisX, viewPose, 1, 0, 0);
+                axisX.normalize();
+                transformDirection(axisY, viewPose, 0, 1, 0);
+                axisY.normalize();
             }
             default -> {
                 // EMITTER_TRANSFORM_* 等模式：保持默认
@@ -205,10 +214,10 @@ public final class BillboardHelper {
     }
 
     /**
-     * 用矩阵的 3x3 部分（含缩放+旋转）变换一个方向向量。
+     * 用矩阵的 3x3 部分（含缩放+旋转）变换一个方向向量，结果写入 dest。
      */
-    private static Vector3f transformDirection(Matrix4f pose, float x, float y, float z) {
-        return new Vector3f(
+    private static void transformDirection(Vector3f dest, Matrix4f pose, float x, float y, float z) {
+        dest.set(
                 pose.m00() * x + pose.m10() * y + pose.m20() * z,
                 pose.m01() * x + pose.m11() * y + pose.m21() * z,
                 pose.m02() * x + pose.m12() * y + pose.m22() * z

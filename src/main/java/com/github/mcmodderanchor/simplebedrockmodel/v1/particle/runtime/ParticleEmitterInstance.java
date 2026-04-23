@@ -40,6 +40,8 @@ public class ParticleEmitterInstance {
     private final List<ParticleInstance> particles = new ArrayList<>();
     private final List<ParticleInstance> pool = new ArrayList<>();
 
+    private final Vector4f tempSpawnVec = new Vector4f();
+
     private final Matrix4f emitterTransform = new Matrix4f();
     private final Matrix4f worldTransform = new Matrix4f();
     private boolean hasTransform = false;
@@ -86,6 +88,10 @@ public class ParticleEmitterInstance {
     private final ParticleLifetimeKillPlane killPlaneComponent;
 
     private final Map<String, ParticleCurve> curves;
+
+    // 组件更新跳过标志：在构造时根据 definition 静态分析确定
+    private final boolean needsPerFrameAppearance;
+    private final boolean needsPerFrameTinting;
 
     // 事件系统状态
     private int lastTimelineIndex;
@@ -145,11 +151,39 @@ public class ParticleEmitterInstance {
             this.localVelocity = false;
         }
 
+        // 分析组件是否需要每帧更新
+        this.needsPerFrameAppearance = computeNeedsPerFrameAppearance();
+        this.needsPerFrameTinting = computeNeedsPerFrameTinting();
+
         startEmitterCycle();
     }
 
     private MolangContext<?> ctx() {
         return molang.getContext();
+    }
+
+    /**
+     * 判断 applyAppearance 是否需要每帧调用。
+     * <p>
+     * 需要每帧更新的情况：有 flipbook（UV 随 age 变化）或 size 表达式是动态的。
+     * 不需要的情况：size 是常量且无 flipbook，spawn 时设置一次即可。
+     */
+    private boolean computeNeedsPerFrameAppearance() {
+        if (billboardComponent == null) return false;
+        // flipbook 的帧索引依赖 particle age，必须每帧更新
+        if (billboardComponent.flipbook() != null) return true;
+        // size 表达式引用了变量（如 variable.curve_size），必须每帧更新
+        return billboardComponent.dynamicSize();
+    }
+
+    /**
+     * 判断 applyTinting 是否需要每帧调用。
+     * <p>
+     * GradientColor 的 interpolant 几乎总是依赖 particle_age，必须每帧更新。
+     * StaticColor 的 RGBA 在 spawn 时设置一次即可。
+     */
+    private boolean computeNeedsPerFrameTinting() {
+        return tintingComponent instanceof ParticleAppearanceTinting.GradientColor;
     }
 
     public void setEmitterTransform(Matrix4f locatorTransform, Matrix4f worldTransformIn) {
@@ -351,10 +385,10 @@ public class ParticleEmitterInstance {
         if (!effectiveLocalPos) {
             float scale = extractScale(worldTransform);
             p.spawnScale = scale;
-            Vector4f worldPos = worldTransform.transform(new Vector4f(p.x, p.y, p.z, 1));
-            p.x = worldPos.x;
-            p.y = worldPos.y;
-            p.z = worldPos.z;
+            worldTransform.transform(tempSpawnVec.set(p.x, p.y, p.z, 1));
+            p.x = tempSpawnVec.x;
+            p.y = tempSpawnVec.y;
+            p.z = tempSpawnVec.z;
             p.worldSpace = true;
             if (!effectiveLocalRot) transformVelocityByMatrix(p, worldTransform, scale);
             else {
@@ -366,10 +400,10 @@ public class ParticleEmitterInstance {
             if (fpToWorld) {
                 float scale = extractScale(worldTransform);
                 p.spawnScale = scale;
-                Vector4f worldPos = worldTransform.transform(new Vector4f(p.x, p.y, p.z, 1));
-                p.x = worldPos.x;
-                p.y = worldPos.y;
-                p.z = worldPos.z;
+                worldTransform.transform(tempSpawnVec.set(p.x, p.y, p.z, 1));
+                p.x = tempSpawnVec.x;
+                p.y = tempSpawnVec.y;
+                p.z = tempSpawnVec.z;
                 p.worldSpace = true;
                 if (!effectiveLocalRot) transformVelocityByMatrix(p, worldTransform, scale);
                 else {
@@ -380,10 +414,10 @@ public class ParticleEmitterInstance {
             } else {
                 float scale = extractScale(emitterTransform);
                 p.spawnScale = scale;
-                Vector4f modelPos = emitterTransform.transform(new Vector4f(p.x, p.y, p.z, 1));
-                p.x = modelPos.x;
-                p.y = modelPos.y;
-                p.z = modelPos.z;
+                emitterTransform.transform(tempSpawnVec.set(p.x, p.y, p.z, 1));
+                p.x = tempSpawnVec.x;
+                p.y = tempSpawnVec.y;
+                p.z = tempSpawnVec.z;
                 p.fpDetached = true;
                 if (!effectiveLocalRot) transformVelocityByMatrix(p, emitterTransform, scale);
                 else {
@@ -507,12 +541,17 @@ public class ParticleEmitterInstance {
     }
 
     private void updateParticles(float dt) {
-        for (int i = particles.size() - 1; i >= 0; i--) {
+        int size = particles.size();
+        for (int i = size - 1; i >= 0; i--) {
             ParticleInstance p = particles.get(i);
             updateSingleParticle(p, dt);
             if (!p.alive) {
                 fireParticleExpirationEvents(p);
-                particles.remove(i);
+                int last = particles.size() - 1;
+                if (i != last) {
+                    particles.set(i, particles.get(last));
+                }
+                particles.remove(last);
                 recycleParticle(p);
             }
         }
@@ -539,8 +578,12 @@ public class ParticleEmitterInstance {
             motionComponent.apply(p, ctx(), dt);
         }
 
-        applyAppearance(p);
-        applyTinting(p);
+        if (needsPerFrameAppearance) {
+            applyAppearance(p);
+        }
+        if (needsPerFrameTinting) {
+            applyTinting(p);
+        }
         p.tick(dt);
 
         // 粒子 timeline 事件

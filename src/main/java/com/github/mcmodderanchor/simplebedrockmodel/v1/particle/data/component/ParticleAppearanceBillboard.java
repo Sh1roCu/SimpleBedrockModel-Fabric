@@ -18,7 +18,8 @@ public record ParticleAppearanceBillboard(
         MolangExpression[] size,
         FaceCameraMode faceCameraMode,
         @Nullable UVConfig uv,
-        @Nullable FlipbookConfig flipbook
+        @Nullable FlipbookConfig flipbook,
+        boolean dynamicSize
 ) implements IParticleComponent {
 
     public enum FaceCameraMode {
@@ -43,6 +44,7 @@ public record ParticleAppearanceBillboard(
     public static ParticleAppearanceBillboard fromJson(JsonObject obj, ParticleMolangEnvironment molang) {
         String[] sizeStr = getMolangArray(obj, "size", 2, "0.1", "0.1");
         MolangExpression[] size = new MolangExpression[]{molang.compile(sizeStr[0]), molang.compile(sizeStr[1])};
+        boolean dynamicSize = !isNumericLiteral(sizeStr[0]) || !isNumericLiteral(sizeStr[1]);
 
         String modeStr = getString(obj, "facing_camera_mode", "rotate_xyz");
         FaceCameraMode mode = parseFaceCameraMode(modeStr);
@@ -57,7 +59,7 @@ public record ParticleAppearanceBillboard(
             uv = parseUVConfig(uvObj, molang);
         }
 
-        return new ParticleAppearanceBillboard(size, mode, uv, flipbook);
+        return new ParticleAppearanceBillboard(size, mode, uv, flipbook, dynamicSize);
     }
 
     private static FaceCameraMode parseFaceCameraMode(String mode) {
@@ -119,5 +121,17 @@ public record ParticleAppearanceBillboard(
         boolean stretch = getBoolean(fb, "stretch_to_lifetime", false);
         boolean loop = getBoolean(fb, "loop", false);
         return new FlipbookConfig(baseUV, sizeUV, stepUV, fps, maxFrame, stretch, loop, texW, texH);
+    }
+
+    /**
+     * 检查字符串是否为纯数字字面量（整数或浮点数）。
+     */
+    private static boolean isNumericLiteral(String s) {
+        try {
+            Double.parseDouble(s);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 }

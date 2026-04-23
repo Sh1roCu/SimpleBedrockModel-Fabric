@@ -247,8 +247,11 @@ public class SnowStormParticle extends TextureSheetParticle {
 
     private static final Quaternionf QUATERNION = new Quaternionf();
     private static final Vector3f TEMP_VEC = new Vector3f();
+    private static final Vector3f TEMP_VEC2 = new Vector3f();
+    private static final Vector3f TEMP_VEC3 = new Vector3f();
     private static final Vector4f TEMP_VEC4 = new Vector4f();
     private static final Matrix4f TEMP_MAT = new Matrix4f();
+    private static final Matrix3f TEMP_MAT3 = new Matrix3f();
 
     @Override
     public void render(VertexConsumer buffer, Camera camera, float partialTicks) {
@@ -303,39 +306,37 @@ public class SnowStormParticle extends TextureSheetParticle {
             case LOOKAT_XYZ -> {
                 // 真正的 lookat：从粒子位置看向摄像机
                 Vec3 camPos = camera.getPosition();
-                Vector3f toCamera = new Vector3f(
+                TEMP_VEC.set(
                         (float) (camPos.x - this.x),
                         (float) (camPos.y - this.y),
                         (float) (camPos.z - this.z)
-                ).normalize();
-                Vector3f up = new Vector3f(0, 1, 0);
-                Vector3f right = new Vector3f();
-                up.cross(toCamera, right).normalize();
-                Vector3f correctedUp = new Vector3f();
-                toCamera.cross(right, correctedUp);
-                q.setFromNormalized(new Matrix3f(
-                        right.x, correctedUp.x, toCamera.x,
-                        right.y, correctedUp.y, toCamera.y,
-                        right.z, correctedUp.z, toCamera.z
+                ).normalize(); // toCamera
+                TEMP_VEC2.set(0, 1, 0); // up
+                TEMP_VEC2.cross(TEMP_VEC, TEMP_VEC3); // right = up × toCamera
+                TEMP_VEC3.normalize();
+                TEMP_VEC.cross(TEMP_VEC3, TEMP_VEC2); // correctedUp = toCamera × right
+                q.setFromNormalized(TEMP_MAT3.set(
+                        TEMP_VEC3.x, TEMP_VEC2.x, TEMP_VEC.x,
+                        TEMP_VEC3.y, TEMP_VEC2.y, TEMP_VEC.y,
+                        TEMP_VEC3.z, TEMP_VEC2.z, TEMP_VEC.z
                 ).invert());
             }
             case LOOKAT_Y -> {
                 // lookat 但只保留 Y 轴旋转分量
                 Vec3 camPos = camera.getPosition();
-                Vector3f toCamera = new Vector3f(
+                TEMP_VEC.set(
                         (float) (camPos.x - this.x),
                         (float) (camPos.y - this.y),
                         (float) (camPos.z - this.z)
-                ).normalize();
-                Vector3f up = new Vector3f(0, 1, 0);
-                Vector3f right = new Vector3f();
-                up.cross(toCamera, right).normalize();
-                Vector3f correctedUp = new Vector3f();
-                toCamera.cross(right, correctedUp);
-                q.setFromNormalized(new Matrix3f(
-                        right.x, correctedUp.x, toCamera.x,
-                        right.y, correctedUp.y, toCamera.y,
-                        right.z, correctedUp.z, toCamera.z
+                ).normalize(); // toCamera
+                TEMP_VEC2.set(0, 1, 0); // up
+                TEMP_VEC2.cross(TEMP_VEC, TEMP_VEC3); // right = up × toCamera
+                TEMP_VEC3.normalize();
+                TEMP_VEC.cross(TEMP_VEC3, TEMP_VEC2); // correctedUp = toCamera × right
+                q.setFromNormalized(TEMP_MAT3.set(
+                        TEMP_VEC3.x, TEMP_VEC2.x, TEMP_VEC.x,
+                        TEMP_VEC3.y, TEMP_VEC2.y, TEMP_VEC.y,
+                        TEMP_VEC3.z, TEMP_VEC2.z, TEMP_VEC.z
                 ).invert());
                 q.x = 0;
                 q.z = 0;
@@ -343,12 +344,13 @@ public class SnowStormParticle extends TextureSheetParticle {
             }
             case LOOKAT_DIRECTION -> {
                 // X 轴沿速度方向（facingDirection），然后绕 X 轴旋转使面片尽量朝向摄像机
-                Vector3f vel = new Vector3f(particleData.vx, particleData.vy, particleData.vz);
-                float len = vel.length();
+                TEMP_VEC.set(particleData.vx, particleData.vy, particleData.vz);
+                float len = TEMP_VEC.length();
                 if (len > 0.0001f) {
-                    vel.normalize();
+                    TEMP_VEC.normalize();
                     // 从 X 轴 (1,0,0) 旋转到速度方向
-                    MathUtil.setFromUnitVectors(new Vector3f(1, 0, 0), vel, q);
+                    TEMP_VEC2.set(1, 0, 0);
+                    MathUtil.setFromUnitVectors(TEMP_VEC2, TEMP_VEC, q);
                     // 把摄像机方向变换到粒子局部空间，计算绕 X 轴的旋转使面片朝向摄像机
                     Vec3 camPos = camera.getPosition();
                     TEMP_VEC4.set(
