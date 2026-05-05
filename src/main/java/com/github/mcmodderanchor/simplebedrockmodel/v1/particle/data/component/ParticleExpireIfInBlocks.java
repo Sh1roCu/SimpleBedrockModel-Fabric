@@ -13,7 +13,12 @@ import java.util.Set;
  *
  * @param blocks 方块 ID 集合（如 "minecraft:water"）
  */
-public record ParticleExpireIfInBlocks(Set<String> blocks) implements IParticleComponent {
+public record ParticleExpireIfInBlocks(Set<String> blocks)
+        implements IParticleComponentDefinition, IParticleComponent {
+
+    @Override public int order() { return 330; }
+
+    @Override public boolean requireUpdate() { return !blocks.isEmpty(); }
 
     public static ParticleExpireIfInBlocks fromJson(JsonElement value) {
         Set<String> blocks = new LinkedHashSet<>();

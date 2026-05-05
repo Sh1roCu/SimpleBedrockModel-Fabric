@@ -20,7 +20,12 @@ public record ParticleAppearanceBillboard(
         @Nullable UVConfig uv,
         @Nullable FlipbookConfig flipbook,
         boolean dynamicSize
-) implements IParticleComponent {
+) implements IParticleComponentDefinition, IParticleComponent {
+
+    @Override public int order() { return 200; }
+
+    @Override
+    public boolean requireUpdate() { return flipbook != null || dynamicSize; }
 
     public enum FaceCameraMode {
         ROTATE_XYZ, ROTATE_Y, LOOKAT_XYZ, LOOKAT_Y, LOOKAT_DIRECTION,

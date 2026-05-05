@@ -1,7 +1,6 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime;
 
 import com.github.mcmodderanchor.simplebedrockmodel.SimpleBedrockModel;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangExpression;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleEffectDefinition;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.event.*;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.resource.ParticleDefinitionLoader;
@@ -19,34 +18,27 @@ import java.util.Random;
 
 /**
  * 粒子事件执行引擎。
- * <p>
- * 根据 {@link IEventNode} 的具体类型分发执行逻辑。
  */
 public final class EventExecutor {
-    private static final Random RANDOM = new Random();
 
     private EventExecutor() {}
 
     /**
      * 事件执行上下文。
-     *
-     * @param emitter  所属发射器实例
-     * @param molang   Molang 环境
-     * @param level    客户端世界（用于播放音效、创建子发射器）
-     * @param position 当前位置（用于音效定位和子发射器位置）
      */
     public record EventContext(
             ParticleEmitterInstance emitter,
             ParticleMolangEnvironment molang,
             @Nullable ClientLevel level,
-            @Nullable Vec3 position
-    ) {}
+            @Nullable Vec3 position,
+            Random random  // 本地随机源，用于 EventRandomize
+    ) {
+        public EventContext(ParticleEmitterInstance emitter, ParticleMolangEnvironment molang,
+                            @Nullable ClientLevel level, @Nullable Vec3 position) {
+            this(emitter, molang, level, position, new Random());
+        }
+    }
 
-    /**
-     * 按事件名称列表触发事件。
-     * <p>
-     * 从 {@link ParticleEffectDefinition#getEvents()} 中查找事件名对应的节点列表并逐一执行。
-     */
     public static void fireEvents(List<String> eventNames, ParticleEffectDefinition definition, EventContext ctx) {
         if (eventNames.isEmpty()) return;
         Map<String, List<IEventNode>> allEvents = definition.getEvents();
@@ -61,9 +53,6 @@ public final class EventExecutor {
         }
     }
 
-    /**
-     * 执行单个事件节点。
-     */
     public static void execute(IEventNode node, EventContext ctx) {
         if (node instanceof EventSequence seq) {
             for (IEventNode child : seq.nodes()) {
@@ -92,7 +81,7 @@ public final class EventExecutor {
         }
         if (totalWeight <= 0) return;
 
-        float roll = RANDOM.nextFloat() * totalWeight;
+        float roll = ctx.random().nextFloat() * totalWeight;
         float cumulative = 0;
         for (EventRandomize.WeightedEntry entry : entries) {
             cumulative += entry.weight();
@@ -101,24 +90,21 @@ public final class EventExecutor {
                 return;
             }
         }
-        // 浮点精度兜底：执行最后一个
         execute(entries.get(entries.size() - 1).node(), ctx);
     }
 
     private static void executeParticleEffect(ParticleEffectEvent effect, EventContext ctx) {
         if (ctx.level == null || ctx.position == null) return;
 
-        // 执行 pre_effect_expression
-        if (effect.preEffectExpression() != null) {
+        // 执行预编译的 pre_effect_expression
+        if (effect.compiledPreEffect() != null) {
             try {
-                MolangExpression compiled = ctx.molang.compile(effect.preEffectExpression());
-                compiled.evaluate(ctx.molang.getContext());
+                effect.compiledPreEffect().evaluate(ctx.molang.getContext());
             } catch (Exception e) {
                 SimpleBedrockModel.LOGGER.warn("Failed to evaluate pre_effect_expression: {}", effect.preEffectExpression(), e);
             }
         }
 
-        // 查找子粒子效果定义
         ResourceLocation effectId = new ResourceLocation(effect.effect());
         ParticleEffectDefinition childDef = ParticleDefinitionLoader.getInstance().getDefinition(effectId);
         if (childDef == null) {
@@ -147,13 +133,12 @@ public final class EventExecutor {
     }
 
     private static void executeMolangExpression(MolangExpressionEvent expr, EventContext ctx) {
-        String exprStr = expr.expression();
-        if (exprStr == null || exprStr.isEmpty()) return;
+        // 使用预编译的表达式
+        if (expr.compiledExpression() == null) return;
         try {
-            MolangExpression compiled = ctx.molang.compile(exprStr);
-            compiled.evaluate(ctx.molang.getContext());
+            expr.compiledExpression().evaluate(ctx.molang.getContext());
         } catch (Exception e) {
-            SimpleBedrockModel.LOGGER.warn("Failed to evaluate event molang expression: {}", exprStr, e);
+            SimpleBedrockModel.LOGGER.warn("Failed to evaluate event molang expression: {}", expr.expression(), e);
         }
     }
 

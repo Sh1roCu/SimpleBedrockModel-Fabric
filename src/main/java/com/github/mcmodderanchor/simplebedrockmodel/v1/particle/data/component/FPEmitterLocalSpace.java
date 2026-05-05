@@ -22,7 +22,11 @@ import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.Part
  * @param velocity 是否将发射器速度添加到粒子初速度
  * @param toWorld  脱离定位器后是否投放到世界（仅 position=true 时有效）
  */
-public record FPEmitterLocalSpace(boolean position, boolean rotation, boolean velocity, boolean toWorld) implements IEmitterComponent {
+public record FPEmitterLocalSpace(boolean position, boolean rotation, boolean velocity, boolean toWorld)
+        implements IEmitterComponentDefinition, IEmitterComponent {
+
+    @Override
+    public int order() { return 410; }
 
     public static FPEmitterLocalSpace fromJson(JsonObject obj) {
         return new FPEmitterLocalSpace(

@@ -1,6 +1,7 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.*;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.shape.*;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.curve.ParticleCurve;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.event.IEventNode;
 import net.minecraft.resources.ResourceLocation;
@@ -25,37 +26,29 @@ import java.util.*;
 public class ParticleEffectDefinition {
     private final ResourceLocation identifier;
     private final ParticleDescription description;
-    private final Map<Class<? extends IParticleComponent>, IParticleComponent> componentMap;
+    private final Map<Class<? extends IComponent>, IComponent> componentMap;
 
-    // 预缓存的常用组件引用，构建时一次性查找
-    @Nullable
-    private final EmitterLifetime lifetime;
+    // === 新增：预设层 ===
+    private final EmitterPreset emitterPreset;
+    private final ParticlePreset particlePreset;
 
-    @Nullable
-    private final EmitterRate rate;
-
-    @Nullable
+    // 预缓存的常用组件引用（标记 Deprecated，请用 emitterPreset().find() / particlePreset().find()）
+    @Deprecated @Nullable
     private final EmitterShape shape;
 
-    @Nullable
+    @Deprecated @Nullable
     private final ParticleInitialSpeed initialSpeed;
 
-    @Nullable
+    @Deprecated @Nullable
     private final ParticleLifetimeExpression lifetimeExpression;
 
-    @Nullable
+    @Deprecated @Nullable
     private final ParticleAppearanceBillboard billboard;
 
-    @Nullable
-    private final ParticleAppearanceTinting tinting;
-
-    @Nullable
-    private final ParticleMotion motion;
-
-    @Nullable
+    @Deprecated @Nullable
     private final ParticleInitialSpin initialSpin;
 
-    @Nullable
+    @Deprecated @Nullable
     private final ParticleInitialization initialization;
 
     // 曲线和事件（顶层字段，非组件）
@@ -63,7 +56,7 @@ public class ParticleEffectDefinition {
     private final Map<String, List<IEventNode>> events;
 
     public ParticleEffectDefinition(ResourceLocation identifier, ParticleDescription description,
-                                    List<IParticleComponent> components,
+                                    List<IComponent> components,
                                     @Nullable Map<String, ParticleCurve> curves,
                                     @Nullable Map<String, List<IEventNode>> events) {
         this.identifier = identifier;
@@ -72,16 +65,28 @@ public class ParticleEffectDefinition {
         this.curves = curves != null ? curves : Map.of();
         this.events = events != null ? events : Map.of();
 
-        this.lifetime = findComponent(EmitterLifetime.class);
-        this.rate = findComponent(EmitterRate.class);
-        this.shape = findComponent(EmitterShape.class);
-        this.initialSpeed = findComponent(ParticleInitialSpeed.class);
-        this.lifetimeExpression = findComponent(ParticleLifetimeExpression.class);
-        this.billboard = findComponent(ParticleAppearanceBillboard.class);
-        this.tinting = findComponent(ParticleAppearanceTinting.class);
-        this.motion = findComponent(ParticleMotion.class);
-        this.initialSpin = findComponent(ParticleInitialSpin.class);
-        this.initialization = findComponent(ParticleInitialization.class);
+        // 分离 emitter 和 particle 定义组件
+        List<IEmitterComponentDefinition> emitterComponents = new ArrayList<>();
+        List<IParticleComponentDefinition> particleComponents = new ArrayList<>();
+        for (IComponent c : components) {
+            if (c instanceof IEmitterComponentDefinition ec) {
+                emitterComponents.add(ec);
+            } else if (c instanceof IParticleComponentDefinition pc) {
+                particleComponents.add(pc);
+            }
+        }
+
+        // 构建预设
+        this.emitterPreset = new EmitterPreset(emitterComponents);
+        this.particlePreset = new ParticlePreset(particleComponents);
+
+        // 旧字段保留向后兼容（已删除的 sealed interface 类型不再可用）
+        this.shape = emitterPreset.find(EmitterShape.class);
+        this.initialSpeed = particlePreset.find(ParticleInitialSpeed.class);
+        this.lifetimeExpression = particlePreset.find(ParticleLifetimeExpression.class);
+        this.billboard = particlePreset.find(ParticleAppearanceBillboard.class);
+        this.initialSpin = particlePreset.find(ParticleInitialSpin.class);
+        this.initialization = particlePreset.find(ParticleInitialization.class);
     }
 
     public ResourceLocation getIdentifier() {
@@ -92,53 +97,38 @@ public class ParticleEffectDefinition {
         return description;
     }
 
-    @Nullable
-    public EmitterLifetime getLifetime() {
-        return lifetime;
-    }
+    /** 获取发射器预设 */
+    public EmitterPreset emitterPreset() { return emitterPreset; }
 
-    @Nullable
-    public EmitterRate getRate() {
-        return rate;
-    }
+    /** 获取粒子预设 */
+    public ParticlePreset particlePreset() { return particlePreset; }
 
-    @Nullable
+    @Deprecated @Nullable
     public EmitterShape getShape() {
         return shape;
     }
 
-    @Nullable
+    @Deprecated @Nullable
     public ParticleInitialSpeed getInitialSpeed() {
         return initialSpeed;
     }
 
-    @Nullable
+    @Deprecated @Nullable
     public ParticleLifetimeExpression getLifetimeExpression() {
         return lifetimeExpression;
     }
 
-    @Nullable
+    @Deprecated @Nullable
     public ParticleAppearanceBillboard getBillboard() {
         return billboard;
     }
 
-    @Nullable
-    public ParticleAppearanceTinting getTinting() {
-        return tinting;
-    }
-
-    @Nullable
-    public ParticleMotion getMotion() {
-        return motion;
-    }
-
-    @Nullable
+    @Deprecated @Nullable
     public ParticleInitialSpin getInitialSpin() {
         return initialSpin;
     }
 
-
-    @Nullable
+    @Deprecated @Nullable
     public ParticleInitialization getInitialization() {
         return initialization;
     }
@@ -156,7 +146,7 @@ public class ParticleEffectDefinition {
      */
     @Nullable
     @SuppressWarnings("unchecked")
-    public <T extends IParticleComponent> T findComponent(Class<T> type) {
+    public <T extends IComponent> T findComponent(Class<T> type) {
         return (T) componentMap.get(type);
     }
 
@@ -166,24 +156,33 @@ public class ParticleEffectDefinition {
      * 对于 sealed interface（如 {@link EmitterRate}、{@link EmitterLifetime} 等），
      * 同时注册具体实现类和父接口两个 key，使得通过父接口也能查找到组件。
      */
-    private static Map<Class<? extends IParticleComponent>, IParticleComponent> buildComponentMap(List<IParticleComponent> components) {
-        Map<Class<? extends IParticleComponent>, IParticleComponent> map = new HashMap<>();
-        for (IParticleComponent c : components) {
-            Class<? extends IParticleComponent> clazz = c.getClass();
+    private static Map<Class<? extends IComponent>, IComponent> buildComponentMap(List<IComponent> components) {
+        Map<Class<? extends IComponent>, IComponent> map = new HashMap<>();
+        for (IComponent c : components) {
+            Class<? extends IComponent> clazz = c.getClass();
             map.put(clazz, c);
-            // 注册 sealed interface 父类型，使 findComponent(EmitterRate.class) 等调用能命中
             for (Class<?> iface : clazz.getInterfaces()) {
-                if (IParticleComponent.class.isAssignableFrom(iface) && iface != IParticleComponent.class && iface != IEmitterComponent.class) {
+                if (IComponent.class.isAssignableFrom(iface)
+                        && iface != IComponent.class
+                        && iface != IParticleComponent.class
+                        && iface != IEmitterComponent.class
+                        && iface != IParticleComponentDefinition.class
+                        && iface != IEmitterComponentDefinition.class) {
                     @SuppressWarnings("unchecked")
-                    Class<? extends IParticleComponent> parentType = (Class<? extends IParticleComponent>) iface;
+                    Class<? extends IComponent> parentType = (Class<? extends IComponent>) iface;
                     map.putIfAbsent(parentType, c);
                 }
             }
-            // 处理 record 实现 sealed interface 的情况（enclosing class）
             Class<?> enclosing = clazz.getEnclosingClass();
-            if (enclosing != null && IParticleComponent.class.isAssignableFrom(enclosing) && enclosing != IParticleComponent.class && enclosing != IEmitterComponent.class) {
+            if (enclosing != null
+                    && IComponent.class.isAssignableFrom(enclosing)
+                    && enclosing != IComponent.class
+                    && enclosing != IParticleComponent.class
+                    && enclosing != IEmitterComponent.class
+                    && enclosing != IParticleComponentDefinition.class
+                    && enclosing != IEmitterComponentDefinition.class) {
                 @SuppressWarnings("unchecked")
-                Class<? extends IParticleComponent> parentType = (Class<? extends IParticleComponent>) enclosing;
+                Class<? extends IComponent> parentType = (Class<? extends IComponent>) enclosing;
                 map.putIfAbsent(parentType, c);
             }
         }

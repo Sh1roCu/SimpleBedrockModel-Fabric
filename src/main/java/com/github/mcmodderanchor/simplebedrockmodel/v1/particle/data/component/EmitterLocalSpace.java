@@ -13,7 +13,11 @@ import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.Part
  * @param rotation 粒子是否跟随发射器旋转
  * @param velocity 是否将发射器速度添加到粒子初速度
  */
-public record EmitterLocalSpace(boolean position, boolean rotation, boolean velocity) implements IEmitterComponent {
+public record EmitterLocalSpace(boolean position, boolean rotation, boolean velocity)
+        implements IEmitterComponentDefinition, IEmitterComponent {
+
+    @Override
+    public int order() { return 400; }
 
     public static EmitterLocalSpace fromJson(JsonObject obj) {
         return new EmitterLocalSpace(

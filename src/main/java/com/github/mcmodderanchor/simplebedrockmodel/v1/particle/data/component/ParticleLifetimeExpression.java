@@ -14,7 +14,15 @@ import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.Part
 public record ParticleLifetimeExpression(
         MolangExpression maxLifetime,
         @Nullable MolangExpression expirationExpression
-) implements IParticleComponent {
+) implements IParticleComponentDefinition, IParticleComponent {
+
+    @Override public int order() { return 100; }
+
+    @Override
+    public boolean requireUpdate() { return expirationExpression != null; }
+
+    @Override
+    public IParticleComponent createRuntime() { return this; /* Phase 3 */ }
 
     public static ParticleLifetimeExpression fromJson(JsonObject obj, ParticleMolangEnvironment molang) {
         MolangExpression maxLifetime = molang.compile(getMolang(obj, "max_lifetime", "1"));

@@ -9,7 +9,9 @@ import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.Part
 /**
  * 粒子初始速度组件。对应 "minecraft:particle_initial_speed"。
  */
-public record ParticleInitialSpeed(MolangExpression speed) implements IParticleComponent {
+public record ParticleInitialSpeed(MolangExpression speed) implements IParticleComponentDefinition, IParticleComponent {
+
+    @Override public int order() { return -500; }
 
     public static ParticleInitialSpeed fromJson(JsonElement value, ParticleMolangEnvironment molang) {
         return new ParticleInitialSpeed(molang.compile(molangFromElement(value, "0")));

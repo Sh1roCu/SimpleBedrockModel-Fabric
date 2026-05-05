@@ -2,11 +2,8 @@ package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.world;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleDescription;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleEffectDefinition;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.ParticleAppearanceBillboard;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.ParticleAppearanceLighting;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.ParticleExpireIfInBlocks;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.ParticleExpireIfNotInBlocks;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.ParticleMotionCollision;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.*;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.motion.*;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleEmitterInstance;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleInstance;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleMolangEnvironment;

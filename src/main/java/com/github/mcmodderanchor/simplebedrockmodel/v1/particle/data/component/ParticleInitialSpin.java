@@ -9,7 +9,10 @@ import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.Part
 /**
  * 粒子初始自旋组件。对应 "minecraft:particle_initial_spin"。
  */
-public record ParticleInitialSpin(MolangExpression rotation, MolangExpression rotationRate) implements IParticleComponent {
+public record ParticleInitialSpin(MolangExpression rotation, MolangExpression rotationRate)
+        implements IParticleComponentDefinition, IParticleComponent {
+
+    @Override public int order() { return -490; }
 
     public static ParticleInitialSpin fromJson(JsonObject obj, ParticleMolangEnvironment molang) {
         return new ParticleInitialSpin(

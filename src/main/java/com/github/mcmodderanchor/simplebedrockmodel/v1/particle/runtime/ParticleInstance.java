@@ -1,5 +1,10 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime;
 
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.IParticleComponent;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.List;
+
 /**
  * 单个粒子实例。所有坐标都在局部坐标系中。
  */
@@ -30,10 +35,24 @@ public class ParticleInstance {
     public boolean worldSpace = false;
     // 标记该粒子是否在第一人称脱离模式（发射后脱离定位器，但不投放到世界）
     public boolean fpDetached = false;
-    // 粒子 timeline 事件进度追踪索引
+    // 粒子 timeline 事件进度追踪索引（旧，Phase 4 后移入 ParticleLifetimeEvents.Runtime）
+    @Deprecated
     public int lastTimelineIndex = 0;
     // KillPlane 符号追踪：粒子是否在平面"内侧"（Ax+By+Cz+D < 0）
+    @Deprecated
     public boolean insideKillPlane = false;
+
+    // === 新增：Phase 3/4 引入 ===
+    /** 所属发射器（用于事件触发和 Molang 环境创建） */
+    @Nullable
+    public ParticleEmitterInstance emitter;
+
+    /** 粒子 Molang 环境（Phase 5 实现隔离） */
+    @Nullable
+    public ParticleMolangEnvironment molang;
+
+    /** 粒子运行时组件列表 */
+    public List<IParticleComponent> updateComponents = List.of();
 
     public ParticleInstance() {
     }

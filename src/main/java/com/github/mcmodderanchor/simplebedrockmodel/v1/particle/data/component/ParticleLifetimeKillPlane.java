@@ -14,7 +14,12 @@ import com.google.gson.JsonParseException;
  * @param c 平面方程系数 C
  * @param d 平面方程系数 D
  */
-public record ParticleLifetimeKillPlane(float a, float b, float c, float d) implements IParticleComponent {
+public record ParticleLifetimeKillPlane(float a, float b, float c, float d)
+        implements IParticleComponentDefinition, IParticleComponent {
+
+    @Override public int order() { return 320; }
+
+    @Override public boolean requireUpdate() { return true; }
 
     public static ParticleLifetimeKillPlane fromJson(JsonElement value) {
         if (!value.isJsonArray()) throw new JsonParseException("particle_lifetime_kill_plane must be a JSON array");

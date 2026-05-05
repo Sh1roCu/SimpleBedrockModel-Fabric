@@ -20,7 +20,13 @@ import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.Part
 public record EmitterInitialization(
         @Nullable MolangExpression creationExpression,
         @Nullable MolangExpression perUpdateExpression
-) implements IEmitterComponent {
+) implements IEmitterComponentDefinition, IEmitterComponent {
+
+    @Override
+    public int order() { return 500; }
+
+    @Override
+    public boolean requireUpdate() { return perUpdateExpression != null; }
 
     public static EmitterInitialization fromJson(JsonObject obj, ParticleMolangEnvironment molang) {
         MolangExpression creation = null;

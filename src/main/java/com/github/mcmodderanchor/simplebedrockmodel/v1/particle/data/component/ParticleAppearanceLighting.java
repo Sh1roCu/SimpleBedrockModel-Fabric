@@ -5,7 +5,8 @@ package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component;
  * <p>
  * 标记组件，无字段。存在时粒子将根据游戏内光照条件着色。
  */
-public record ParticleAppearanceLighting() implements IParticleComponent {
+public record ParticleAppearanceLighting()
+        implements IParticleComponentDefinition, IParticleComponent {
 
     private static final ParticleAppearanceLighting INSTANCE = new ParticleAppearanceLighting();
 

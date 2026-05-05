@@ -5,6 +5,11 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangExpr
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.NumberValue;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleEffectDefinition;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.*;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.lifetime.*;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.motion.*;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.rate.*;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.shape.*;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.tinting.*;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.curve.ParticleCurve;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.event.IEventNode;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.world.SnowStormParticle;
@@ -31,6 +36,7 @@ public class ParticleEmitterInstance {
     private float sleepTimer;
     private boolean hasEmittedInstant;
     private float spawnAccumulator;
+    private float currentDt;
 
     private final int emitterRandom1 = RANDOM.nextInt();
     private final int emitterRandom2 = RANDOM.nextInt();
@@ -57,9 +63,9 @@ public class ParticleEmitterInstance {
     private boolean fpToWorld = false;
 
     @Nullable
-    private final EmitterLifetime lifetimeComponent;
+    private final IEmitterComponentDefinition lifetimeComponent;
     @Nullable
-    private final EmitterRate rateComponent;
+    private final IEmitterComponentDefinition rateComponent;
     @Nullable
     private final EmitterShape shapeComponent;
     @Nullable
@@ -69,9 +75,9 @@ public class ParticleEmitterInstance {
     @Nullable
     private final ParticleAppearanceBillboard billboardComponent;
     @Nullable
-    private final ParticleAppearanceTinting tintingComponent;
+    private final IParticleComponentDefinition tintingComponent;
     @Nullable
-    private final ParticleMotion motionComponent;
+    private final IParticleComponentDefinition motionComponent;
     @Nullable
     private final ParticleInitialSpin spinComponent;
     @Nullable
@@ -117,16 +123,20 @@ public class ParticleEmitterInstance {
         this.definition = definition;
         this.molang = molang;
 
-        this.lifetimeComponent = definition.getLifetime();
-        this.rateComponent = definition.getRate();
-        this.shapeComponent = definition.getShape();
-        this.initialSpeedComponent = definition.getInitialSpeed();
-        this.lifetimeExprComponent = definition.getLifetimeExpression();
-        this.billboardComponent = definition.getBillboard();
-        this.tintingComponent = definition.getTinting();
-        this.motionComponent = definition.getMotion();
-        this.spinComponent = definition.getInitialSpin();
-        this.initComponent = definition.getInitialization();
+        this.lifetimeComponent = findFirst(definition,
+                EmitterLifetimeLooping.class, EmitterLifetimeOnce.class, EmitterLifetimeExpression.class);
+        this.rateComponent = findFirst(definition,
+                EmitterRateInstant.class, EmitterRateSteady.class, EmitterRateManual.class);
+        this.shapeComponent = definition.findComponent(EmitterShape.class);
+        this.initialSpeedComponent = definition.findComponent(ParticleInitialSpeed.class);
+        this.lifetimeExprComponent = definition.findComponent(ParticleLifetimeExpression.class);
+        this.billboardComponent = definition.findComponent(ParticleAppearanceBillboard.class);
+        this.tintingComponent = findFirst(definition,
+                ParticleTintingStatic.class, ParticleTintingGradient.class);
+        this.motionComponent = findFirst(definition,
+                ParticleMotionDynamic.class, ParticleMotionParametric.class);
+        this.spinComponent = definition.findComponent(ParticleInitialSpin.class);
+        this.initComponent = definition.findComponent(ParticleInitialization.class);
         this.emitterInitComponent = definition.findComponent(EmitterInitialization.class);
         this.lifetimeEventsComponent = definition.findComponent(EmitterLifetimeEvents.class);
         this.particleLifetimeEventsComponent = definition.findComponent(ParticleLifetimeEvents.class);
@@ -162,6 +172,16 @@ public class ParticleEmitterInstance {
         return molang.getContext();
     }
 
+    @SafeVarargs
+    @Nullable
+    private static <T extends IComponent> T findFirst(ParticleEffectDefinition def, Class<? extends T>... types) {
+        for (Class<? extends T> type : types) {
+            T c = def.findComponent(type);
+            if (c != null) return c;
+        }
+        return null;
+    }
+
     /**
      * 判断 applyAppearance 是否需要每帧调用。
      * <p>
@@ -183,7 +203,7 @@ public class ParticleEmitterInstance {
      * StaticColor 的 RGBA 在 spawn 时设置一次即可。
      */
     private boolean computeNeedsPerFrameTinting() {
-        return tintingComponent instanceof ParticleAppearanceTinting.GradientColor;
+        return tintingComponent instanceof ParticleTintingGradient;
     }
 
     public void setEmitterTransform(Matrix4f locatorTransform, Matrix4f worldTransformIn) {
@@ -194,6 +214,10 @@ public class ParticleEmitterInstance {
 
     public Matrix4f getEmitterTransform() {
         return emitterTransform;
+    }
+
+    public Matrix4f getWorldTransform() {
+        return worldTransform;
     }
 
     public boolean isLocalPosition() {
@@ -223,7 +247,9 @@ public class ParticleEmitterInstance {
             return;
         }
 
-        if (lifetimeComponent instanceof EmitterLifetime.Expression expression) {
+        this.currentDt = dt;
+
+        if (lifetimeComponent instanceof EmitterLifetimeExpression expression) {
             tickExpressionLifetime(expression, dt);
             return;
         }
@@ -245,7 +271,7 @@ public class ParticleEmitterInstance {
         updateParticles(dt);
     }
 
-    private void tickExpressionLifetime(EmitterLifetime.Expression expression, float dt) {
+    private void tickExpressionLifetime(EmitterLifetimeExpression expression, float dt) {
         emitterAge += dt;
         emitterLifetime = emitterAge;
         bindEmitterContext();
@@ -271,12 +297,12 @@ public class ParticleEmitterInstance {
     }
 
     private void handleLifetimeEnd() {
-        if (lifetimeComponent instanceof EmitterLifetime.Looping looping) {
+        if (lifetimeComponent instanceof EmitterLifetimeLooping looping) {
             fireEmitterExpirationEvents();
             sleeping = true;
             active = false;
             bindEmitterContext();
-            sleepTimer = looping.sleepTime(ctx());
+            sleepTimer = (float) looping.sleepTime().evaluate(ctx());
             if (sleepTimer <= 0) {
                 startEmitterCycle();
             }
@@ -288,29 +314,29 @@ public class ParticleEmitterInstance {
     }
 
     private void emitParticles(float dt) {
-        if (rateComponent instanceof EmitterRate.Instant instant) {
+        if (rateComponent instanceof EmitterRateInstant instant) {
             if (!hasEmittedInstant) {
                 hasEmittedInstant = true;
                 int count = (int) instant.amount().evaluate(ctx());
                 for (int i = 0; i < count && particles.size() < MAX_PARTICLES; i++) {
-                    spawnParticle();
+                    spawnParticleInternal();
                 }
             }
-        } else if (rateComponent instanceof EmitterRate.Steady steady) {
+        } else if (rateComponent instanceof EmitterRateSteady steady) {
             int maxP = (int) steady.maxParticles().evaluate(ctx());
             float spawnRate = (float) steady.spawnRate().evaluate(ctx());
             spawnAccumulator += spawnRate * dt;
             while (spawnAccumulator >= 1f && particles.size() < maxP && particles.size() < MAX_PARTICLES) {
                 spawnAccumulator -= 1f;
-                spawnParticle();
+                spawnParticleInternal();
             }
-        } else if (rateComponent instanceof EmitterRate.Manual) {
+        } else if (rateComponent instanceof EmitterRateManual) {
             // 手动发射模式不自动生成粒子，由 emitManual(int) 触发。
         }
     }
 
     public int emitManual(int count) {
-        if (!(rateComponent instanceof EmitterRate.Manual manual)) return 0;
+        if (!(rateComponent instanceof EmitterRateManual manual)) return 0;
         if (count <= 0 || removed || sleeping || !active) return 0;
 
         bindEmitterContext();
@@ -318,12 +344,12 @@ public class ParticleEmitterInstance {
         int available = Math.min(Math.max(0, maxParticles - particles.size()), MAX_PARTICLES - particles.size());
         int spawnCount = Math.min(count, available);
         for (int i = 0; i < spawnCount; i++) {
-            spawnParticle();
+            spawnParticleInternal();
         }
         return spawnCount;
     }
 
-    private void spawnParticle() {
+    private void spawnParticleInternal() {
         ParticleInstance p = obtainParticle();
         p.reset();
         p.random1 = RANDOM.nextFloat();
@@ -331,10 +357,14 @@ public class ParticleEmitterInstance {
         p.random3 = RANDOM.nextFloat();
         p.random4 = RANDOM.nextFloat();
 
+        // 粒子独立 Molang 环境
+        p.emitter = this;
+        p.molang = molang.createChild();
+
         applyShape(p);
         applyInitialSpeed(p);
 
-        molang.bindParticle(0, 1, p.random1, p.random2, p.random3, p.random4);
+        p.molang.bindParticle(0, 1, p.random1, p.random2, p.random3, p.random4);
         if (lifetimeExprComponent != null) {
             p.maxLifetime = (float) lifetimeExprComponent.maxLifetime().evaluate(ctx());
         }
@@ -500,12 +530,12 @@ public class ParticleEmitterInstance {
     }
 
     private void applyTinting(ParticleInstance p) {
-        if (tintingComponent instanceof ParticleAppearanceTinting.StaticColor sc) {
+        if (tintingComponent instanceof ParticleTintingStatic sc) {
             p.r = (float) sc.r().evaluate(ctx());
             p.g = (float) sc.g().evaluate(ctx());
             p.b = (float) sc.b().evaluate(ctx());
             p.a = sc.a() != null ? (float) sc.a().evaluate(ctx()) : 1f;
-        } else if (tintingComponent instanceof ParticleAppearanceTinting.GradientColor gc) {
+        } else if (tintingComponent instanceof ParticleTintingGradient gc) {
             float t = (float) gc.interpolant().evaluate(ctx());
             applyGradientColor(p, gc.stops(), gc.colors(), t);
         }
@@ -574,8 +604,10 @@ public class ParticleEmitterInstance {
         }
 
         // Motion
-        if (motionComponent != null) {
-            motionComponent.apply(p, ctx(), dt);
+        if (motionComponent instanceof ParticleMotionDynamic dyn) {
+            dyn.applyLegacy(p, ctx(), dt);
+        } else if (motionComponent instanceof ParticleMotionParametric par) {
+            par.applyLegacy(p, ctx(), dt);
         }
 
         if (needsPerFrameAppearance) {
@@ -630,10 +662,10 @@ public class ParticleEmitterInstance {
     }
 
     private void refreshEmitterLifetime() {
-        if (lifetimeComponent instanceof EmitterLifetime.Expression) {
+        if (lifetimeComponent instanceof EmitterLifetimeExpression) {
             emitterLifetime = emitterAge;
-        } else if (lifetimeComponent != null) {
-            emitterLifetime = lifetimeComponent.activeTime(ctx());
+        } else if (lifetimeComponent instanceof LifetimeComponent lc) {
+            emitterLifetime = (float) lc.activeTime().evaluate(ctx());
         } else {
             emitterLifetime = Float.MAX_VALUE;
         }
@@ -700,6 +732,65 @@ public class ParticleEmitterInstance {
     public ParticleMolangEnvironment getMolang() {
         return molang;
     }
+
+    // ===== 供 Runtime 组件调用的 API =====
+
+    /** 当前 tick 的 delta time（秒）。由 tick() 设置。 */
+    public float getDt() { return currentDt; }
+
+    /** 当前活跃粒子数 */
+    public int getParticleCount() { return particles.size(); }
+
+    /** 由 Runtime 组件调用的粒子生成入口 */
+    public void spawnParticle() { spawnParticleInternal(); }
+
+    /** 发射器进入 removed/expired 状态 */
+    public void setRemoved(boolean removed) { this.removed = removed; }
+
+    /** 发射器进入/退出 active 状态 */
+    public void setActive(boolean active) { this.active = active; }
+
+    /** 发射器进入 sleeping 状态 */
+    public void setSleeping(boolean sleeping) { this.sleeping = sleeping; }
+
+    /** 获取/设置 sleep 剩余时间 */
+    public float getSleepTimer() { return sleepTimer; }
+    public void setSleepTimer(float t) { this.sleepTimer = t; }
+
+    /** 重置 Instant rate 的 hasEmitted 标志（新循环时调用） */
+    public void resetHasEmittedInstant() { this.hasEmittedInstant = false; }
+
+    /** 获取/设置 spawn 累加器 */
+    public float getSpawnAccumulator() { return spawnAccumulator; }
+    public void setSpawnAccumulator(float v) { this.spawnAccumulator = v; }
+
+    /** 重置事件追踪状态（新循环时调用） */
+    public void resetEventTracking() {
+        this.lastTimelineIndex = 0;
+        this.lastTravelDistIndex = 0;
+        this.travelDistance = 0;
+        this.hasPrevPosition = false;
+        Arrays.fill(loopingTravelDistAccum, 0f);
+    }
+
+    /** 获取 emitterAge */
+    public float getEmitterAge() { return emitterAge; }
+    public void setEmitterAge(float age) { this.emitterAge = age; }
+
+    /** 获取 emitterLifetime */
+    public float getEmitterLifetime() { return emitterLifetime; }
+    public void setEmitterLifetime(float lt) { this.emitterLifetime = lt; }
+
+    /** 触发发射器创建事件（由 Runtime 组件调用） */
+    public void fireCreationEvents() { fireEmitterCreationEvents(); }
+
+    /** 触发发射器过期事件（由 Runtime 组件调用） */
+    public void fireExpirationEvents() { fireEmitterExpirationEvents(); }
+
+    /** 绑定 emitter 上下文 + 曲线变量（由 Runtime 组件在 apply 时调用） */
+    public void bindContextAndCurves() { bindEmitterContext(); }
+
+    // ===== 向后兼容的旧方法 =====
 
     public void restart() {
         active = true;

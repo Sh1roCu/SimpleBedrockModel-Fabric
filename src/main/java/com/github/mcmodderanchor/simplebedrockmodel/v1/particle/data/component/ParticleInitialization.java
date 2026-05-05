@@ -17,7 +17,14 @@ import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.Part
 public record ParticleInitialization(
         @Nullable MolangExpression perRenderExpression,
         @Nullable MolangExpression perUpdateExpression
-) implements IParticleComponent {
+) implements IParticleComponentDefinition, IParticleComponent {
+
+    @Override public int order() { return 360; }
+
+    @Override
+    public boolean requireUpdate() {
+        return perRenderExpression != null || perUpdateExpression != null;
+    }
 
     public static ParticleInitialization fromJson(JsonObject obj, ParticleMolangEnvironment molang) {
         MolangExpression perRender = null;

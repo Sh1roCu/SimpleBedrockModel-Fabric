@@ -1,5 +1,8 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component;
 
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleEffectDefinition;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.EventExecutor;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleInstance;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
@@ -7,16 +10,73 @@ import java.util.*;
 
 /**
  * 粒子生命周期事件组件。对应 "minecraft:particle_lifetime_events"。
- *
- * @param creationEvent   粒子创建时触发的事件名列表
- * @param expirationEvent 粒子过期时触发的事件名列表
- * @param timeline        时间轴事件，key 为时间（秒），value 为事件名列表
  */
 public record ParticleLifetimeEvents(
         List<String> creationEvent,
         List<String> expirationEvent,
         TreeMap<Float, List<String>> timeline
-) implements IParticleComponent {
+) implements IParticleComponentDefinition {
+
+    @Override public int order() { return 310; }
+
+    @Override
+    public boolean requireUpdate() { return !timeline.isEmpty(); }
+
+    @Override
+    public IParticleComponent createRuntime() {
+        return new Runtime(creationEvent, expirationEvent, timeline);
+    }
+
+    /**
+     * 运行时组件。持有 timeline 追踪状态。
+     */
+    static final class Runtime implements IParticleComponent {
+        private final List<String> creationEvent;
+        private final List<String> expirationEvent;
+        private final TreeMap<Float, List<String>> timeline;
+        private int lastTimelineIndex;
+
+        Runtime(List<String> creationEvent, List<String> expirationEvent,
+                TreeMap<Float, List<String>> timeline) {
+            this.creationEvent = creationEvent;
+            this.expirationEvent = expirationEvent;
+            this.timeline = timeline;
+        }
+
+        @Override
+        public void apply(ParticleInstance particle) {
+            this.lastTimelineIndex = 0;
+            // 触发创建事件
+            fireEvents(creationEvent, particle);
+        }
+
+        @Override
+        public void update(ParticleInstance particle) {
+            if (timeline.isEmpty()) return;
+            int idx = 0;
+            for (Map.Entry<Float, List<String>> entry : timeline.entrySet()) {
+                if (idx < lastTimelineIndex) { idx++; continue; }
+                if (particle.age >= entry.getKey()) {
+                    lastTimelineIndex = idx + 1;
+                    fireEvents(entry.getValue(), particle);
+                }
+                idx++;
+            }
+        }
+
+        /** 触发过期事件 */
+        void fireExpiration(ParticleInstance particle) {
+            fireEvents(expirationEvent, particle);
+        }
+
+        private void fireEvents(List<String> eventNames, ParticleInstance particle) {
+            if (eventNames.isEmpty() || particle.emitter == null) return;
+            EventExecutor.EventContext ctx = particle.emitter.getEventContext();
+            if (ctx == null) return;
+            ParticleEffectDefinition def = particle.emitter.getDefinition();
+            EventExecutor.fireEvents(eventNames, def, ctx);
+        }
+    }
 
     public static ParticleLifetimeEvents fromJson(JsonObject obj) {
         List<String> creation = parseEventList(obj, "creation_event");

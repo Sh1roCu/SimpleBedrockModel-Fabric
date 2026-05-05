@@ -36,7 +36,7 @@ public class ParticleEffectDeserializer {
 
         // components
         JsonObject compObj = effect.getAsJsonObject("components");
-        List<IParticleComponent> components = compObj != null ? parseComponents(compObj, molang) : List.of();
+        List<IComponent> components = compObj != null ? parseComponents(compObj, molang) : List.of();
 
         // curves
         JsonObject curvesObj = effect.getAsJsonObject("curves");
@@ -44,7 +44,7 @@ public class ParticleEffectDeserializer {
 
         // events
         JsonObject eventsObj = effect.getAsJsonObject("events");
-        Map<String, List<IEventNode>> events = eventsObj != null ? parseEvents(eventsObj) : null;
+        Map<String, List<IEventNode>> events = eventsObj != null ? parseEvents(eventsObj, molang) : null;
 
         return new ParticleEffectDefinition(description.getIdentifier(), description, components, curves, events);
     }
@@ -73,10 +73,10 @@ public class ParticleEffectDeserializer {
         return new ParticleDescription(identifier, material, texture, texW, texH);
     }
 
-    private List<IParticleComponent> parseComponents(JsonObject obj, ParticleMolangEnvironment molang) {
-        List<IParticleComponent> components = new ArrayList<>();
+    private List<IComponent> parseComponents(JsonObject obj, ParticleMolangEnvironment molang) {
+        List<IComponent> components = new ArrayList<>();
         for (Map.Entry<String, JsonElement> entry : obj.entrySet()) {
-            IParticleComponent component = ParticleComponentRegistry.deserialize(entry.getKey(), entry.getValue(), molang);
+            IComponent component = ParticleComponentRegistry.deserialize(entry.getKey(), entry.getValue(), molang);
             if (component != null) {
                 components.add(component);
             }
@@ -98,11 +98,11 @@ public class ParticleEffectDeserializer {
 
     // ---- Events ----
 
-    private Map<String, List<IEventNode>> parseEvents(JsonObject obj) {
+    private Map<String, List<IEventNode>> parseEvents(JsonObject obj, ParticleMolangEnvironment molang) {
         Map<String, List<IEventNode>> events = new LinkedHashMap<>();
         for (Map.Entry<String, JsonElement> entry : obj.entrySet()) {
             if (entry.getValue().isJsonObject()) {
-                List<IEventNode> nodes = parseEventNodeObject(entry.getValue().getAsJsonObject());
+                List<IEventNode> nodes = parseEventNodeObject(entry.getValue().getAsJsonObject(), molang);
                 if (!nodes.isEmpty()) {
                     events.put(entry.getKey(), nodes);
                 }
@@ -112,41 +112,41 @@ public class ParticleEffectDeserializer {
     }
 
     /**
-     * 解析单个事件定义对象。一个事件可以包含多个节点类型（particle_effect、sound_effect、sequence、randomize、log、expression）。
+     * 解析单个事件定义对象。
      */
-    private List<IEventNode> parseEventNodeObject(JsonObject obj) {
+    private List<IEventNode> parseEventNodeObject(JsonObject obj, ParticleMolangEnvironment molang) {
         List<IEventNode> nodes = new ArrayList<>();
 
         if (obj.has("particle_effect")) {
-            nodes.add(parseParticleEffectEvent(obj.getAsJsonObject("particle_effect")));
+            nodes.add(parseParticleEffectEvent(obj.getAsJsonObject("particle_effect"), molang));
         }
         if (obj.has("sound_effect")) {
             nodes.add(parseSoundEffectEvent(obj.get("sound_effect")));
         }
         if (obj.has("sequence")) {
-            nodes.add(parseSequence(obj.getAsJsonArray("sequence")));
+            nodes.add(parseSequence(obj.getAsJsonArray("sequence"), molang));
         }
         if (obj.has("randomize")) {
-            nodes.add(parseRandomize(obj.getAsJsonArray("randomize")));
+            nodes.add(parseRandomize(obj.getAsJsonArray("randomize"), molang));
         }
         if (obj.has("log")) {
             nodes.add(new EventLog(obj.get("log").getAsString()));
         }
         if (obj.has("expression")) {
-            nodes.add(new MolangExpressionEvent(obj.get("expression").getAsString()));
+            nodes.add(MolangExpressionEvent.of(obj.get("expression").getAsString(), molang));
         }
 
         return nodes;
     }
 
-    private ParticleEffectEvent parseParticleEffectEvent(JsonObject obj) {
+    private ParticleEffectEvent parseParticleEffectEvent(JsonObject obj, ParticleMolangEnvironment molang) {
         String effect = obj.has("effect") ? obj.get("effect").getAsString() : "";
         ParticleEffectEvent.Type type = ParticleEffectEvent.Type.EMITTER;
         if (obj.has("type")) {
             type = ParticleEffectEvent.Type.fromString(obj.get("type").getAsString());
         }
         String preExpr = obj.has("pre_effect_expression") ? obj.get("pre_effect_expression").getAsString() : null;
-        return new ParticleEffectEvent(effect, type, preExpr);
+        return ParticleEffectEvent.of(effect, type, preExpr, molang);
     }
 
     private SoundEffectEvent parseSoundEffectEvent(JsonElement elem) {
@@ -158,23 +158,23 @@ public class ParticleEffectDeserializer {
         return new SoundEffectEvent(elem.getAsString());
     }
 
-    private EventSequence parseSequence(JsonArray arr) {
+    private EventSequence parseSequence(JsonArray arr, ParticleMolangEnvironment molang) {
         List<IEventNode> nodes = new ArrayList<>();
         for (JsonElement elem : arr) {
             if (elem.isJsonObject()) {
-                nodes.addAll(parseEventNodeObject(elem.getAsJsonObject()));
+                nodes.addAll(parseEventNodeObject(elem.getAsJsonObject(), molang));
             }
         }
         return new EventSequence(nodes);
     }
 
-    private EventRandomize parseRandomize(JsonArray arr) {
+    private EventRandomize parseRandomize(JsonArray arr, ParticleMolangEnvironment molang) {
         List<EventRandomize.WeightedEntry> entries = new ArrayList<>();
         for (JsonElement elem : arr) {
             if (elem.isJsonObject()) {
                 JsonObject entryObj = elem.getAsJsonObject();
                 float weight = entryObj.has("weight") ? entryObj.get("weight").getAsFloat() : 1f;
-                List<IEventNode> nodes = parseEventNodeObject(entryObj);
+                List<IEventNode> nodes = parseEventNodeObject(entryObj, molang);
                 for (IEventNode node : nodes) {
                     entries.add(new EventRandomize.WeightedEntry(weight, node));
                 }
