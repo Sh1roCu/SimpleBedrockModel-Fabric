@@ -17,7 +17,7 @@ import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.Part
 public record EmitterRateSteady(MolangExpression spawnRate, MolangExpression maxParticles)
         implements RateComponent {
 
-    @Override public int order() { return 520; }
+    @Override public int order() { return 530; }
     @Override public boolean requireUpdate() { return true; }
 
     @Override
@@ -51,6 +51,7 @@ public record EmitterRateSteady(MolangExpression spawnRate, MolangExpression max
 
         @Override
         public void update(ParticleEmitterInstance emitter) {
+            if (!emitter.isActive()) return;
             MolangContext<?> ctx = emitter.getMolang().getContext();
             int maxP = (int) maxParticles.evaluate(ctx);
             float rate = (float) spawnRate.evaluate(ctx);

@@ -14,17 +14,19 @@ import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.Part
 /**
  * 表达式生命周期。对应 "minecraft:emitter_lifetime_expression"。
  */
-public record EmitterLifetimeExpression(MolangExpression activationExpression,
-                                         MolangExpression expirationExpression)
-        implements LifetimeComponent {
-
-    @Override public int order() { return 510; }
-    @Override public boolean requireUpdate() { return true; }
+public record EmitterLifetimeExpression(
+        MolangExpression activationExpression,
+        MolangExpression expirationExpression
+) implements LifetimeComponent {
 
     @Override
-    public MolangExpression activeTime() {
-        // Expression 模式不使用固定 activeTime，返回极大值避免时间过期
-        return MolangExpression.constant(Float.MAX_VALUE);
+    public int order() {
+        return 500;
+    }
+
+    @Override
+    public boolean requireUpdate() {
+        return true;
     }
 
     @Override
@@ -54,8 +56,6 @@ public record EmitterLifetimeExpression(MolangExpression activationExpression,
         public void apply(ParticleEmitterInstance emitter) {
             emitter.setRemoved(false);
             emitter.setActive(true);
-            emitter.resetHasEmittedInstant();
-            emitter.resetEventTracking();
             emitter.setEmitterAge(0);
             emitter.setEmitterLifetime(0);
         }
@@ -65,6 +65,7 @@ public record EmitterLifetimeExpression(MolangExpression activationExpression,
             float newAge = emitter.getEmitterAge() + emitter.getDt();
             emitter.setEmitterAge(newAge);
             emitter.setEmitterLifetime(newAge);
+            emitter.bindContextAndCurves();
 
             MolangContext<?> ctx = emitter.getMolang().getContext();
 

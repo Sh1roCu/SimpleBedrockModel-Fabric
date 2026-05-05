@@ -14,10 +14,9 @@ import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.Part
 /**
  * 单次发射生命周期。对应 "minecraft:emitter_lifetime_once"。
  */
-public record EmitterLifetimeOnce(MolangExpression activeTime)
-        implements LifetimeComponent {
+public record EmitterLifetimeOnce(MolangExpression activeTime) implements LifetimeComponent {
 
-    @Override public int order() { return 510; }
+    @Override public int order() { return 500; }
     @Override public boolean requireUpdate() { return true; }
 
     @Override
@@ -43,8 +42,6 @@ public record EmitterLifetimeOnce(MolangExpression activeTime)
             this.emitterAge = 0;
             emitter.setRemoved(false);
             emitter.setActive(true);
-            emitter.resetHasEmittedInstant();
-            emitter.resetEventTracking();
             emitter.setEmitterAge(0);
 
             MolangContext<?> ctx = emitter.getMolang().getContext();
@@ -55,6 +52,7 @@ public record EmitterLifetimeOnce(MolangExpression activeTime)
         public void update(ParticleEmitterInstance emitter) {
             emitterAge += emitter.getDt();
             emitter.setEmitterAge(emitterAge);
+            emitter.bindContextAndCurves();
 
             MolangContext<?> ctx = emitter.getMolang().getContext();
             if (emitterAge >= (float) activeTimeExpr.evaluate(ctx)) {

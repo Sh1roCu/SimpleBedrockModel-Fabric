@@ -171,7 +171,7 @@ public class WorldEmitterManager {
         particle.y = (float) py;
         particle.z = (float) pz;
 
-        SnowStormParticle worldParticle = new SnowStormParticle(active.level, particle, active.definition, active.molang, active.emitter);
+        SnowStormParticle worldParticle = new SnowStormParticle(active.level, particle, active.definition, active.emitter);
         mc.particleEngine.add(worldParticle);
     }
 

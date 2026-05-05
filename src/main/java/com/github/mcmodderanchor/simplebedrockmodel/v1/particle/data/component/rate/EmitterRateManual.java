@@ -15,7 +15,7 @@ import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.Part
 public record EmitterRateManual(MolangExpression maxParticles)
         implements RateComponent, IEmitterComponent {
 
-    @Override public int order() { return 520; }
+    @Override public int order() { return 530; }
     @Override public boolean requireUpdate() { return false; }
 
     public static EmitterRateManual fromJson(String key, JsonElement value, ParticleMolangEnvironment molang) {

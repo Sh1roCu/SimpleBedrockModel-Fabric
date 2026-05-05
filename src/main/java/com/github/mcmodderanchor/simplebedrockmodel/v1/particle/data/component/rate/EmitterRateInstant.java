@@ -16,7 +16,7 @@ import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.Part
  */
 public record EmitterRateInstant(MolangExpression amount) implements RateComponent {
 
-    @Override public int order() { return 520; }
+    @Override public int order() { return 530; }
     @Override public boolean requireUpdate() { return true; }
 
     @Override
@@ -44,7 +44,7 @@ public record EmitterRateInstant(MolangExpression amount) implements RateCompone
 
         @Override
         public void update(ParticleEmitterInstance emitter) {
-            if (hasEmitted) return;
+            if (hasEmitted || !emitter.isActive()) return;
             MolangContext<?> ctx = emitter.getMolang().getContext();
             int count = (int) amount.evaluate(ctx);
             for (int i = 0; i < count && emitter.getParticleCount() < 1000; i++) {

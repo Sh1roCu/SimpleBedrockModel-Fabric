@@ -24,13 +24,6 @@ public class ParticleMolangEnvironment {
         registerVariables();
     }
 
-    /** 创建共享 engine 的子环境（用于粒子独立 Molang） */
-    private ParticleMolangEnvironment(MochaEngine<?> sharedEngine) {
-        this.context = new MolangContext<>();
-        this.engine = sharedEngine;
-        registerVariables();
-    }
-
     private void registerVariables() {
         MutableObjectBinding variableStorage = context.getVariableStorage();
         variableStorage.set("emitter_age", NumberValue.of(0));
@@ -104,29 +97,5 @@ public class ParticleMolangEnvironment {
 
     public MochaEngine<?> getEngine() {
         return engine;
-    }
-
-    /**
-     * 创建此环境的子环境。子环境有独立的变量存储，但共享同一个 MochaEngine。
-     * <p>
-     * 父环境的 emitter_* 变量值会被快照到子环境中。
-     */
-    public ParticleMolangEnvironment createChild() {
-        ParticleMolangEnvironment child = new ParticleMolangEnvironment(this.engine);
-        // 快照 emitter 变量
-        MutableObjectBinding parentVars = this.context.getVariableStorage();
-        MutableObjectBinding childVars = child.context.getVariableStorage();
-        copyIfExists(parentVars, childVars, "emitter_age");
-        copyIfExists(parentVars, childVars, "emitter_lifetime");
-        copyIfExists(parentVars, childVars, "emitter_random_1");
-        copyIfExists(parentVars, childVars, "emitter_random_2");
-        copyIfExists(parentVars, childVars, "emitter_random_3");
-        copyIfExists(parentVars, childVars, "emitter_random_4");
-        return child;
-    }
-
-    private static void copyIfExists(MutableObjectBinding src, MutableObjectBinding dst, String key) {
-        var val = src.get(key);
-        if (val != null) dst.set(key, val);
     }
 }

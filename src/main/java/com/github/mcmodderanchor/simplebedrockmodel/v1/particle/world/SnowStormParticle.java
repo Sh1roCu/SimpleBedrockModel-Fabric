@@ -6,7 +6,6 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.*
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.motion.*;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleEmitterInstance;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleInstance;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleMolangEnvironment;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.util.math.MathUtil;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Camera;
@@ -16,10 +15,8 @@ import net.minecraft.client.particle.TextureSheetParticle;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
@@ -34,7 +31,6 @@ public class SnowStormParticle extends TextureSheetParticle {
 
     private final ParticleInstance particleData;
     private final ParticleEffectDefinition definition;
-    private final ParticleMolangEnvironment molang;
     private final ParticleEmitterInstance emitter;
 
     // billboard 朝向模式
@@ -62,12 +58,10 @@ public class SnowStormParticle extends TextureSheetParticle {
 
     public SnowStormParticle(ClientLevel level, ParticleInstance particleData,
                              ParticleEffectDefinition definition,
-                             ParticleMolangEnvironment molang,
                              ParticleEmitterInstance emitter) {
         super(level, particleData.x, particleData.y, particleData.z);
         this.particleData = particleData;
         this.definition = definition;
-        this.molang = molang;
         this.emitter = emitter;
 
         // 初始速度（blocks/tick）
@@ -101,7 +95,7 @@ public class SnowStormParticle extends TextureSheetParticle {
         if (collision != null) {
             // enabled 初始值：如果有 enabled 表达式则求值，否则默认启用
             if (collision.enabled() != null) {
-                this.hasCollision = collision.enabled().evaluate(molang.getContext()) != 0;
+                this.hasCollision = collision.enabled().evaluate(emitter.getMolang().getContext()) != 0;
             } else {
                 this.hasCollision = true;
             }
@@ -141,7 +135,7 @@ public class SnowStormParticle extends TextureSheetParticle {
 
         // 每帧更新 collision.enabled
         if (collisionComponent != null && collisionComponent.enabled() != null) {
-            this.hasCollision = collisionComponent.enabled().evaluate(molang.getContext()) != 0;
+            this.hasCollision = collisionComponent.enabled().evaluate(emitter.getMolang().getContext()) != 0;
         }
 
         float savedX = particleData.x, savedY = particleData.y, savedZ = particleData.z;

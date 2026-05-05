@@ -1,6 +1,7 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangExpression;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleInstance;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleMolangEnvironment;
 import com.google.gson.JsonObject;
 
@@ -8,12 +9,6 @@ import org.jetbrains.annotations.Nullable;
 
 import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleJsonUtils.getMolang;
 
-/**
- * 粒子初始化组件。对应 "minecraft:particle_initialization"。
- * <p>
- * {@code per_render_expression} 在每帧每个粒子渲染时执行。
- * {@code per_update_expression} 在每帧每个粒子 tick 时执行。
- */
 public record ParticleInitialization(
         @Nullable MolangExpression perRenderExpression,
         @Nullable MolangExpression perUpdateExpression
@@ -24,6 +19,14 @@ public record ParticleInitialization(
     @Override
     public boolean requireUpdate() {
         return perRenderExpression != null || perUpdateExpression != null;
+    }
+
+    @Override
+    public void update(ParticleInstance p) {
+        if (p.emitter == null) return;
+        var ctx = p.emitter.getMolang().getContext();
+        if (perRenderExpression != null) perRenderExpression.evaluate(ctx);
+        if (perUpdateExpression != null) perUpdateExpression.evaluate(ctx);
     }
 
     public static ParticleInitialization fromJson(JsonObject obj, ParticleMolangEnvironment molang) {

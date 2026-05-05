@@ -53,7 +53,7 @@ public class FirstPersonParticleSystem {
 
         // 设置世界空间粒子分流：worldSpace=true 的粒子投递到 ParticleEngine
         emitter.setWorldSpaceParticleCallback(particle ->
-                deliverWorldSpaceParticle(particle, definition, molang, emitter));
+                deliverWorldSpaceParticle(particle, definition, emitter));
 
         emitters.add(emitter);
         return emitter;
@@ -68,7 +68,6 @@ public class FirstPersonParticleSystem {
      */
     private void deliverWorldSpaceParticle(ParticleInstance particle,
                                             ParticleEffectDefinition definition,
-                                            ParticleMolangEnvironment molang,
                                             ParticleEmitterInstance emitter) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.particleEngine == null) return;
@@ -88,7 +87,7 @@ public class FirstPersonParticleSystem {
         }
 
         SnowStormParticle worldParticle = new SnowStormParticle(
-                mc.level, particle, definition, molang, emitter);
+                mc.level, particle, definition, emitter);
         mc.particleEngine.add(worldParticle);
     }
 

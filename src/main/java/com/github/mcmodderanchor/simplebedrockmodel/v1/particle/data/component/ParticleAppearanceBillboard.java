@@ -1,6 +1,8 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component;
 
+import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangContext;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangExpression;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleInstance;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleMolangEnvironment;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -10,10 +12,6 @@ import org.jetbrains.annotations.Nullable;
 
 import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleJsonUtils.*;
 
-/**
- * 粒子外观组件 — Billboard 模式。
- * 对应 "minecraft:particle_appearance_billboard"。
- */
 public record ParticleAppearanceBillboard(
         MolangExpression[] size,
         FaceCameraMode faceCameraMode,
@@ -23,9 +21,53 @@ public record ParticleAppearanceBillboard(
 ) implements IParticleComponentDefinition, IParticleComponent {
 
     @Override public int order() { return 200; }
+    @Override public boolean requireUpdate() { return flipbook != null || dynamicSize; }
 
     @Override
-    public boolean requireUpdate() { return flipbook != null || dynamicSize; }
+    public void apply(ParticleInstance p) {
+        updateAppearance(p);
+    }
+
+    @Override
+    public void update(ParticleInstance p) {
+        updateAppearance(p);
+    }
+
+    private void updateAppearance(ParticleInstance p) {
+        if (p.emitter == null) return;
+        MolangContext<?> ctx = p.emitter.getMolang().getContext();
+        p.width = (float) size[0].evaluate(ctx);
+        p.height = (float) size[1].evaluate(ctx);
+
+        if (flipbook != null) {
+            var fb = flipbook;
+            int maxFrame = (int) fb.maxFrame().evaluate(ctx);
+            float frame = fb.stretchToLifetime() && p.maxLifetime > 0
+                    ? (p.age / p.maxLifetime) * maxFrame
+                    : p.age * fb.framesPerSecond();
+            int frameIdx = Math.max(0, fb.loop() && maxFrame > 0
+                    ? ((int) frame) % maxFrame
+                    : Math.min((int) frame, maxFrame - 1));
+
+            float baseU = (float) fb.baseUV()[0].evaluate(ctx);
+            float baseV = (float) fb.baseUV()[1].evaluate(ctx);
+            float sizeU = (float) fb.sizeUV()[0].evaluate(ctx);
+            float sizeV = (float) fb.sizeUV()[1].evaluate(ctx);
+            float stepU = (float) fb.stepUV()[0].evaluate(ctx);
+            float stepV = (float) fb.stepUV()[1].evaluate(ctx);
+            float u = baseU + stepU * frameIdx;
+            float v = baseV + stepV * frameIdx;
+            p.u0 = u / fb.textureWidth();
+            p.v0 = v / fb.textureHeight();
+            p.u1 = (u + sizeU) / fb.textureWidth();
+            p.v1 = (v + sizeV) / fb.textureHeight();
+        } else if (uv != null) {
+            p.u0 = (float) uv.u().evaluate(ctx) / uv.textureWidth();
+            p.v0 = (float) uv.v().evaluate(ctx) / uv.textureHeight();
+            p.u1 = ((float) uv.u().evaluate(ctx) + (float) uv.width().evaluate(ctx)) / uv.textureWidth();
+            p.v1 = ((float) uv.v().evaluate(ctx) + (float) uv.height().evaluate(ctx)) / uv.textureHeight();
+        }
+    }
 
     public enum FaceCameraMode {
         ROTATE_XYZ, ROTATE_Y, LOOKAT_XYZ, LOOKAT_Y, LOOKAT_DIRECTION,

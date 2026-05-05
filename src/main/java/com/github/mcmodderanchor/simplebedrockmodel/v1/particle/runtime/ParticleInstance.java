@@ -43,13 +43,9 @@ public class ParticleInstance {
     public boolean insideKillPlane = false;
 
     // === 新增：Phase 3/4 引入 ===
-    /** 所属发射器（用于事件触发和 Molang 环境创建） */
+    /** 所属发射器（用于事件触发和 Molang 上下文访问） */
     @Nullable
     public ParticleEmitterInstance emitter;
-
-    /** 粒子 Molang 环境（Phase 5 实现隔离） */
-    @Nullable
-    public ParticleMolangEnvironment molang;
 
     /** 粒子运行时组件列表 */
     public List<IParticleComponent> updateComponents = List.of();

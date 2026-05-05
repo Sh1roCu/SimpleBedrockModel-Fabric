@@ -14,11 +14,19 @@ import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.Part
 /**
  * 循环发射生命周期。对应 "minecraft:emitter_lifetime_looping"。
  */
-public record EmitterLifetimeLooping(MolangExpression activeTime, MolangExpression sleepTime)
-        implements LifetimeComponent {
+public record EmitterLifetimeLooping(
+        MolangExpression activeTime,
+        MolangExpression sleepTime
+) implements LifetimeComponent {
 
-    @Override public int order() { return 510; }
-    @Override public boolean requireUpdate() { return true; }
+    @Override
+    public int order() {
+        return 500;
+    }
+    @Override
+    public boolean requireUpdate() {
+        return true;
+    }
 
     @Override
     public IEmitterComponent createRuntime() {
@@ -50,8 +58,6 @@ public record EmitterLifetimeLooping(MolangExpression activeTime, MolangExpressi
             emitter.setRemoved(false);
             emitter.setSleeping(false);
             emitter.setActive(true);
-            emitter.resetHasEmittedInstant();
-            emitter.resetEventTracking();
             emitter.setEmitterAge(0);
 
             MolangContext<?> ctx = emitter.getMolang().getContext();
@@ -63,6 +69,7 @@ public record EmitterLifetimeLooping(MolangExpression activeTime, MolangExpressi
         public void update(ParticleEmitterInstance emitter) {
             emitterAge += emitter.getDt();
             emitter.setEmitterAge(emitterAge);
+            emitter.bindContextAndCurves(); // 后续组件需要更新后的 molang
 
             MolangContext<?> ctx = emitter.getMolang().getContext();
             float lifetime = (float) activeTimeExpr.evaluate(ctx);

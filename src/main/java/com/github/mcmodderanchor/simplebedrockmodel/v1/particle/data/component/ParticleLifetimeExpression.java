@@ -1,6 +1,7 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangExpression;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleInstance;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleMolangEnvironment;
 import com.google.gson.JsonObject;
 
@@ -8,21 +9,27 @@ import org.jetbrains.annotations.Nullable;
 
 import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleJsonUtils.getMolang;
 
-/**
- * 粒子生命周期组件。对应 "minecraft:particle_lifetime_expression"。
- */
 public record ParticleLifetimeExpression(
         MolangExpression maxLifetime,
         @Nullable MolangExpression expirationExpression
 ) implements IParticleComponentDefinition, IParticleComponent {
 
     @Override public int order() { return 100; }
+    @Override public boolean requireUpdate() { return expirationExpression != null; }
 
     @Override
-    public boolean requireUpdate() { return expirationExpression != null; }
+    public void apply(ParticleInstance p) {
+        if (p.emitter == null) return;
+        p.maxLifetime = (float) maxLifetime.evaluate(p.emitter.getMolang().getContext());
+    }
 
     @Override
-    public IParticleComponent createRuntime() { return this; /* Phase 3 */ }
+    public void update(ParticleInstance p) {
+        if (expirationExpression == null || p.emitter == null) return;
+        if (expirationExpression.evaluate(p.emitter.getMolang().getContext()) != 0) {
+            p.alive = false;
+        }
+    }
 
     public static ParticleLifetimeExpression fromJson(JsonObject obj, ParticleMolangEnvironment molang) {
         MolangExpression maxLifetime = molang.compile(getMolang(obj, "max_lifetime", "1"));

@@ -31,8 +31,8 @@ public record ParticleMotionDynamic(
 
     @Override
     public void update(ParticleInstance p) {
-        if (p.molang == null) return;
-        applyLegacy(p, p.molang.getContext(), 1f / 20f);
+        if (p.emitter == null) return;
+        applyLegacy(p, p.emitter.getMolang().getContext(), 1f / 20f);
     }
 
     /** 兼容旧调用方（Phase 4 后移除） */
