@@ -57,8 +57,7 @@ public record EmitterRateSteady(MolangExpression spawnRate, MolangExpression max
             float rate = (float) spawnRate.evaluate(ctx);
             spawnAccumulator += rate * emitter.getDt();
             while (spawnAccumulator >= 1f
-                    && emitter.getParticleCount() < maxP
-                    && emitter.getParticleCount() < 1000) {
+                    && emitter.getParticleCount() < maxP) {
                 spawnAccumulator -= 1f;
                 emitter.spawnParticle();
             }

@@ -53,14 +53,24 @@ public final class ParticlePreset {
         this.environmentLighting = find(ParticleAppearanceLighting.class) != null;
     }
 
-    public List<IParticleComponentDefinition> components() { return components; }
-    public List<IParticleComponentDefinition> updateComponents() { return updateComponents; }
+    public List<IParticleComponentDefinition> components() {
+        return components;
+    }
+
+    public List<IParticleComponentDefinition> updateComponents() {
+        return updateComponents;
+    }
 
     @SuppressWarnings("unchecked")
     public <T extends IComponent> T find(Class<T> type) {
         return (T) componentMap.get(type);
     }
 
-    public ParticleAppearanceBillboard.FaceCameraMode faceCameraMode() { return faceCameraMode; }
-    public boolean environmentLighting() { return environmentLighting; }
+    public ParticleAppearanceBillboard.FaceCameraMode faceCameraMode() {
+        return faceCameraMode;
+    }
+
+    public boolean environmentLighting() {
+        return environmentLighting;
+    }
 }

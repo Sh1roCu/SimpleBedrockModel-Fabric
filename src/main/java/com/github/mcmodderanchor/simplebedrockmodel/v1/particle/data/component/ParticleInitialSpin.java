@@ -12,7 +12,9 @@ public record ParticleInitialSpin(MolangExpression rotation, MolangExpression ro
         implements IParticleComponentDefinition, IParticleComponent {
 
     @Override
-    public int order() { return -490; }
+    public int order() {
+        return -490;
+    }
 
     @Override
     public void apply(ParticleInstance p) {

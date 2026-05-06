@@ -38,7 +38,6 @@ public class ParticleInstance {
     // KillPlane 符号追踪
     public boolean insideKillPlane = false;
 
-    // === 新增：Phase 3/4 引入 ===
     /** 所属发射器（用于事件触发和 Molang 上下文访问） */
     @Nullable
     public ParticleEmitterInstance emitter;

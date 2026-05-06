@@ -81,7 +81,11 @@ public record EmitterLifetimeLooping(
 
                 float st = (float) sleepTimeExpr.evaluate(ctx);
                 if (st <= 0) {
-                    apply(emitter);
+                    // 立即重启：需要重置所有 emitter 级 Runtime 组件，
+                    // 避免上一周期的状态（如 spawnAccumulator、timeline 索引）污染新周期
+                    for (IEmitterComponent c : emitter.getEmitterUpdateComponents()) {
+                        c.apply(emitter);
+                    }
                     emitter.fireCreationEvents();
                 } else {
                     emitter.setSleepTimer(st);

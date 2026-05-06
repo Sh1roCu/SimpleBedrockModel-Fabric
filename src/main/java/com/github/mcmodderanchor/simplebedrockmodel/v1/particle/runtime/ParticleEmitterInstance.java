@@ -17,7 +17,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 
 public class ParticleEmitterInstance {
-    private static final int MAX_PARTICLES = 1000;
+    static final int MAX_PARTICLES = 16384;
     private static final Random RANDOM = new Random();
 
     private final ParticleEffectDefinition definition;
@@ -187,7 +187,9 @@ public class ParticleEmitterInstance {
     }
 
     /** 公共入口，供 Runtime 组件调用 */
-    public void spawnParticle() { spawnParticleInternal(); }
+    public void spawnParticle() {
+        spawnParticleInternal();
+    }
 
     public int emitManual(int count) {
         EmitterRateManual manual = definition.emitterPreset().find(EmitterRateManual.class);
@@ -195,7 +197,8 @@ public class ParticleEmitterInstance {
 
         bindEmitterContext();
         int maxParticles = (int) manual.maxParticles().evaluate(molang.getContext());
-        int available = Math.min(Math.max(0, maxParticles - particles.size()), MAX_PARTICLES - particles.size());
+        int effectiveMax = Math.min(maxParticles, MAX_PARTICLES);
+        int available = Math.max(0, effectiveMax - particles.size());
         int spawnCount = Math.min(count, available);
         for (int i = 0; i < spawnCount; i++) {
             spawnParticleInternal();
@@ -329,6 +332,9 @@ public class ParticleEmitterInstance {
     public ParticleEffectDefinition getDefinition() { return definition; }
     public ParticleMolangEnvironment getMolang() { return molang; }
     public List<ParticleInstance> getParticles() { return particles; }
+
+    /** 暴露 emitter 级 Runtime 组件列表，供 Loop 重启等场景遍历重置。 */
+    public List<IEmitterComponent> getEmitterUpdateComponents() { return emitterUpdateComponents; }
 
     public void restart() {
         active = true;

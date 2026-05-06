@@ -17,10 +17,15 @@ public record ParticleLifetimeEvents(
         TreeMap<Float, List<String>> timeline
 ) implements IParticleComponentDefinition {
 
-    @Override public int order() { return 310; }
+    @Override
+    public int order() {
+        return 310;
+    }
 
     @Override
-    public boolean requireUpdate() { return !timeline.isEmpty(); }
+    public boolean requireUpdate() {
+        return !timeline.isEmpty();
+    }
 
     @Override
     public IParticleComponent createRuntime() {

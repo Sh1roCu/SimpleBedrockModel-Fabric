@@ -69,10 +69,14 @@ public class ParticleEffectDefinition {
     }
 
     /** 获取发射器预设 */
-    public EmitterPreset emitterPreset() { return emitterPreset; }
+    public EmitterPreset emitterPreset() {
+        return emitterPreset;
+    }
 
     /** 获取粒子预设 */
-    public ParticlePreset particlePreset() { return particlePreset; }
+    public ParticlePreset particlePreset() {
+        return particlePreset;
+    }
 
     public Map<String, ParticleCurve> getCurves() {
         return curves;

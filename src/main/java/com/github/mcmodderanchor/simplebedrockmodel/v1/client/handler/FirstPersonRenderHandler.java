@@ -5,6 +5,10 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.common.time.AnimationCloc
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.animation.IFPAnimationInstance;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.event.SwapItemWithOffHand;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.renderer.IFPGeoItemRenderer;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.firstperson.FirstPersonParticleSystem;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.render.CameraStateCache;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleEmitterInstance;
+import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.InteractionHand;
@@ -17,12 +21,17 @@ import net.minecraftforge.client.extensions.common.IClientItemExtensions;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import org.joml.Matrix4f;
 
 import java.util.Optional;
 
 @Mod.EventBusSubscriber(Dist.CLIENT)
 public class FirstPersonRenderHandler {
     private static final AnimationClock CLOCK = AnimationClocks.client();
+
+    /** 全局第一人称粒子系统。所有自定义物品共享此实例，统一管理粒子生命周期和渲染。 */
+    private static final FirstPersonParticleSystem PARTICLE_SYSTEM = new FirstPersonParticleSystem();
+    private static long lastParticleTickNanos = 0L;
 
     private static int realSelectedSlot = -1;
     private static ItemStack realMainHand = ItemStack.EMPTY;
@@ -55,6 +64,8 @@ public class FirstPersonRenderHandler {
         forceHandSwapFlag = false;
         switchStartTime = 0L;
         currentSheatheDuration = 0L;
+        PARTICLE_SYSTEM.clear();
+        lastParticleTickNanos = 0L;
     }
 
     @SubscribeEvent
@@ -106,6 +117,9 @@ public class FirstPersonRenderHandler {
 
         boolean oldIsCustom = activeInstance != null;
 
+        // 切换物品时停止旧发射器（不再产生新粒子，已有粒子继续存活至自然消亡）
+        stopOldEmitters();
+
         previousInstance = activeInstance;
         activeInstance = createInstance(newStack);
 
@@ -130,6 +144,9 @@ public class FirstPersonRenderHandler {
         }
 
         boolean oldIsCustom = activeInstance != null;
+
+        // 切换物品时停止旧发射器（不再产生新粒子，已有粒子继续存活至自然消亡）
+        stopOldEmitters();
 
         previousInstance = activeInstance;
         activeInstance = createInstance(newStack);
@@ -159,6 +176,14 @@ public class FirstPersonRenderHandler {
         if (event.phase != TickEvent.Phase.START || !CLOCK.shouldTick()) {
             return;
         }
+
+        // 统一 tick 所有第一人称粒子（不依赖具体物品）
+        long now = CLOCK.nowNanos();
+        float dt = lastParticleTickNanos == 0L ? 0f : (now - lastParticleTickNanos) / 1_000_000_000f;
+        dt = Math.min(dt, 0.1f);
+        lastParticleTickNanos = now;
+        PARTICLE_SYSTEM.tick(dt);
+
         IFPAnimationInstance ani = getActiveAnimationInstance();
         if (ani != null) {
             ani.triggerDraw();
@@ -175,36 +200,78 @@ public class FirstPersonRenderHandler {
 
         IFPAnimationInstance inst = getActiveAnimationInstance();
         if (inst == null) {
+            renderParticlesIfAny(event);
             return;
         }
 
         ItemStack stack = inst.currentItem();
         if (stack.isEmpty()) {
+            renderParticlesIfAny(event);
             return;
         }
 
-        getRenderer(stack).ifPresent(renderer -> {
-            if (event.getHand() == InteractionHand.OFF_HAND) {
-                if (renderer.blockOffhandRender()) {
-                    event.setCanceled(true);
-                }
-                return;
-            }
+        Optional<IFPGeoItemRenderer> optRenderer = getRenderer(stack);
+        if (optRenderer.isEmpty()) {
+            renderParticlesIfAny(event);
+            return;
+        }
 
-            ItemDisplayContext transformType = event.getHand() == InteractionHand.MAIN_HAND
-                    ? ItemDisplayContext.FIRST_PERSON_RIGHT_HAND
-                    : ItemDisplayContext.FIRST_PERSON_LEFT_HAND;
-            renderer.renderFirstPerson(
-                    player,
-                    stack,
-                    transformType,
-                    event.getPoseStack(),
-                    event.getMultiBufferSource(),
-                    event.getPackedLight(),
-                    event.getPartialTick()
-            );
+
+        IFPGeoItemRenderer renderer = optRenderer.get();
+        if (event.getHand() == InteractionHand.MAIN_HAND && renderer.blockOffhandRender()) {
             event.setCanceled(true);
-        });
+        }
+
+        ItemDisplayContext transformType = ItemDisplayContext.FIRST_PERSON_RIGHT_HAND;
+
+        // 在渲染物品之前，让渲染器更新粒子发射器的变换矩阵
+        renderer.updateParticleEmitterTransforms(PARTICLE_SYSTEM, event.getPoseStack());
+
+        renderer.renderFirstPerson(
+                player,
+                stack,
+                transformType,
+                event.getPoseStack(),
+                event.getMultiBufferSource(),
+                event.getPackedLight(),
+                event.getPartialTick()
+        );
+        event.setCanceled(true);
+
+        renderParticlesIfAny(event);
+    }
+
+    /**
+     * 如果有活跃粒子，在 PoseStack 上下文中渲染它们。
+     */
+    private static void renderParticlesIfAny(RenderHandEvent event) {
+        if (event.getHand() == InteractionHand.OFF_HAND || PARTICLE_SYSTEM.getParticleCount() == 0) {
+            return;
+        }
+
+        Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
+        float cameraPitchRad = (float) Math.toRadians(camera.getXRot());
+        float cameraRollRad = CameraStateCache.getCameraRollRadians();
+        Matrix4f cameraRotation = buildCameraRotation(camera, cameraRollRad);
+
+        PARTICLE_SYSTEM.render(
+                event.getPoseStack(),
+                event.getMultiBufferSource(),
+                event.getPackedLight(),
+                event.getPartialTick(),
+                cameraPitchRad, cameraRollRad, cameraRotation
+        );
+    }
+
+    /**
+     * 用摄像机的 pitch/yaw/roll 构建视图旋转矩阵（与 Minecraft 内部一致）。
+     * Minecraft 的视图矩阵构建顺序：先绕 X 旋转 pitch，再绕 Y 旋转 (yaw + 180)，最后绕 Z 旋转 roll。
+     */
+    private static Matrix4f buildCameraRotation(Camera camera, float rollRadians) {
+        return new Matrix4f()
+                .rotationX((float) Math.toRadians(camera.getXRot()))
+                .rotateY((float) Math.toRadians(camera.getYRot() + 180f))
+                .rotateZ(rollRadians);
     }
 
     public static boolean shouldLockVanilla() {
@@ -217,6 +284,23 @@ public class FirstPersonRenderHandler {
 
     public static IFPAnimationInstance getActiveAnimationInstance() {
         return transitioning ? previousInstance : activeInstance;
+    }
+
+    /**
+     * 获取全局第一人称粒子系统。所有自定义物品渲染器通过此方法添加发射器。
+     */
+    public static FirstPersonParticleSystem getParticleSystem() {
+        return PARTICLE_SYSTEM;
+    }
+
+    /**
+     * 停止所有旧发射器（设置 removed 状态），使它们不再生成新粒子。
+     * 已有粒子继续按其生命周期 tick，直到自然消亡。
+     */
+    private static void stopOldEmitters() {
+        for (ParticleEmitterInstance emitter : PARTICLE_SYSTEM.getEmitters()) {
+            emitter.setRemoved(true);
+        }
     }
 
     private static IFPAnimationInstance createInstance(ItemStack stack) {

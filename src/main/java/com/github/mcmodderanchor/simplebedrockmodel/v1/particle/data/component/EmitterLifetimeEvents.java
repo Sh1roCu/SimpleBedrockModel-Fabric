@@ -22,7 +22,8 @@ public record EmitterLifetimeEvents(
         List<LoopingTravelDistanceEvent> loopingTravelDistanceEvents
 ) implements IEmitterComponentDefinition {
 
-    @Override public int order() {
+    @Override
+    public int order() {
         return 510;
     }
 

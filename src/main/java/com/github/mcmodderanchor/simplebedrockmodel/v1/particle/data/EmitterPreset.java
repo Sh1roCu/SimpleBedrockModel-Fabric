@@ -78,17 +78,29 @@ public final class EmitterPreset {
     // ===== 公共 API =====
 
     /** 全部发射器定义组件（已排序，不可变） */
-    public List<IEmitterComponentDefinition> components() { return components; }
+    public List<IEmitterComponentDefinition> components() {
+        return components;
+    }
 
     /** requireUpdate()=true 的定义组件子集 */
-    public List<IEmitterComponentDefinition> updateComponents() { return updateComponents; }
+    public List<IEmitterComponentDefinition> updateComponents() {
+        return updateComponents;
+    }
 
     @SuppressWarnings("unchecked")
     public <T extends IComponent> T find(Class<T> type) {
         return (T) componentMap.get(type);
     }
 
-    public boolean localPosition() { return localPosition; }
-    public boolean localRotation() { return localRotation; }
-    public boolean localVelocity() { return localVelocity; }
+    public boolean localPosition() {
+        return localPosition;
+    }
+
+    public boolean localRotation() {
+        return localRotation;
+    }
+
+    public boolean localVelocity() {
+        return localVelocity;
+    }
 }

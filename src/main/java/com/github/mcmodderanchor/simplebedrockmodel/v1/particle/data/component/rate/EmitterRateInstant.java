@@ -47,12 +47,10 @@ public record EmitterRateInstant(MolangExpression amount) implements RateCompone
             if (hasEmitted || !emitter.isActive()) return;
             MolangContext<?> ctx = emitter.getMolang().getContext();
             int count = (int) amount.evaluate(ctx);
-            for (int i = 0; i < count && emitter.getParticleCount() < 1000; i++) {
+            for (int i = 0; i < count; i++) {
                 emitter.spawnParticle();
             }
             hasEmitted = true;
         }
-
-        void resetForNewCycle() { this.hasEmitted = false; }
     }
 }

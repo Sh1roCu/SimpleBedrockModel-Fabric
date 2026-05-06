@@ -1,13 +1,11 @@
 package example.client.render.item;
 
-import com.github.mcmodderanchor.simplebedrockmodel.v1.common.time.AnimationClock;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.common.time.AnimationClocks;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.client.handler.FirstPersonRenderHandler;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.model.BedrockBone;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.model.BedrockModel;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.pojo.ParticleEffectData;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.event.RegisterBedrockModelReloadListenerEvent;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleEffectDefinition;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.firstperson.FirstPersonParticleSystem;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.render.CameraStateCache;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.resource.ParticleDefinitionLoader;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleEmitterInstance;
@@ -50,12 +48,9 @@ import java.util.Map;
 @Mod.EventBusSubscriber(value = Dist.CLIENT)
 public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer {
     private static final Material MATERIAL = new Material(TextureAtlas.LOCATION_BLOCKS, KnownResources.DEAGLE.withPrefix("item/"));
-    private static final AnimationClock CLOCK = AnimationClocks.client();
-    private static final FirstPersonParticleSystem PARTICLE_SYSTEM = new FirstPersonParticleSystem();
     private static final Map<ParticleEmitterInstance, String> EMITTER_LOCATOR_MAP = new HashMap<>();
 
     private static BedrockModel model;
-    private static long lastRenderTimeNano;
 
     // 暂时只能想到这么丑的办法
     @Mod.EventBusSubscriber(value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
@@ -72,9 +67,8 @@ public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer 
                 if (rightHandBone != null) {
                     rightHandBone.visible = false;
                 }
-                PARTICLE_SYSTEM.clear();
+                FirstPersonRenderHandler.getParticleSystem().clear();
                 EMITTER_LOCATOR_MAP.clear();
-                lastRenderTimeNano = 0L;
             });
         }
     }
@@ -116,17 +110,12 @@ public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer 
             }
         }
 
-        long now = CLOCK.nowNanos();
-        float dt = lastRenderTimeNano == 0L ? 0.0f : (now - lastRenderTimeNano) / 1_000_000_000f;
-        dt = Math.min(dt, 0.1f);
-        lastRenderTimeNano = now;
-
         if (deagleGraph != null) {
             List<ParticleEffectData> pendingParticles = deagleGraph.consumePendingParticles();
             for (ParticleEffectData data : pendingParticles) {
                 ParticleEffectDefinition def = ParticleDefinitionLoader.getInstance().getDefinition(data.effect());
                 if (def != null) {
-                    ParticleEmitterInstance emitter = PARTICLE_SYSTEM.addEmitter(def);
+                    ParticleEmitterInstance emitter = FirstPersonRenderHandler.getParticleSystem().addEmitter(def);
                     String locator = data.locator();
                     if (locator != null && !locator.isEmpty()) {
                         EMITTER_LOCATOR_MAP.put(emitter, locator);
@@ -149,13 +138,12 @@ public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer 
         PoseStack poseStack = event.getPoseStack();
         Camera camera = mc.gameRenderer.getMainCamera();
         float cameraRollRad = CameraStateCache.getCameraRollRadians();
-        float cameraPitchRad = (float) Math.toRadians(camera.getXRot());
         Matrix4f cameraRotation = buildCameraRotation(camera, cameraRollRad);
         Matrix4f cameraRotationInv = new Matrix4f(cameraRotation).invert();
         Matrix4f poseInitial = new Matrix4f(poseStack.last().pose());
         Matrix4f toWorldAligned = new Matrix4f(cameraRotationInv).mul(poseInitial).mul(modelTransform);
 
-        for (ParticleEmitterInstance emitter : PARTICLE_SYSTEM.getEmitters()) {
+        for (ParticleEmitterInstance emitter : FirstPersonRenderHandler.getParticleSystem().getEmitters()) {
             String locatorName = EMITTER_LOCATOR_MAP.get(emitter);
             Matrix4f transform = null;
             if (locatorName != null) {
@@ -174,10 +162,8 @@ public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer 
         }
 
         EMITTER_LOCATOR_MAP.keySet().removeIf(ParticleEmitterInstance::isFinished);
-        if (!CLOCK.shouldTick()) {
-            dt = 0.0f;
-        }
-        PARTICLE_SYSTEM.tick(dt);
+
+        // 粒子 tick 和 render 已统一由 FirstPersonRenderHandler 管理，此处无需再调用
 
         poseStack.pushPose();
         if (mc.options.bobView().get() && mc.getCameraEntity() instanceof Player player) {
@@ -211,9 +197,6 @@ public class DeagleWithoutLevelRenderer extends BlockEntityWithoutLevelRenderer 
                 playerRenderer.renderRightHand(poseStack, event.getMultiBufferSource(), event.getPackedLight(), abstractClientPlayer);
                 poseStack.popPose();
             }
-        }
-        if (PARTICLE_SYSTEM.getParticleCount() > 0) {
-            PARTICLE_SYSTEM.render(poseStack, event.getMultiBufferSource(), event.getPackedLight(), event.getPartialTick(), cameraPitchRad, cameraRollRad, cameraRotation);
         }
         poseStack.popPose();
 
