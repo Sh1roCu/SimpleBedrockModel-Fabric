@@ -9,7 +9,9 @@ public record FPEmitterLocalSpace(boolean position, boolean rotation, boolean ve
         implements IEmitterComponentDefinition, IEmitterComponent {
 
     @Override
-    public int order() { return 410; }
+    public int order() {
+        return 410;
+    }
 
     @Override
     public void apply(ParticleEmitterInstance emitter) {

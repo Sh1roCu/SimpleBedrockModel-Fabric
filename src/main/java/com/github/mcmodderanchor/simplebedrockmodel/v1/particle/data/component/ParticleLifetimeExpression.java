@@ -14,8 +14,15 @@ public record ParticleLifetimeExpression(
         @Nullable MolangExpression expirationExpression
 ) implements IParticleComponentDefinition, IParticleComponent {
 
-    @Override public int order() { return 100; }
-    @Override public boolean requireUpdate() { return expirationExpression != null; }
+    @Override
+    public int order() {
+        return 100;
+    }
+
+    @Override
+    public boolean requireUpdate() {
+        return expirationExpression != null;
+    }
 
     @Override
     public void apply(ParticleInstance p) {

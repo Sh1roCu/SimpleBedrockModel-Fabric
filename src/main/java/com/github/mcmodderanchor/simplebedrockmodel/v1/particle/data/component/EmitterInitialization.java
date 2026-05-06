@@ -14,9 +14,15 @@ public record EmitterInitialization(
         @Nullable MolangExpression perUpdateExpression
 ) implements IEmitterComponentDefinition, IEmitterComponent {
 
-    @Override public int order() { return 505; }
+    @Override
+    public int order() {
+        return 505;
+    }
 
-    @Override public boolean requireUpdate() { return perUpdateExpression != null; }
+    @Override
+    public boolean requireUpdate() {
+        return perUpdateExpression != null;
+    }
 
     @Override
     public void apply(ParticleEmitterInstance emitter) {

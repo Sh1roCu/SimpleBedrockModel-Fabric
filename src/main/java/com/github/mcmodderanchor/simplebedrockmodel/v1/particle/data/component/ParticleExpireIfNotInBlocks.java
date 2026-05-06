@@ -16,9 +16,15 @@ import java.util.Set;
 public record ParticleExpireIfNotInBlocks(Set<String> blocks)
         implements IParticleComponentDefinition, IParticleComponent {
 
-    @Override public int order() { return 340; }
+    @Override
+    public int order() {
+        return 340;
+    }
 
-    @Override public boolean requireUpdate() { return !blocks.isEmpty(); }
+    @Override
+    public boolean requireUpdate() {
+        return !blocks.isEmpty();
+    }
 
     public static ParticleExpireIfNotInBlocks fromJson(JsonElement value) {
         Set<String> blocks = new LinkedHashSet<>();

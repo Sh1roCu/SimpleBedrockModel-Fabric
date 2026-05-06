@@ -35,11 +35,7 @@ public class ParticleInstance {
     public boolean worldSpace = false;
     // 标记该粒子是否在第一人称脱离模式（发射后脱离定位器，但不投放到世界）
     public boolean fpDetached = false;
-    // 粒子 timeline 事件进度追踪索引（旧，Phase 4 后移入 ParticleLifetimeEvents.Runtime）
-    @Deprecated
-    public int lastTimelineIndex = 0;
-    // KillPlane 符号追踪：粒子是否在平面"内侧"（Ax+By+Cz+D < 0）
-    @Deprecated
+    // KillPlane 符号追踪
     public boolean insideKillPlane = false;
 
     // === 新增：Phase 3/4 引入 ===
@@ -72,7 +68,6 @@ public class ParticleInstance {
         alive = true;
         worldSpace = false;
         fpDetached = false;
-        lastTimelineIndex = 0;
         insideKillPlane = false;
     }
 

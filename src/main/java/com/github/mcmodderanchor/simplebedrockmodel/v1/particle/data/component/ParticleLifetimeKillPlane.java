@@ -8,8 +8,15 @@ import com.google.gson.JsonParseException;
 public record ParticleLifetimeKillPlane(float a, float b, float c, float d)
         implements IParticleComponentDefinition, IParticleComponent {
 
-    @Override public int order() { return 320; }
-    @Override public boolean requireUpdate() { return true; }
+    @Override
+    public int order() {
+        return 320;
+    }
+
+    @Override
+    public boolean requireUpdate() {
+        return true;
+    }
 
     @Override
     public void apply(ParticleInstance p) {

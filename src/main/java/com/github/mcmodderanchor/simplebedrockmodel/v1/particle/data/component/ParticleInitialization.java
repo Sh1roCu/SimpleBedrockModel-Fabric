@@ -14,7 +14,10 @@ public record ParticleInitialization(
         @Nullable MolangExpression perUpdateExpression
 ) implements IParticleComponentDefinition, IParticleComponent {
 
-    @Override public int order() { return 360; }
+    @Override
+    public int order() {
+        return 360;
+    }
 
     @Override
     public boolean requireUpdate() {

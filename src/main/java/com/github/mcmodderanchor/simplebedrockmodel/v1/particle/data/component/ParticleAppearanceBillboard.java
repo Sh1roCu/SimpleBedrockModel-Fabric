@@ -20,8 +20,15 @@ public record ParticleAppearanceBillboard(
         boolean dynamicSize
 ) implements IParticleComponentDefinition, IParticleComponent {
 
-    @Override public int order() { return 200; }
-    @Override public boolean requireUpdate() { return flipbook != null || dynamicSize; }
+    @Override
+    public int order() {
+        return 200;
+    }
+
+    @Override
+    public boolean requireUpdate() {
+        return flipbook != null || dynamicSize;
+    }
 
     @Override
     public void apply(ParticleInstance p) {

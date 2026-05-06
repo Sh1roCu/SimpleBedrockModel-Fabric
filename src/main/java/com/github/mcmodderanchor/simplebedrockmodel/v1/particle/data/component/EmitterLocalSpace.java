@@ -12,7 +12,9 @@ public record EmitterLocalSpace(boolean position, boolean rotation, boolean velo
         implements IEmitterComponentDefinition, IEmitterComponent {
 
     @Override
-    public int order() { return 400; }
+    public int order() {
+        return 400;
+    }
 
     @Override
     public void apply(ParticleEmitterInstance emitter) {

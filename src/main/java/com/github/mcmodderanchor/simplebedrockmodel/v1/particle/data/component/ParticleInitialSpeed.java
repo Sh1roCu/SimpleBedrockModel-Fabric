@@ -14,7 +14,10 @@ import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.Part
 public record ParticleInitialSpeed(MolangExpression speed)
         implements IParticleComponentDefinition, IParticleComponent {
 
-    @Override public int order() { return -500; }
+    @Override
+    public int order() {
+        return -500;
+    }
 
     @Override
     public void apply(ParticleInstance p) {

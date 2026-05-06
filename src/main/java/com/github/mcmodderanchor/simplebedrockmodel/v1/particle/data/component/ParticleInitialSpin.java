@@ -11,7 +11,8 @@ import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.Part
 public record ParticleInitialSpin(MolangExpression rotation, MolangExpression rotationRate)
         implements IParticleComponentDefinition, IParticleComponent {
 
-    @Override public int order() { return -490; }
+    @Override
+    public int order() { return -490; }
 
     @Override
     public void apply(ParticleInstance p) {
