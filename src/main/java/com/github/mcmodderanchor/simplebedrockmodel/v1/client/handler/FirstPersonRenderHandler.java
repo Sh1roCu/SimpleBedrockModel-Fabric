@@ -53,6 +53,11 @@ public class FirstPersonRenderHandler {
     private static boolean forceHandSwapFlag = false;
 
     public static void onPlayerLoggedOut(ClientPacketListener handler, Minecraft client) {
+        // 离开游戏时重置客户端状态
+        reset();
+    }
+
+    public static void reset() {
         realSelectedSlot = -1;
         realMainHand = ItemStack.EMPTY;
         transitioning = false;
@@ -67,6 +72,7 @@ public class FirstPersonRenderHandler {
         PARTICLE_SYSTEM.clear();
         lastParticleTickNanos = 0L;
     }
+
 
     public static void onRenderHand(SwapItemWithOffHand event) {
         forceHandSwapFlag = true;
