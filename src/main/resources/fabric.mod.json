@@ -4,16 +4,22 @@
   "version": "${version}",
   "name": "SimpleBedrockModel",
   "description": "SimpleBedrockModel Unofficial Fabric port",
-  "authors": ["TartaricAcid","Sh1roCu"],
+  "authors": [
+    "Sh1roCu"
+  ],
   "contact": {},
   "license": "LGPL-3.0",
-  "environment": "client",
+  "environment": "*",
   "entrypoints": {
     "client": [
       "cn.sh1rocu.simplebedrockmodel.client.SimpleBedrockModelClient"
+    ],
+    "main": [
+      "cn.sh1rocu.simplebedrockmodel.SimpleBedrockModel"
     ]
   },
   "mixins": [
+    "simplebedrockmodel.mixins.json",
     "simplebedrockmodel.fabric.mixins.json"
   ],
   "accessWidener": "simplebedrockmodel.accesswidener",

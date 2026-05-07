@@ -1,14 +1,14 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.client.animation;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.time.AnimationClock;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
  * 客户端自动暂停时钟的实现
  */
-@OnlyIn(Dist.CLIENT)
+@Environment(EnvType.CLIENT)
 public final class PausedClientAnimationClock implements AnimationClock {
     private static final PausedClientAnimationClock INSTANCE = new PausedClientAnimationClock();
 
@@ -16,7 +16,8 @@ public final class PausedClientAnimationClock implements AnimationClock {
     private long lastRealNanos;
     private boolean initialized;
 
-    private PausedClientAnimationClock() {}
+    private PausedClientAnimationClock() {
+    }
 
     public static PausedClientAnimationClock getInstance() {
         return INSTANCE;

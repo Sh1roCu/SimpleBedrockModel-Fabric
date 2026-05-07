@@ -3,8 +3,8 @@ package com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.pojo;
 import com.google.gson.*;
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
-
 import org.jetbrains.annotations.Nullable;
+
 import java.lang.reflect.Type;
 
 public class CubesItem {

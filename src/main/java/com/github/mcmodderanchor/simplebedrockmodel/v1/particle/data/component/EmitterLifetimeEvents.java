@@ -1,7 +1,6 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleEffectDefinition;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.event.IEventNode;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.EventExecutor;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleEmitterInstance;
 import com.google.gson.JsonArray;
@@ -37,7 +36,8 @@ public record EmitterLifetimeEvents(
         return new Runtime(creationEvent, expirationEvent, timeline, travelDistanceEvents, loopingTravelDistanceEvents);
     }
 
-    public record LoopingTravelDistanceEvent(float distance, List<String> effects) {}
+    public record LoopingTravelDistanceEvent(float distance, List<String> effects) {
+    }
 
     /**
      * 运行时组件。持有事件追踪状态。
@@ -52,7 +52,7 @@ public record EmitterLifetimeEvents(
         // 运行时状态
         private int lastTimelineIndex;
         private int lastTravelDistIndex;
-        private float[] loopingTravelDistAccum;
+        private final float[] loopingTravelDistAccum;
         private float travelDistance;
         private float prevEmitterX, prevEmitterY, prevEmitterZ;
         private boolean hasPrevPosition;
@@ -90,7 +90,10 @@ public record EmitterLifetimeEvents(
             if (!timeline.isEmpty()) {
                 int idx = 0;
                 for (Map.Entry<Float, List<String>> entry : timeline.entrySet()) {
-                    if (idx < lastTimelineIndex) { idx++; continue; }
+                    if (idx < lastTimelineIndex) {
+                        idx++;
+                        continue;
+                    }
                     if (emitterAge >= entry.getKey()) {
                         lastTimelineIndex = idx + 1;
                         EventExecutor.fireEvents(entry.getValue(), def, ctx);
@@ -106,7 +109,10 @@ public record EmitterLifetimeEvents(
             if (!travelDistanceEvents.isEmpty()) {
                 int idx = 0;
                 for (Map.Entry<Float, List<String>> entry : travelDistanceEvents.entrySet()) {
-                    if (idx < lastTravelDistIndex) { idx++; continue; }
+                    if (idx < lastTravelDistIndex) {
+                        idx++;
+                        continue;
+                    }
                     if (travelDistance >= entry.getKey()) {
                         lastTravelDistIndex = idx + 1;
                         EventExecutor.fireEvents(entry.getValue(), def, ctx);
@@ -143,7 +149,9 @@ public record EmitterLifetimeEvents(
             hasPrevPosition = true;
         }
 
-        /** 触发创建事件 */
+        /**
+         * 触发创建事件
+         */
         void fireCreation(ParticleEmitterInstance emitter) {
             EventExecutor.EventContext ctx = emitter.getEventContext();
             if (ctx != null && !creationEvent.isEmpty()) {
@@ -151,7 +159,9 @@ public record EmitterLifetimeEvents(
             }
         }
 
-        /** 触发过期事件 */
+        /**
+         * 触发过期事件
+         */
         void fireExpiration(ParticleEmitterInstance emitter) {
             EventExecutor.EventContext ctx = emitter.getEventContext();
             if (ctx != null && !expirationEvent.isEmpty()) {

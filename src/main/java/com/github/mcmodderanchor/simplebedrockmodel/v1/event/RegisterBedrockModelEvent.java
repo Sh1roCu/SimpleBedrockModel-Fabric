@@ -1,25 +1,32 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.event;
 
+import cn.sh1rocu.simplebedrockmodel.api.event.BaseEvent;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.model.BedrockModel;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.pojo.BedrockModelPOJO;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.resource.BedrockModelResourceProcessor;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.resource.RawResourceLoader;
 import com.google.common.collect.Maps;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.fabric.api.event.Event;
+import net.fabricmc.fabric.api.event.EventFactory;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.eventbus.api.Event;
-import net.minecraftforge.fml.event.IModBusEvent;
 
 import java.util.Map;
 import java.util.function.Function;
 
-public class RegisterBedrockModelEvent extends Event implements IModBusEvent {
+public class RegisterBedrockModelEvent extends BaseEvent {
     private final Map<ResourceLocation, BedrockModelResourceProcessor> modelRegistry;
-    private final Dist dist;
+    private final EnvType envType;
 
-    public RegisterBedrockModelEvent(Dist dist) {
+    public static final Event<Callback> EVENT = EventFactory.createArrayBacked(Callback.class, callbacks -> event -> {
+        for (Callback callback : callbacks) {
+            callback.post(event);
+        }
+    });
+
+    public RegisterBedrockModelEvent(EnvType envType) {
         this.modelRegistry = Maps.newHashMap();
-        this.dist = dist;
+        this.envType = envType;
     }
 
     public void register(ResourceLocation modelLocation,
@@ -33,11 +40,15 @@ public class RegisterBedrockModelEvent extends Event implements IModBusEvent {
         register(modelLocation, loader, BedrockModel::new);
     }
 
-    public Dist getDist() {
-        return dist;
+    public EnvType getEnvType() {
+        return envType;
     }
 
     public Map<ResourceLocation, BedrockModelResourceProcessor> getModelRegistry() {
         return modelRegistry;
+    }
+
+    public interface Callback {
+        void post(RegisterBedrockModelEvent event);
     }
 }

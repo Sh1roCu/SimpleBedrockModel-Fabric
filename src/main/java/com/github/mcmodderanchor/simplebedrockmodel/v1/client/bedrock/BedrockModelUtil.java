@@ -1,8 +1,8 @@
-package com.github.tartaricacid.simplebedrockmodel.client.bedrock;
+package com.github.mcmodderanchor.simplebedrockmodel.v1.client.bedrock;
 
-import com.github.tartaricacid.simplebedrockmodel.client.bedrock.pojo.CubesItem;
-import com.github.tartaricacid.simplebedrockmodel.client.bedrock.pojo.FaceItem;
-import com.github.tartaricacid.simplebedrockmodel.client.bedrock.pojo.FaceUVsItem;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.pojo.CubesItem;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.pojo.FaceItem;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.pojo.FaceUVsItem;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.fabricmc.api.EnvType;

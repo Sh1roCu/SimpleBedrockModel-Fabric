@@ -1,66 +1,56 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.resource;
 
-import com.github.mcmodderanchor.simplebedrockmodel.SimpleBedrockModel;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.event.RegisterBedrockAnimationEvent;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.event.RegisterBedrockAnimationReloadListenerEvent;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.event.RegisterBedrockModelEvent;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.event.RegisterBedrockModelReloadListenerEvent;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.resource.ParticleDefinitionLoader;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.client.event.RegisterClientReloadListenersEvent;
-import net.minecraftforge.event.AddReloadListenerEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.ModLoader;
-import net.minecraftforge.fml.common.Mod;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
+import net.minecraft.server.packs.PackType;
 
 public class ReloadListenersRegister {
-    @OnlyIn(Dist.CLIENT)
-    @Mod.EventBusSubscriber(modid = SimpleBedrockModel.MOD_ID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
+    @Environment(EnvType.CLIENT)
     public static class BedrockModelClientRegister {
-        @SubscribeEvent
-        public static void onRegisterReloadListener(RegisterClientReloadListenersEvent event) {
-            RegisterBedrockModelEvent event1 = new RegisterBedrockModelEvent(Dist.CLIENT);
-            ModLoader.get().postEvent(event1);
-            RegisterBedrockModelReloadListenerEvent event2 = new RegisterBedrockModelReloadListenerEvent();
-            ModLoader.get().postEvent(event2);
+        public static void onRegisterReloadListener() {
+            var event1 = new RegisterBedrockModelEvent(EnvType.CLIENT);
+            RegisterBedrockModelEvent.EVENT.invoker().post(event1);
+            var event2 = new RegisterBedrockModelReloadListenerEvent();
+            RegisterBedrockModelReloadListenerEvent.EVENT.invoker().post(event2);
             BedrockModelResourceSet.INSTANCE = new BedrockModelResourceSet(event1.getModelRegistry(), event2.getListeners());
 
-
-            RegisterBedrockAnimationEvent event3 = new RegisterBedrockAnimationEvent(Dist.CLIENT);
-            ModLoader.get().postEvent(event3);
-            RegisterBedrockAnimationReloadListenerEvent event4 = new RegisterBedrockAnimationReloadListenerEvent();
-            ModLoader.get().postEvent(event4);
+            var event3 = new RegisterBedrockAnimationEvent(EnvType.CLIENT);
+            RegisterBedrockAnimationEvent.EVENT.invoker().post(event3);
+            var event4 = new RegisterBedrockAnimationReloadListenerEvent();
+            RegisterBedrockAnimationReloadListenerEvent.EVENT.invoker().post(event4);
             BedrockAnimationResourceSet.INSTANCE = new BedrockAnimationResourceSet(event3.getAnimationRegistry(), event4.getListeners());
 
-
-            event.registerReloadListener(BedrockModelResourceSet.INSTANCE);
-            event.registerReloadListener(BedrockAnimationResourceSet.INSTANCE);
-            event.registerReloadListener(ParticleDefinitionLoader.getInstance());
+            var registry = ResourceManagerHelper.get(PackType.CLIENT_RESOURCES);
+            registry.registerReloadListener(BedrockModelResourceSet.INSTANCE);
+            registry.registerReloadListener(BedrockAnimationResourceSet.INSTANCE);
+            registry.registerReloadListener(ParticleDefinitionLoader.getInstance());
         }
     }
 
-    @OnlyIn(Dist.DEDICATED_SERVER)
-    @Mod.EventBusSubscriber(modid = SimpleBedrockModel.MOD_ID, value = Dist.DEDICATED_SERVER, bus = Mod.EventBusSubscriber.Bus.FORGE)
+    @Environment(EnvType.SERVER)
     public static class BedrockModelServerRegister {
-        @SubscribeEvent
-        public static void onRegisterReloadListener(AddReloadListenerEvent event) {
-            RegisterBedrockModelEvent event1 = new RegisterBedrockModelEvent(Dist.DEDICATED_SERVER);
-            ModLoader.get().postEvent(event1);
-            RegisterBedrockModelReloadListenerEvent event2 = new RegisterBedrockModelReloadListenerEvent();
-            ModLoader.get().postEvent(event2);
+        public static void onRegisterReloadListener() {
+            var event1 = new RegisterBedrockModelEvent(EnvType.SERVER);
+            RegisterBedrockModelEvent.EVENT.invoker().post(event1);
+            var event2 = new RegisterBedrockModelReloadListenerEvent();
+            RegisterBedrockModelReloadListenerEvent.EVENT.invoker().post(event2);
             BedrockModelResourceSet.INSTANCE = new BedrockModelResourceSet(event1.getModelRegistry(), event2.getListeners());
 
-
-            RegisterBedrockAnimationEvent event3 = new RegisterBedrockAnimationEvent(Dist.DEDICATED_SERVER);
-            ModLoader.get().postEvent(event3);
-            RegisterBedrockAnimationReloadListenerEvent event4 = new RegisterBedrockAnimationReloadListenerEvent();
-            ModLoader.get().postEvent(event4);
+            var event3 = new RegisterBedrockAnimationEvent(EnvType.SERVER);
+            RegisterBedrockAnimationEvent.EVENT.invoker().post(event3);
+            var event4 = new RegisterBedrockAnimationReloadListenerEvent();
+            RegisterBedrockAnimationReloadListenerEvent.EVENT.invoker().post(event4);
             BedrockAnimationResourceSet.INSTANCE = new BedrockAnimationResourceSet(event3.getAnimationRegistry(), event4.getListeners());
 
-
-            event.addListener(BedrockModelResourceSet.INSTANCE);
-            event.addListener(BedrockAnimationResourceSet.INSTANCE);
+            var registry = ResourceManagerHelper.get(PackType.SERVER_DATA);
+            registry.registerReloadListener(BedrockModelResourceSet.INSTANCE);
+            registry.registerReloadListener(BedrockAnimationResourceSet.INSTANCE);
         }
     }
 }

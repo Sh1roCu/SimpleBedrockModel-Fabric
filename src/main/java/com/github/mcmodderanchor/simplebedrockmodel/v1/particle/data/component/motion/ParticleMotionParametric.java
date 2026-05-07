@@ -22,8 +22,15 @@ public record ParticleMotionParametric(
         @Nullable MolangExpression rotation
 ) implements IParticleComponentDefinition, IParticleComponent {
 
-    @Override public int order() { return 300; }
-    @Override public boolean requireUpdate() { return true; }
+    @Override
+    public int order() {
+        return 300;
+    }
+
+    @Override
+    public boolean requireUpdate() {
+        return true;
+    }
 
     @Override
     public void apply(ParticleInstance p) { /* 首次由 update 处理 */ }
@@ -34,7 +41,9 @@ public record ParticleMotionParametric(
         applyLegacy(p, p.emitter.getMolang().getContext(), 1f / 20f);
     }
 
-    /** 兼容旧调用方（Phase 4 后移除） */
+    /**
+     * 兼容旧调用方（Phase 4 后移除）
+     */
     public void applyLegacy(ParticleInstance p, MolangContext<?> ctx, float dt) {
         if (relativePosition != null) {
             p.x = (float) relativePosition[0].evaluate(ctx);

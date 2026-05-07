@@ -1,9 +1,12 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.client.handler;
 
+import cn.sh1rocu.simplebedrockmodel.api.event.RenderArmEvent;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.renderer.GeoArmorRenderer;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.model.BedrockBone;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelLayers;
@@ -13,21 +16,14 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.RenderArmEvent;
-import net.minecraftforge.client.extensions.common.IClientItemExtensions;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Matrix4f;
-
-import java.util.ArrayDeque;
 
 /**
  * 通用的第一人称盔甲手臂渲染处理器。
  * 监听 RenderArmEvent，在玩家手臂上叠加渲染 Bedrock 盔甲模型的手臂部分。
  */
-@Mod.EventBusSubscriber(Dist.CLIENT)
+@Environment(EnvType.CLIENT)
 public class FirstPersonArmorHandler {
 
     private static HumanoidModel<?> defaultModel;
@@ -41,7 +37,6 @@ public class FirstPersonArmorHandler {
         return defaultModel;
     }
 
-    @SubscribeEvent
     public static void onRenderArm(RenderArmEvent event) {
         AbstractClientPlayer player = event.getPlayer();
         HumanoidArm arm = event.getArm();
@@ -49,8 +44,10 @@ public class FirstPersonArmorHandler {
         ItemStack chestStack = player.getItemBySlot(EquipmentSlot.CHEST);
         if (chestStack.isEmpty()) return;
 
-        IClientItemExtensions ext = IClientItemExtensions.of(chestStack.getItem());
-        var model = ext.getHumanoidArmorModel(player, chestStack, EquipmentSlot.CHEST, getDefaultModel());
+        // TODO
+        // IClientItemExtensions ext = IClientItemExtensions.of(chestStack.getItem());
+        // var model = ext.getHumanoidArmorModel(player, chestStack, EquipmentSlot.CHEST, getDefaultModel());
+        var model = getDefaultModel();
         if (!(model instanceof GeoArmorRenderer geoRenderer)) return;
 
         BedrockBone armBone = arm == HumanoidArm.RIGHT

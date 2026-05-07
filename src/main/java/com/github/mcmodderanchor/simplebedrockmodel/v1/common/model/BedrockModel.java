@@ -10,17 +10,14 @@ import com.google.gson.JsonObject;
 import com.maydaymemory.mae.basic.*;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.world.phys.AABB;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import org.joml.Matrix4f;
-import org.joml.Quaternionf;
-import org.joml.Quaternionfc;
-import org.joml.Vector3f;
-import org.joml.Vector3fc;
-
 import org.jetbrains.annotations.Nullable;
+import org.joml.*;
+
 import javax.annotation.ParametersAreNonnullByDefault;
+import java.lang.Math;
 import java.util.*;
 
 public class BedrockModel implements Skeleton, BoneIndexProvider {
@@ -135,13 +132,13 @@ public class BedrockModel implements Skeleton, BoneIndexProvider {
         return new BedrockCubePerFace(x, y, z, width, height, depth, delta, texWidth, texHeight, faces);
     }
 
-    @OnlyIn(Dist.CLIENT)
+    @Environment(EnvType.CLIENT)
     @ParametersAreNonnullByDefault
     public void renderToBuffer(PoseStack poseStack, VertexConsumer buffer, int packedLight, int packedOverlay) {
         root.render(poseStack, buffer, packedLight, packedOverlay);
     }
 
-    @OnlyIn(Dist.CLIENT)
+    @Environment(EnvType.CLIENT)
     @ParametersAreNonnullByDefault
     public void renderToBuffer(PoseStack poseStack, VertexConsumer buffer, int packedLight, int packedOverlay, float red, float green, float blue, float alpha) {
         root.render(poseStack, buffer, packedLight, packedOverlay, red, green, blue, alpha);
@@ -434,7 +431,8 @@ public class BedrockModel implements Skeleton, BoneIndexProvider {
     /**
      * locator 查找结果。
      */
-    public record LocatorResult(BedrockBone bone, LocatorData locator) {}
+    public record LocatorResult(BedrockBone bone, LocatorData locator) {
+    }
 
     private record BindRotationView(Quaternionfc quaternion, Vector3fc euler) implements RotationView {
         private BindRotationView(Quaternionfc quaternion, Vector3fc euler) {

@@ -1,21 +1,17 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.render;
 
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.client.event.ViewportEvent;
-import net.minecraftforge.eventbus.api.EventPriority;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import cn.sh1rocu.simplebedrockmodel.api.event.ViewportEvent;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 
-@OnlyIn(Dist.CLIENT)
-@Mod.EventBusSubscriber(value = Dist.CLIENT)
+@Environment(EnvType.CLIENT)
 public final class CameraStateCache {
 
     private static float cameraRoll;
 
-    private CameraStateCache() {}
+    private CameraStateCache() {
+    }
 
-    @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onComputeCameraAngles(ViewportEvent.ComputeCameraAngles event) {
         cameraRoll = event.getRoll();
     }

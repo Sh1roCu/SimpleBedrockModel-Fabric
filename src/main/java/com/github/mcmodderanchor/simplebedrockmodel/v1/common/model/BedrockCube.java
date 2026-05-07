@@ -53,21 +53,30 @@ public interface BedrockCube {
 
     /**
      * Get the U texture coordinate for a specific face vertex.
+     *
      * @param face   face index (0-5), matching VERTEX_ORDER and Direction.ordinal()
      * @param vertex vertex index within the face (0-3)
      */
-    default float getU(int face, int vertex) { return 0; }
+    default float getU(int face, int vertex) {
+        return 0;
+    }
 
     /**
      * Get the V texture coordinate for a specific face vertex.
+     *
      * @param face   face index (0-5), matching VERTEX_ORDER and Direction.ordinal()
      * @param vertex vertex index within the face (0-3)
      */
-    default float getV(int face, int vertex) { return 0; }
+    default float getV(int face, int vertex) {
+        return 0;
+    }
 
     /**
      * Check whether a face is empty and should be skipped.
+     *
      * @param face face index (0-5)
      */
-    default boolean isEmptyFace(int face) { return false; }
+    default boolean isEmptyFace(int face) {
+        return false;
+    }
 }

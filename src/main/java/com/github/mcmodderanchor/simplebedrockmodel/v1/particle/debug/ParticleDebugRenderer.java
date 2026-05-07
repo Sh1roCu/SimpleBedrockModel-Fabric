@@ -1,29 +1,26 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.debug;
 
-import com.github.mcmodderanchor.simplebedrockmodel.SimpleBedrockModel;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.world.WorldEmitterManager;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.RenderLevelStageEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
 
-@Mod.EventBusSubscriber(modid = SimpleBedrockModel.MOD_ID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
+@Environment(EnvType.CLIENT)
 public class ParticleDebugRenderer {
     private static final double BOX_RADIUS = 0.25D;
 
-    @SubscribeEvent
-    public static void onRenderLevelStage(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
-            return;
-        }
+    public static void onRenderLevelStage(WorldRenderContext context) {
+//        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
+//            return;
+//        }
 
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || !mc.getEntityRenderDispatcher().shouldRenderHitBoxes()) {
@@ -34,8 +31,8 @@ public class ParticleDebugRenderer {
             return;
         }
 
-        PoseStack poseStack = event.getPoseStack();
-        Vec3 cameraPos = event.getCamera().getPosition();
+        PoseStack poseStack = context.matrixStack();
+        Vec3 cameraPos = context.camera().getPosition();
         MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
         VertexConsumer vertexConsumer = bufferSource.getBuffer(RenderType.lines());
 

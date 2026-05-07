@@ -4,11 +4,12 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangCont
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangExpression;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleInstance;
 import org.jetbrains.annotations.Nullable;
+
 import java.util.Random;
 
 public record EmitterShapeBox(MolangExpression[] offset, MolangExpression[] halfDimensions, boolean surfaceOnly,
-                               @Nullable MolangExpression[] direction,
-                               DirectionMode directionMode) implements EmitterShape {
+                              @Nullable MolangExpression[] direction,
+                              DirectionMode directionMode) implements EmitterShape {
     @Override
     public void applyPosition(ParticleInstance p, MolangContext<?> ctx, Random random) {
         float ox = (float) offset[0].evaluate(ctx);
@@ -21,12 +22,36 @@ public record EmitterShapeBox(MolangExpression[] offset, MolangExpression[] half
             int face = random.nextInt(6);
             float u = random.nextFloat() * 2 - 1, v = random.nextFloat() * 2 - 1;
             switch (face) {
-                case 0 -> { p.x = ox + hx; p.y = oy + u * hy; p.z = oz + v * hz; }
-                case 1 -> { p.x = ox - hx; p.y = oy + u * hy; p.z = oz + v * hz; }
-                case 2 -> { p.y = oy + hy; p.x = ox + u * hx; p.z = oz + v * hz; }
-                case 3 -> { p.y = oy - hy; p.x = ox + u * hx; p.z = oz + v * hz; }
-                case 4 -> { p.z = oz + hz; p.x = ox + u * hx; p.y = oy + v * hy; }
-                case 5 -> { p.z = oz - hz; p.x = ox + u * hx; p.y = oy + v * hy; }
+                case 0 -> {
+                    p.x = ox + hx;
+                    p.y = oy + u * hy;
+                    p.z = oz + v * hz;
+                }
+                case 1 -> {
+                    p.x = ox - hx;
+                    p.y = oy + u * hy;
+                    p.z = oz + v * hz;
+                }
+                case 2 -> {
+                    p.y = oy + hy;
+                    p.x = ox + u * hx;
+                    p.z = oz + v * hz;
+                }
+                case 3 -> {
+                    p.y = oy - hy;
+                    p.x = ox + u * hx;
+                    p.z = oz + v * hz;
+                }
+                case 4 -> {
+                    p.z = oz + hz;
+                    p.x = ox + u * hx;
+                    p.y = oy + v * hy;
+                }
+                case 5 -> {
+                    p.z = oz - hz;
+                    p.x = ox + u * hx;
+                    p.y = oy + v * hy;
+                }
             }
         } else {
             p.x = ox + (random.nextFloat() * 2 - 1) * hx;

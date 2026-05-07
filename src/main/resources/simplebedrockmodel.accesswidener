@@ -1,3 +1,9 @@
 accessWidener v2 named
 
 accessible field net/minecraft/server/packs/resources/ReloadableResourceManager listeners Ljava/util/List;
+accessible field net/minecraft/client/model/AgeableListModel scaleHead Z
+accessible field net/minecraft/client/model/AgeableListModel babyYHeadOffset F
+accessible field net/minecraft/client/model/AgeableListModel babyZHeadOffset F
+accessible field net/minecraft/client/model/AgeableListModel babyHeadScale F
+accessible field net/minecraft/client/model/AgeableListModel babyBodyScale F
+accessible field net/minecraft/client/model/AgeableListModel bodyYOffset F

@@ -6,7 +6,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
-import net.minecraftforge.common.MinecraftForge;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -28,9 +27,13 @@ public abstract class GameRendererMixin {
     public void onBobHurt(PoseStack pMatrixStack, float pPartialTicks, CallbackInfo ci) {
         boolean cancel;
         if (!sbm$useFovSetting) {
-            cancel = MinecraftForge.EVENT_BUS.post(new RenderItemInHandBobEvent.BobHurt());
+            var event = new RenderItemInHandBobEvent.BobHurt();
+            RenderItemInHandBobEvent.BOB_HURT.invoker().post(event);
+            cancel = event.isCanceled();
         } else {
-            cancel = MinecraftForge.EVENT_BUS.post(new RenderLevelBobEvent.BobHurt());
+            var event = new RenderLevelBobEvent.BobHurt();
+            RenderLevelBobEvent.BOB_HURT.invoker().post(event);
+            cancel = event.isCanceled();
         }
         if (cancel) {
             ci.cancel();
@@ -41,9 +44,13 @@ public abstract class GameRendererMixin {
     public void onBobView(PoseStack pMatrixStack, float pPartialTicks, CallbackInfo ci) {
         boolean cancel;
         if (!sbm$useFovSetting) {
-            cancel = MinecraftForge.EVENT_BUS.post(new RenderItemInHandBobEvent.BobView());
+            var event = new RenderItemInHandBobEvent.BobView();
+            RenderItemInHandBobEvent.BOB_VIEW.invoker().post(event);
+            cancel = event.isCanceled();
         } else {
-            cancel = MinecraftForge.EVENT_BUS.post(new RenderLevelBobEvent.BobView());
+            var event = new RenderLevelBobEvent.BobView();
+            RenderLevelBobEvent.BOB_VIEW.invoker().post(event);
+            cancel = event.isCanceled();
         }
         if (cancel) {
             ci.cancel();

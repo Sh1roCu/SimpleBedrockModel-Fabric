@@ -11,10 +11,12 @@ public interface IEmitterComponent extends IComponent {
     /**
      * 发射器创建时调用一次。
      */
-    default void apply(ParticleEmitterInstance emitter) {}
+    default void apply(ParticleEmitterInstance emitter) {
+    }
 
     /**
      * 发射器每 tick 调用。
      */
-    default void update(ParticleEmitterInstance emitter) {}
+    default void update(ParticleEmitterInstance emitter) {
+    }
 }

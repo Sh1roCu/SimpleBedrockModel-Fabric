@@ -7,11 +7,18 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.I
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleInstance;
 
 public record ParticleTintingGradient(MolangExpression interpolant, float[] stops,
-                                       MolangExpression[][] colors)
+                                      MolangExpression[][] colors)
         implements IParticleComponentDefinition, IParticleComponent {
 
-    @Override public int order() { return 210; }
-    @Override public boolean requireUpdate() { return true; }
+    @Override
+    public int order() {
+        return 210;
+    }
+
+    @Override
+    public boolean requireUpdate() {
+        return true;
+    }
 
     @Override
     public void apply(ParticleInstance p) {
@@ -54,5 +61,7 @@ public record ParticleTintingGradient(MolangExpression interpolant, float[] stop
         p.a = lerp((float) c0[3].evaluate(ctx), (float) c1[3].evaluate(ctx), frac);
     }
 
-    private static float lerp(float a, float b, float t) { return a + (b - a) * t; }
+    private static float lerp(float a, float b, float t) {
+        return a + (b - a) * t;
+    }
 }

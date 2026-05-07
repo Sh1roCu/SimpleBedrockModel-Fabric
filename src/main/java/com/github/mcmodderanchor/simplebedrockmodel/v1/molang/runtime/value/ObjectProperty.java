@@ -43,7 +43,7 @@ public interface ObjectProperty {
     static @NotNull ObjectProperty property(final @NotNull Value value, final boolean constant) {
         return new ObjectPropertyImpl(value, constant);
     }
-    
+
     /**
      * Returns the value of this property.
      *

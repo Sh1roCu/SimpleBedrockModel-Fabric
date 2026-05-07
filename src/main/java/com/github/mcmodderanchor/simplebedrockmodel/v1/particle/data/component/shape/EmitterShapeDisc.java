@@ -4,11 +4,12 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangCont
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangExpression;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleInstance;
 import org.jetbrains.annotations.Nullable;
+
 import java.util.Random;
 
 public record EmitterShapeDisc(MolangExpression[] offset, MolangExpression radius, PlaneNormal planeNormal,
-                                boolean surfaceOnly, @Nullable MolangExpression[] direction,
-                                DirectionMode directionMode) implements EmitterShape {
+                               boolean surfaceOnly, @Nullable MolangExpression[] direction,
+                               DirectionMode directionMode) implements EmitterShape {
     @Override
     public void applyPosition(ParticleInstance p, MolangContext<?> ctx, Random random) {
         float ox = (float) offset[0].evaluate(ctx);
@@ -20,10 +21,26 @@ public record EmitterShapeDisc(MolangExpression[] offset, MolangExpression radiu
         float lx = dist * (float) Math.cos(angle);
         float lz = dist * (float) Math.sin(angle);
         switch (planeNormal) {
-            case Y -> { p.x = ox + lx; p.y = oy; p.z = oz + lz; }
-            case X -> { p.x = ox; p.y = oy + lx; p.z = oz + lz; }
-            case Z -> { p.x = ox + lx; p.y = oy + lz; p.z = oz; }
-            default -> { p.x = ox + lx; p.y = oy; p.z = oz + lz; }
+            case Y -> {
+                p.x = ox + lx;
+                p.y = oy;
+                p.z = oz + lz;
+            }
+            case X -> {
+                p.x = ox;
+                p.y = oy + lx;
+                p.z = oz + lz;
+            }
+            case Z -> {
+                p.x = ox + lx;
+                p.y = oy + lz;
+                p.z = oz;
+            }
+            default -> {
+                p.x = ox + lx;
+                p.y = oy;
+                p.z = oz + lz;
+            }
         }
     }
 }

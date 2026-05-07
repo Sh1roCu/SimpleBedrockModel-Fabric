@@ -2,7 +2,6 @@ package com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.molang.DynamicQueryBinding;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.MutableObjectBinding;
-
 import org.jetbrains.annotations.Nullable;
 
 /**

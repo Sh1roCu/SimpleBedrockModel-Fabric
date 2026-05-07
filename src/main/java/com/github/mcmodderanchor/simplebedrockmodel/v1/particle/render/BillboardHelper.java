@@ -5,21 +5,20 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.Particle
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.world.SnowStormParticle;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
+import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 
-import org.jetbrains.annotations.Nullable;
-
 /**
  * Billboard quad 构建工具。
  */
-@OnlyIn(Dist.CLIENT)
+@Environment(EnvType.CLIENT)
 public final class BillboardHelper {
 
     // 可复用的临时变量，避免每个粒子渲染时分配新对象
@@ -31,7 +30,8 @@ public final class BillboardHelper {
     private static final Matrix4f IDENTITY_POSE = new Matrix4f();
     private static final Matrix3f IDENTITY_NORMAL = new Matrix3f();
 
-    private BillboardHelper() {}
+    private BillboardHelper() {
+    }
 
     /**
      * 渲染一个局部空间粒子的 billboard quad。
@@ -42,12 +42,12 @@ public final class BillboardHelper {
      * @param cameraRotation 摄像机旋转矩阵（世界对齐空间 → 视图空间），保留备用。可为 null。
      */
     public static void renderBillboard(ParticleInstance particle, PoseStack poseStack,
-                                        VertexConsumer consumer, int light,
-                                        ParticleAppearanceBillboard.FaceCameraMode mode,
-                                        Matrix4f emitterTransform,
-                                        boolean localPos, boolean localRot,
-                                        float cameraPitch, float cameraRoll,
-                                        @Nullable Matrix4f cameraRotation) {
+                                       VertexConsumer consumer, int light,
+                                       ParticleAppearanceBillboard.FaceCameraMode mode,
+                                       Matrix4f emitterTransform,
+                                       boolean localPos, boolean localRot,
+                                       float cameraPitch, float cameraRoll,
+                                       @Nullable Matrix4f cameraRotation) {
         Matrix4f pose = poseStack.last().pose();
 
         // 选择变换矩阵：
@@ -117,9 +117,9 @@ public final class BillboardHelper {
     }
 
     private static void vertex(VertexConsumer consumer, Matrix4f pose, Matrix3f normal,
-                                float x, float y, float z,
-                                float u, float v,
-                                ParticleInstance particle, int light) {
+                               float x, float y, float z,
+                               float u, float v,
+                               ParticleInstance particle, int light) {
         consumer.vertex(pose, x, y, z)
                 .color(particle.r, particle.g, particle.b, particle.a)
                 .uv(u, v)
@@ -134,16 +134,16 @@ public final class BillboardHelper {
      * axisX 对应 quad 的宽度方向，axisY 对应高度方向。
      *
      * @param velX/velY/velZ 粒子速度（在粒子自身的坐标空间中）
-     * @param velPose 用于将速度变换到视图空间的矩阵
-     * @param viewPose 视图矩阵（poseStack 的 pose），用于将世界坐标轴变换到视图空间
-     * @param cameraPitch 摄像机 pitch（弧度）
-     * @param cameraRoll  摄像机 roll（弧度）
+     * @param velPose        用于将速度变换到视图空间的矩阵
+     * @param viewPose       视图矩阵（poseStack 的 pose），用于将世界坐标轴变换到视图空间
+     * @param cameraPitch    摄像机 pitch（弧度）
+     * @param cameraRoll     摄像机 roll（弧度）
      */
     private static void applyBillboardAxes(Vector3f axisX, Vector3f axisY,
-                                            ParticleAppearanceBillboard.FaceCameraMode mode,
-                                            float velX, float velY, float velZ,
-                                            Matrix4f velPose, Matrix4f viewPose,
-                                            float cameraPitch, float cameraRoll) {
+                                           ParticleAppearanceBillboard.FaceCameraMode mode,
+                                           float velX, float velY, float velZ,
+                                           Matrix4f velPose, Matrix4f viewPose,
+                                           float cameraPitch, float cameraRoll) {
         switch (mode) {
             case ROTATE_XYZ, LOOKAT_XYZ -> {
                 axisX.set(1, 0, 0);

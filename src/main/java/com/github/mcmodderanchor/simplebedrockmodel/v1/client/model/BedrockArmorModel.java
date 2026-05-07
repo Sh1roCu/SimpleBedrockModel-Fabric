@@ -3,7 +3,6 @@ package com.github.mcmodderanchor.simplebedrockmodel.v1.client.model;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.model.BedrockBone;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.model.BedrockModel;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.pojo.BedrockModelPOJO;
-
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -84,6 +83,7 @@ public class BedrockArmorModel extends BedrockModel {
 
     /**
      * 根据骨骼名称获取缓存的盔甲部位骨骼
+     *
      * @param boneName 骨骼名称
      * @return 对应的骨骼，如果不存在则返回 null
      */

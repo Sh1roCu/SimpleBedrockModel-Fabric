@@ -1,26 +1,35 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.network.message;
 
+import com.github.mcmodderanchor.simplebedrockmodel.SimpleBedrockModel;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.event.SwapItemWithOffHand;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.fabricmc.fabric.api.networking.v1.FabricPacket;
+import net.fabricmc.fabric.api.networking.v1.PacketSender;
+import net.fabricmc.fabric.api.networking.v1.PacketType;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.network.NetworkEvent;
 
-import java.util.function.Supplier;
+public class ServerMessageSwapItem implements FabricPacket {
 
-public record ServerMessageSwapItem() {
-
-    public static void encode(ServerMessageSwapItem message, FriendlyByteBuf buf) {
-    }
+    public static final PacketType<ServerMessageSwapItem> TYPE = PacketType.create(SimpleBedrockModel.modLoc("swap_item"), ServerMessageSwapItem::decode);
 
     public static ServerMessageSwapItem decode(FriendlyByteBuf buf) {
         return new ServerMessageSwapItem();
     }
 
-    public static void handle(ServerMessageSwapItem message, Supplier<NetworkEvent.Context> contextSupplier) {
-        NetworkEvent.Context context = contextSupplier.get();
-        if (context.getDirection().getReceptionSide().isClient()) {
-            context.enqueueWork(() -> MinecraftForge.EVENT_BUS.post(new SwapItemWithOffHand()));
-        }
-        context.setPacketHandled(true);
+    @Environment(EnvType.CLIENT)
+    public static void handle(ServerMessageSwapItem packet, LocalPlayer player, PacketSender responseSender) {
+        SwapItemWithOffHand.EVENT.invoker().post(new SwapItemWithOffHand());
+    }
+
+    @Override
+    public void write(FriendlyByteBuf buf) {
+
+    }
+
+    @Override
+    public PacketType<?> getType() {
+        return TYPE;
     }
 }

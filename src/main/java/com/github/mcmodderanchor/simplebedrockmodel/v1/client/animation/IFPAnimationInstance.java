@@ -13,18 +13,21 @@ public interface IFPAnimationInstance {
 
     /**
      * Get the blended pose from all active animations.
+     *
      * @return the current pose
      */
     Pose getPose();
 
     /**
      * should be called every frame to update the animation state or other logic.
+     *
      * @param partialTicks the partial ticks
      */
     void tick(float partialTicks);
 
     /**
      * Get the camera rotation quaternion for first-person rendering.
+     *
      * @return the camera rotation
      */
     @NotNull
@@ -41,6 +44,7 @@ public interface IFPAnimationInstance {
 
     /**
      * Get the cached pose for this frame. Should store the result of {@link #getPose()} firstly at the start of each frame.
+     *
      * @return the cached pose
      */
     Pose getCachedPose();

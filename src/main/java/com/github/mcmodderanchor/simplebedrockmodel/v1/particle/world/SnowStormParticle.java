@@ -2,12 +2,17 @@ package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.world;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleDescription;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleEffectDefinition;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.*;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.motion.*;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.ParticleAppearanceBillboard;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.ParticleAppearanceLighting;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.ParticleExpireIfInBlocks;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.ParticleExpireIfNotInBlocks;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.motion.ParticleMotionCollision;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleEmitterInstance;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleInstance;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.util.math.MathUtil;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.ParticleRenderType;
@@ -18,15 +23,13 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
 import org.jetbrains.annotations.Nullable;
 import org.joml.*;
 
 import java.lang.Math;
 import java.util.List;
 
-@OnlyIn(Dist.CLIENT)
+@Environment(EnvType.CLIENT)
 public class SnowStormParticle extends TextureSheetParticle {
 
     private final ParticleInstance particleData;
@@ -225,8 +228,8 @@ public class SnowStormParticle extends TextureSheetParticle {
             // 触发碰撞事件
             float speed = (float) Math.sqrt(
                     particleData.vx * particleData.vx +
-                    particleData.vy * particleData.vy +
-                    particleData.vz * particleData.vz
+                            particleData.vy * particleData.vy +
+                            particleData.vz * particleData.vz
             );
             emitter.fireCollisionEvents(particleData, speed);
 
@@ -280,7 +283,7 @@ public class SnowStormParticle extends TextureSheetParticle {
     }
 
     private void renderVertex(VertexConsumer buffer, float cx, float cy, float cz,
-                               float xOff, float yOff, float u, float v, int light) {
+                              float xOff, float yOff, float u, float v, int light) {
         TEMP_VEC.set(xOff, yOff, 0).rotate(QUATERNION).add(cx, cy, cz);
         buffer.vertex(TEMP_VEC.x(), TEMP_VEC.y(), TEMP_VEC.z())
                 .uv(u, v).color(rCol, gCol, bCol, alpha).uv2(light).endVertex();

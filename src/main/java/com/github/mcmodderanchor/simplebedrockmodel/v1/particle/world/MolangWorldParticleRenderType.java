@@ -7,12 +7,12 @@ import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.particle.ParticleRenderType;
 import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 每个纹理+材质组合对应一个实例，通过 {@link #get(ParticleDescription.Material, ResourceLocation)} 获取。<br/>
  * todo 目前没用atlas，一个贴图一个，考虑优化 ？
  */
-@OnlyIn(Dist.CLIENT)
+@Environment(EnvType.CLIENT)
 public final class MolangWorldParticleRenderType implements ParticleRenderType {
 
     private static final Map<String, MolangWorldParticleRenderType> CACHE = new ConcurrentHashMap<>();

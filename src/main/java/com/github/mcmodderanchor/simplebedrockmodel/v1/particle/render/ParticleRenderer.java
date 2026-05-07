@@ -6,14 +6,14 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.Particle
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleInstance;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
+import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 
-import org.jetbrains.annotations.Nullable;
 import java.util.List;
 
 /**
@@ -21,10 +21,11 @@ import java.util.List;
  * <p>
  * 世界空间粒子由原版 {@code ParticleEngine} 渲染，不经过此渲染器。
  */
-@OnlyIn(Dist.CLIENT)
+@Environment(EnvType.CLIENT)
 public final class ParticleRenderer {
 
-    private ParticleRenderer() {}
+    private ParticleRenderer() {
+    }
 
     /**
      * 渲染一个发射器的所有局部空间粒子。
@@ -38,9 +39,9 @@ public final class ParticleRenderer {
      *                       用于 fpDetached 粒子。可为 null。
      */
     public static void render(ParticleEmitterInstance emitter, PoseStack poseStack,
-                               MultiBufferSource bufferSource, int light, float partialTick,
-                               float cameraPitch, float cameraRoll,
-                               @Nullable Matrix4f cameraRotation) {
+                              MultiBufferSource bufferSource, int light, float partialTick,
+                              float cameraPitch, float cameraRoll,
+                              @Nullable Matrix4f cameraRotation) {
         List<ParticleInstance> particles = emitter.getParticles();
         if (particles.isEmpty()) return;
 

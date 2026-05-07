@@ -6,9 +6,9 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.I
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleMolangEnvironment;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.jetbrains.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,10 +27,18 @@ public record ParticleMotionCollision(
         List<CollisionEvent> events
 ) implements IParticleComponentDefinition, IParticleComponent {
 
-    @Override public int order() { return 350; }
-    @Override public boolean requireUpdate() { return enabled != null || !events.isEmpty(); }
+    @Override
+    public int order() {
+        return 350;
+    }
 
-    public record CollisionEvent(String event, float minSpeed) {}
+    @Override
+    public boolean requireUpdate() {
+        return enabled != null || !events.isEmpty();
+    }
+
+    public record CollisionEvent(String event, float minSpeed) {
+    }
 
     public static ParticleMotionCollision fromJson(String key, JsonElement value, ParticleMolangEnvironment molang) {
         JsonObject obj = value.getAsJsonObject();

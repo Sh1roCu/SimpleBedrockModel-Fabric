@@ -1,42 +1,10 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.client.compat.epicfight;
 
-import com.github.mcmodderanchor.simplebedrockmodel.v1.client.model.BedrockArmorModel;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.client.renderer.GeoArmorRenderer;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.common.model.BedrockBone;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.common.model.BedrockCube;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.mojang.blaze3d.vertex.PoseStack;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntList;
-import net.minecraft.client.model.HumanoidModel;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Vec3i;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.client.extensions.common.IClientItemExtensions;
-import org.joml.Matrix4f;
-import org.joml.Vector3f;
-import yesman.epicfight.api.client.forgeevent.AnimatedArmorTextureEvent;
-import yesman.epicfight.api.client.model.Mesh;
-import yesman.epicfight.api.client.model.MeshPartDefinition;
-import yesman.epicfight.api.client.model.SingleGroupVertexBuilder;
-import yesman.epicfight.api.client.model.SkinnedMesh;
-import yesman.epicfight.api.client.model.transformer.HumanoidModelTransformer;
-import yesman.epicfight.api.utils.math.OpenMatrix4f;
-import yesman.epicfight.api.utils.math.Vec2f;
-import yesman.epicfight.api.utils.math.Vec3f;
-
-import org.jetbrains.annotations.Nullable;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Supplier;
-
 /**
  * Transforms BedrockArmorModel into EpicFight SkinnedMesh.
  * Based on EpicFight's GeoModelTransformer for GeckoLib armor.
  */
-public class BedrockArmorTransformer extends HumanoidModelTransformer {
+public class BedrockArmorTransformer { /*extends HumanoidModelTransformer {
 
     public static void getBedrockArmorTexturePath(AnimatedArmorTextureEvent event) {
         IClientItemExtensions customRenderProperties = IClientItemExtensions.of(event.getItemstack());
@@ -155,10 +123,10 @@ public class BedrockArmorTransformer extends HumanoidModelTransformer {
 
     // ========== Vertex computation helpers ==========
 
-    /**
-     * Compute 8 vertex positions for a cube, transformed by the pose matrix.
-     * Same math as BedrockCubeBox.prepareVertices but thread-safe (no shared static arrays).
-     */
+    *//**
+ * Compute 8 vertex positions for a cube, transformed by the pose matrix.
+ * Same math as BedrockCubeBox.prepareVertices but thread-safe (no shared static arrays).
+ *//*
     static Vector3f[] computeVertices(Matrix4f pose, BedrockCube cube) {
         float x = cube.x(), y = cube.y(), z = cube.z();
         float w = cube.width(), h = cube.height(), d = cube.depth();
@@ -212,10 +180,10 @@ public class BedrockArmorTransformer extends HumanoidModelTransformer {
         return new PosTexVertex(pos.x, pos.y, pos.z, u, v);
     }
 
-    /**
-     * Triangulate a quad (4 vertices) into two triangles, matching EpicFight's winding order.
-     * Copied from HumanoidModelTransformer.PartTransformer.triangluatePolygon (package-private).
-     */
+    *//**
+ * Triangulate a quad (4 vertices) into two triangles, matching EpicFight's winding order.
+ * Copied from HumanoidModelTransformer.PartTransformer.triangluatePolygon (package-private).
+ *//*
     static void triangulatePolygon(Map<MeshPartDefinition, IntList> indices, MeshPartDefinition partDefinition, IndexCounter indexCounter) {
         IntList list = indices.computeIfAbsent(partDefinition, k -> new IntArrayList());
         int base = indexCounter.index;
@@ -745,5 +713,5 @@ public class BedrockArmorTransformer extends HumanoidModelTransformer {
         public int hashCode() {
             return this.partName.hashCode();
         }
-    }
+    }*/
 }

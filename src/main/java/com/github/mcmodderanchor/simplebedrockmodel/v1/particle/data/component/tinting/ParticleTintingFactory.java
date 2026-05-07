@@ -19,7 +19,8 @@ import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.Part
  */
 public final class ParticleTintingFactory {
 
-    private ParticleTintingFactory() {}
+    private ParticleTintingFactory() {
+    }
 
     public static IParticleComponentDefinition fromJson(String key, JsonElement value, ParticleMolangEnvironment molang) {
         JsonObject obj = value.getAsJsonObject();

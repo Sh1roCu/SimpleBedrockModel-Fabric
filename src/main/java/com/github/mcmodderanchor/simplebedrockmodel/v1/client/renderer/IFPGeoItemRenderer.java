@@ -43,5 +43,5 @@ public interface IFPGeoItemRenderer {
     }
 
     void renderFirstPerson(LocalPlayer player, ItemStack stack, ItemDisplayContext ctx, PoseStack poseStack, MultiBufferSource bufferSource,
-                                  int light, float partialTick);
+                           int light, float partialTick);
 }

@@ -1,5 +1,7 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.client.renderer;
 
+import cn.sh1rocu.simplebedrockmodel.api.event.ViewportEvent;
+import cn.sh1rocu.simplebedrockmodel.util.client.MinecraftUtil;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.animation.IFPAnimationInstance;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.model.PositionableModel;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.model.SlotModel;
@@ -7,6 +9,7 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.common.model.BedrockModel
 import com.github.mcmodderanchor.simplebedrockmodel.v1.util.RenderDistance;
 import com.maydaymemory.mae.basic.YXZRotationView;
 import com.mojang.blaze3d.vertex.PoseStack;
+import net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
@@ -18,7 +21,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.client.event.ViewportEvent;
 import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Quaternionf;
@@ -32,7 +34,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
  * @param <M> 基岩版模型
  */
 public abstract class AbstractGeoItemRenderer<M extends BedrockModel>
-        extends BlockEntityWithoutLevelRenderer implements IFPGeoItemRenderer {
+        extends BlockEntityWithoutLevelRenderer implements IFPGeoItemRenderer, BuiltinItemRendererRegistry.DynamicItemRenderer {
     public static final String FP_CAMERA_BONE_NAME = "camera";
     private static final SlotModel SLOT_MODEL = new SlotModel();
 
@@ -104,7 +106,7 @@ public abstract class AbstractGeoItemRenderer<M extends BedrockModel>
         if (ctx.firstPerson()) {
             return;
         }
-        render(stack, ctx, poseStack, bufferSource, light, overlay, Minecraft.getInstance().getPartialTick());
+        render(stack, ctx, poseStack, bufferSource, light, overlay, MinecraftUtil.getPartialTick());
     }
 
     protected void render(ItemStack stack, ItemDisplayContext ctx, PoseStack poseStack, MultiBufferSource bufferSource,
@@ -151,6 +153,7 @@ public abstract class AbstractGeoItemRenderer<M extends BedrockModel>
 
     /**
      * 使用该渲染器的物品会阻止原版的viewBobbing，以便应用自定义的跑步/走路动画。
+     *
      * @return 是否阻止原版viewBobbing
      */
     public boolean blockViewBobbing() {
@@ -165,6 +168,7 @@ public abstract class AbstractGeoItemRenderer<M extends BedrockModel>
     /**
      * Check if the given ItemStack should be considered the same as the current one.
      * If false is returned, a new IFPAnimationInstance will be created for the new item.
+     *
      * @param oldStack current item stack
      * @param newStack the new item stack
      * @return true if the items are considered the same, false otherwise

@@ -89,8 +89,7 @@ public final class ExpressionInterpreter<T> implements ExpressionVisitor<Value>,
                 // but not:
                 //      x = 1
                 //      i = 2
-                if (a instanceof AccessExpression) {
-                    final AccessExpression access = (AccessExpression) a;
+                if (a instanceof AccessExpression access) {
                     final Value objectValue = access.object().visit(evaluator);
                     if (objectValue instanceof MutableObjectBinding) {
                         ((MutableObjectBinding) objectValue).set(access.property(), val);
@@ -254,13 +253,12 @@ public final class ExpressionInterpreter<T> implements ExpressionVisitor<Value>,
                 // - array:            Any array
                 // - CallableBinding:  The looped expressions
                 final Expression variableExpr = args.next().expression();
-                if (!(variableExpr instanceof AccessExpression)) {
+                if (!(variableExpr instanceof AccessExpression variableAccess)) {
                     // first argument must be an access expression,
                     // e.g. 'variable.test', 'v.pig', 't.entity' or
                     // 't.entity.location.world'
                     return NumberValue.zero();
                 }
-                final AccessExpression variableAccess = (AccessExpression) variableExpr;
                 final Expression objectExpr = variableAccess.object();
                 final String propertyName = variableAccess.property();
 
@@ -275,8 +273,7 @@ public final class ExpressionInterpreter<T> implements ExpressionVisitor<Value>,
 
                 final Value expr = args.next().eval();
 
-                if (expr instanceof Function) {
-                    final Function callable = (Function) expr;
+                if (expr instanceof Function callable) {
                     for (final Value val : arrayIterable) {
                         // set 'val' as current value
                         // eval (objectExpr.propertyName = val)
@@ -300,8 +297,7 @@ public final class ExpressionInterpreter<T> implements ExpressionVisitor<Value>,
             return Value.nil();
         }
 
-        if (warnOnReflectiveFunctionUsage && function instanceof JavaFunction) {
-            final JavaFunction<?> javaFunction = (JavaFunction<?>) function;
+        if (warnOnReflectiveFunctionUsage && function instanceof JavaFunction<?> javaFunction) {
             System.err.println("Warning: Reflective function usage detected for method: " + javaFunction.method());
         }
 

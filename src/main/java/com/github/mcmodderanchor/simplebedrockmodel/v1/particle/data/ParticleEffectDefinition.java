@@ -4,8 +4,8 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.*
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.curve.ParticleCurve;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.event.IEventNode;
 import net.minecraft.resources.ResourceLocation;
-
 import org.jetbrains.annotations.Nullable;
+
 import java.util.*;
 
 /**
@@ -68,12 +68,16 @@ public class ParticleEffectDefinition {
         return description;
     }
 
-    /** 获取发射器预设 */
+    /**
+     * 获取发射器预设
+     */
     public EmitterPreset emitterPreset() {
         return emitterPreset;
     }
 
-    /** 获取粒子预设 */
+    /**
+     * 获取粒子预设
+     */
     public ParticlePreset particlePreset() {
         return particlePreset;
     }

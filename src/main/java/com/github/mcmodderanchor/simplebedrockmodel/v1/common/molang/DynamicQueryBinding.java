@@ -1,8 +1,8 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.common.molang;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.*;
-
 import org.jetbrains.annotations.Nullable;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;

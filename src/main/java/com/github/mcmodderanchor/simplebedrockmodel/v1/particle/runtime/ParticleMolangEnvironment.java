@@ -1,9 +1,9 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime;
 
-import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangContext;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.molang.MolangEngineHelper;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangExpression;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.MochaEngine;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangContext;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangExpression;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.MutableObjectBinding;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.NumberValue;
 
@@ -17,7 +17,9 @@ public class ParticleMolangEnvironment {
     private final MochaEngine<?> engine;
     private final MolangContext<?> context;
 
-    /** 创建独立的 Molang 环境 */
+    /**
+     * 创建独立的 Molang 环境
+     */
     public ParticleMolangEnvironment() {
         this.context = new MolangContext<>();
         this.engine = MolangEngineHelper.createEngine(context);

@@ -33,7 +33,8 @@ import static java.util.Objects.requireNonNull;
 
 public final class AsmUtil {
 
-    private AsmUtil() {}
+    private AsmUtil() {
+    }
 
     /**
      * Returns the internal name (slash-separated) for a Java class.

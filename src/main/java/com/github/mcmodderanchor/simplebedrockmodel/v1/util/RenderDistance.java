@@ -1,11 +1,11 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.util;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import org.joml.Matrix4f;
 
-@OnlyIn(Dist.CLIENT)
+@Environment(EnvType.CLIENT)
 public final class RenderDistance {
     private static long GUI_RENDER_TIMESTAMP = -1L;
 

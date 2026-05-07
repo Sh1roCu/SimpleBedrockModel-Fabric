@@ -4,16 +4,16 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.common.BoneIndexProvider;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.ParticleEffectDataKeyframe;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.ResourceLocationKeyframe;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.molang.MolangEngineHelper;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangExpression;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.pojo.*;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.MochaEngine;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangExpression;
 import com.maydaymemory.mae.basic.*;
 import it.unimi.dsi.fastutil.doubles.Double2ObjectMap;
 import net.minecraft.resources.ResourceLocation;
+import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
 
-import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -42,8 +42,8 @@ public class BedrockAnimation extends BasicAnimation {
     }
 
     public static BedrockAnimation createAnimation(String name, BedrockAnimationPOJO pojo,
-                                                    @Nullable BoneIndexProvider indexProvider,
-                                                    @Nullable MochaEngine<?> molangEngine) {
+                                                   @Nullable BoneIndexProvider indexProvider,
+                                                   @Nullable MochaEngine<?> molangEngine) {
         BedrockAnimation animation = new BedrockAnimation(name);
         if (pojo.getBones() != null && indexProvider != null) {
             for (Map.Entry<String, AnimationBone> entry : pojo.getBones().entrySet()) {
@@ -85,8 +85,8 @@ public class BedrockAnimation extends BasicAnimation {
     }
 
     public static List<BedrockAnimation> createAnimation(BedrockAnimationFile pojo,
-                                                          @Nullable BoneIndexProvider indexProvider,
-                                                          @Nullable MochaEngine<?> molangEngine) {
+                                                         @Nullable BoneIndexProvider indexProvider,
+                                                         @Nullable MochaEngine<?> molangEngine) {
         List<BedrockAnimation> animations = new ArrayList<>();
         if (pojo.getAnimations() != null) {
             for (Map.Entry<String, BedrockAnimationPOJO> entry : pojo.getAnimations().entrySet()) {
@@ -104,7 +104,7 @@ public class BedrockAnimation extends BasicAnimation {
         }
         ArrayList<InterpolatableKeyframe<Rotation>> array = new ArrayList<>();
         keyframes.getKeyframes().forEach((timeS, keyframe) -> {
-            array.add(parseRotationKeyframe((float) (double)timeS, keyframe, x, y, z, molangEngine));
+            array.add(parseRotationKeyframe((float) (double) timeS, keyframe, x, y, z, molangEngine));
         });
         return new ArrayInterpolatableChannel<>(array);
     }
@@ -168,14 +168,14 @@ public class BedrockAnimation extends BasicAnimation {
         }
         ArrayList<InterpolatableKeyframe<Vector3fc>> array = new ArrayList<>();
         keyframes.getKeyframes().forEach((timeS, keyframe) -> {
-            array.add(parseKeyframe((float)(double)timeS, keyframe, x, y, z, molangEngine));
+            array.add(parseKeyframe((float) (double) timeS, keyframe, x, y, z, molangEngine));
         });
         return new ArrayInterpolatableChannel<>(array);
     }
 
     private static InterpolatableKeyframe<Vector3fc> parseKeyframe(float timeS, AnimationKeyframes.Keyframe keyframe,
-                                                                    float x, float y, float z,
-                                                                    @Nullable MochaEngine<?> molangEngine) {
+                                                                   float x, float y, float z,
+                                                                   @Nullable MochaEngine<?> molangEngine) {
         if (keyframe.hasMolang() && molangEngine != null) {
             Interpolator<Vector3fc> interpolator;
             if ("catmullrom".equals(keyframe.getLerpMode())) {

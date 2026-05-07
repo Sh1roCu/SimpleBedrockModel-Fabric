@@ -5,6 +5,6 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.pojo.Bedr
 
 import java.util.function.Function;
 
-public record BedrockModelResourceProcessor (RawResourceLoader rawLoader,
-                                             Function<BedrockModelPOJO, BedrockModel> converter){
+public record BedrockModelResourceProcessor(RawResourceLoader rawLoader,
+                                            Function<BedrockModelPOJO, BedrockModel> converter) {
 }

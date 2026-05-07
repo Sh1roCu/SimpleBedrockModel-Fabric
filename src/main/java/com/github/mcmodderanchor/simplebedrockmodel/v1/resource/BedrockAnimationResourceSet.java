@@ -5,6 +5,7 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.common.animation.BedrockA
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.model.BedrockModel;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.pojo.BedrockAnimationFile;
 import com.google.common.collect.Maps;
+import net.fabricmc.fabric.api.resource.IdentifiableResourceReloadListener;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
@@ -21,10 +22,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-public class BedrockAnimationResourceSet extends SimplePreparableReloadListener<Map<ResourceLocation, BedrockAnimationFile>> {
+public class BedrockAnimationResourceSet extends SimplePreparableReloadListener<Map<ResourceLocation, BedrockAnimationFile>> implements IdentifiableResourceReloadListener {
     private final Map<ResourceLocation, BedrockAnimationResourceProcessor> processors;
     private final List<Consumer<Map<ResourceLocation, List<BedrockAnimation>>>> listeners;
     private final Map<ResourceLocation, List<BedrockAnimation>> animationCache;
+
+    public static final ResourceLocation ID = SimpleBedrockModel.modLoc("bedrock_animation_resource_set");
 
     static BedrockAnimationResourceSet INSTANCE;
 
@@ -53,7 +56,7 @@ public class BedrockAnimationResourceSet extends SimplePreparableReloadListener<
                     if (pojo != null) {
                         pojoMap.put(location, pojo);
                     }
-                }catch (IOException e) {
+                } catch (IOException e) {
                     SimpleBedrockModel.LOGGER.error("Failed to load animation file: {}", path, e);
                 }
             }, () -> SimpleBedrockModel.LOGGER.error("Not found animation file: {}", path));
@@ -91,5 +94,10 @@ public class BedrockAnimationResourceSet extends SimplePreparableReloadListener<
     @UnmodifiableView
     public Map<ResourceLocation, List<BedrockAnimation>> getAllAnimations() {
         return Collections.unmodifiableMap(animationCache);
+    }
+
+    @Override
+    public ResourceLocation getFabricId() {
+        return ID;
     }
 }

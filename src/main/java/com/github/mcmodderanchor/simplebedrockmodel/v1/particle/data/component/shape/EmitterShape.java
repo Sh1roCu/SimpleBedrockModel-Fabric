@@ -9,8 +9,8 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.Particle
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-
 import org.jetbrains.annotations.Nullable;
+
 import java.util.Random;
 
 import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleJsonUtils.*;
@@ -21,10 +21,13 @@ import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.Part
 public interface EmitterShape extends IEmitterComponentDefinition, IEmitterComponent {
 
     @Override
-    default int order() { return 0; }
+    default int order() {
+        return 0;
+    }
 
-    enum PlaneNormal { X, Y, Z, CUSTOM }
-    enum DirectionMode { OUTWARDS, INWARDS, CUSTOM }
+    enum PlaneNormal {X, Y, Z, CUSTOM}
+
+    enum DirectionMode {OUTWARDS, INWARDS, CUSTOM}
 
     MolangExpression[] offset();
 
@@ -50,10 +53,16 @@ public interface EmitterShape extends IEmitterComponentDefinition, IEmitterCompo
             dy = p.y - oy;
             dz = p.z - oz;
         }
-        if (dirMode == DirectionMode.INWARDS) { dx = -dx; dy = -dy; dz = -dz; }
+        if (dirMode == DirectionMode.INWARDS) {
+            dx = -dx;
+            dy = -dy;
+            dz = -dz;
+        }
         float len = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
         if (len > 0.0001f) {
-            dx /= len; dy /= len; dz /= len;
+            dx /= len;
+            dy /= len;
+            dz /= len;
         } else {
             float theta = (float) (random.nextFloat() * Math.PI * 2);
             float phi = (float) (Math.acos(2 * random.nextFloat() - 1));
@@ -61,12 +70,15 @@ public interface EmitterShape extends IEmitterComponentDefinition, IEmitterCompo
             dy = (float) Math.cos(phi);
             dz = (float) (Math.sin(phi) * Math.sin(theta));
         }
-        p.vx = dx * speed; p.vy = dy * speed; p.vz = dz * speed;
+        p.vx = dx * speed;
+        p.vy = dy * speed;
+        p.vz = dz * speed;
     }
 
     // ===== JSON parsing helpers =====
 
-    record DirectionParseResult(@Nullable MolangExpression[] direction, DirectionMode mode) {}
+    record DirectionParseResult(@Nullable MolangExpression[] direction, DirectionMode mode) {
+    }
 
     static MolangExpression[] compileArray3(ParticleMolangEnvironment molang, String[] exprs) {
         return new MolangExpression[]{
@@ -78,7 +90,7 @@ public interface EmitterShape extends IEmitterComponentDefinition, IEmitterCompo
         JsonElement elem = obj.get("direction");
         if (elem.isJsonPrimitive() && elem.getAsJsonPrimitive().isString()) {
             return new DirectionParseResult(null,
-                    "inwards".equals(elem.getAsString().toLowerCase()) ? DirectionMode.INWARDS : DirectionMode.OUTWARDS);
+                    "inwards".equalsIgnoreCase(elem.getAsString()) ? DirectionMode.INWARDS : DirectionMode.OUTWARDS);
         }
         if (elem.isJsonArray()) {
             JsonArray arr = elem.getAsJsonArray();
@@ -109,8 +121,7 @@ public interface EmitterShape extends IEmitterComponentDefinition, IEmitterCompo
         DirectionParseResult dirResult = parseShapeDirection(obj, molang);
 
         return switch (key) {
-            case "minecraft:emitter_shape_point" ->
-                    new EmitterShapePoint(offset, dirResult.direction, dirResult.mode);
+            case "minecraft:emitter_shape_point" -> new EmitterShapePoint(offset, dirResult.direction, dirResult.mode);
             case "minecraft:emitter_shape_sphere" ->
                     new EmitterShapeSphere(offset, molang.compile(getMolang(obj, "radius", "1")),
                             getBoolean(obj, "surface_only", false), dirResult.direction, dirResult.mode);

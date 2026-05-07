@@ -23,8 +23,15 @@ public record ParticleMotionDynamic(
         @Nullable MolangExpression rotationDragCoefficient
 ) implements IParticleComponentDefinition, IParticleComponent {
 
-    @Override public int order() { return 300; }
-    @Override public boolean requireUpdate() { return true; }
+    @Override
+    public int order() {
+        return 300;
+    }
+
+    @Override
+    public boolean requireUpdate() {
+        return true;
+    }
 
     @Override
     public void apply(ParticleInstance p) { /* 首次由 update 处理 */ }
@@ -35,7 +42,9 @@ public record ParticleMotionDynamic(
         applyLegacy(p, p.emitter.getMolang().getContext(), 1f / 20f);
     }
 
-    /** 兼容旧调用方（Phase 4 后移除） */
+    /**
+     * 兼容旧调用方（Phase 4 后移除）
+     */
     public void applyLegacy(ParticleInstance p, MolangContext<?> ctx, float dt) {
         if (linearAcceleration != null) {
             p.vx += (float) linearAcceleration[0].evaluate(ctx) * dt;
@@ -44,7 +53,9 @@ public record ParticleMotionDynamic(
         }
         if (linearDragCoefficient != null) {
             float factor = Math.max(0, 1f - (float) linearDragCoefficient.evaluate(ctx) * dt);
-            p.vx *= factor; p.vy *= factor; p.vz *= factor;
+            p.vx *= factor;
+            p.vy *= factor;
+            p.vz *= factor;
         }
         if (rotationAcceleration != null) {
             p.rotationRate += (float) rotationAcceleration.evaluate(ctx) * dt;

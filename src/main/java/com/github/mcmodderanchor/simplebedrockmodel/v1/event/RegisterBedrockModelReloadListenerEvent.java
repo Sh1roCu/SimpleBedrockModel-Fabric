@@ -1,17 +1,24 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.event;
 
+import cn.sh1rocu.simplebedrockmodel.api.event.BaseEvent;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.model.BedrockModel;
+import net.fabricmc.fabric.api.event.Event;
+import net.fabricmc.fabric.api.event.EventFactory;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.eventbus.api.Event;
-import net.minecraftforge.fml.event.IModBusEvent;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-public class RegisterBedrockModelReloadListenerEvent extends Event implements IModBusEvent {
+public class RegisterBedrockModelReloadListenerEvent extends BaseEvent {
     private final List<Consumer<Map<ResourceLocation, BedrockModel>>> listeners = new ArrayList<>();
+
+    public static final Event<Callback> EVENT = EventFactory.createArrayBacked(Callback.class, callbacks -> event -> {
+        for (Callback callback : callbacks) {
+            callback.post(event);
+        }
+    });
 
     public void register(Consumer<Map<ResourceLocation, BedrockModel>> listener) {
         this.listeners.add(listener);
@@ -19,5 +26,9 @@ public class RegisterBedrockModelReloadListenerEvent extends Event implements IM
 
     public List<Consumer<Map<ResourceLocation, BedrockModel>>> getListeners() {
         return listeners;
+    }
+
+    public interface Callback {
+        void post(RegisterBedrockModelReloadListenerEvent event);
     }
 }

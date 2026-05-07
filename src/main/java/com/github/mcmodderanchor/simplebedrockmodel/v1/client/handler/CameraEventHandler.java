@@ -1,18 +1,17 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.client.handler;
 
+import cn.sh1rocu.simplebedrockmodel.api.event.ViewportEvent;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.event.BeforeRenderHandEvent;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.event.RenderItemInHandBobEvent;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.renderer.AbstractGeoItemRenderer;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.ViewportEvent;
-import net.minecraftforge.client.extensions.common.IClientItemExtensions;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
 import org.joml.*;
 
-@Mod.EventBusSubscriber(value = Dist.CLIENT)
+@Environment(EnvType.CLIENT)
 public class CameraEventHandler {
 
     // 测试用
@@ -55,7 +54,7 @@ public class CameraEventHandler {
             }
         }
 
-        return  euler;
+        return euler;
     }
 
     public static Vector3fc asEulerAngle(Quaternionf quaternion) {
@@ -66,7 +65,6 @@ public class CameraEventHandler {
     /**
      * 当主手拿着枪械物品的时候，取消应用在它上面的 viewBobbing，以便应用自定义的跑步/走路动画。
      */
-    @SubscribeEvent
     public static void cancelItemInHandViewBobbing(RenderItemInHandBobEvent.BobView event) {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null) {
@@ -74,12 +72,11 @@ public class CameraEventHandler {
         }
         var instance = FirstPersonRenderHandler.getActiveAnimationInstance();
 
-        if (instance != null && IClientItemExtensions.of(instance.currentItem()).getCustomRenderer() instanceof AbstractGeoItemRenderer<?> renderer) {
+        if (instance != null && BuiltinItemRendererRegistry.INSTANCE.get(instance.currentItem().getItem()) instanceof AbstractGeoItemRenderer<?> renderer) {
             event.setCanceled(renderer.blockViewBobbing());
         }
     }
 
-    @SubscribeEvent
     public static void applyLevelCameraAnimation(ViewportEvent.ComputeCameraAngles event) {
         if (!Minecraft.getInstance().options.bobView().get()) {
             return;
@@ -90,12 +87,11 @@ public class CameraEventHandler {
         }
         var instance = FirstPersonRenderHandler.getActiveAnimationInstance();
 
-        if (instance != null && IClientItemExtensions.of(instance.currentItem()).getCustomRenderer() instanceof AbstractGeoItemRenderer<?> renderer) {
+        if (instance != null && BuiltinItemRendererRegistry.INSTANCE.get(instance.currentItem().getItem()) instanceof AbstractGeoItemRenderer<?> renderer) {
             renderer.applyLevelCameraAnimation(event, instance.currentItem(), instance.getCameraRotation(), (float) event.getPartialTick());
         }
     }
 
-    @SubscribeEvent
     public static void applyItemInHandCameraAnimation(BeforeRenderHandEvent event) {
         if (!Minecraft.getInstance().options.bobView().get()) {
             return;
@@ -106,7 +102,7 @@ public class CameraEventHandler {
         }
         var instance = FirstPersonRenderHandler.getActiveAnimationInstance();
 
-        if (instance != null && IClientItemExtensions.of(instance.currentItem()).getCustomRenderer() instanceof AbstractGeoItemRenderer<?> renderer) {
+        if (instance != null && BuiltinItemRendererRegistry.INSTANCE.get(instance.currentItem().getItem()) instanceof AbstractGeoItemRenderer<?> renderer) {
             renderer.applyItemInHandCameraAnimation(event.getPoseStack(), instance.currentItem(), instance.getCameraRotation(), event.getPartialTick());
         }
     }

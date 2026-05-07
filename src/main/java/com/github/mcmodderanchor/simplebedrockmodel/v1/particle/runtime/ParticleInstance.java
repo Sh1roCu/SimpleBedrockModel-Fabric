@@ -38,11 +38,15 @@ public class ParticleInstance {
     // KillPlane 符号追踪
     public boolean insideKillPlane = false;
 
-    /** 所属发射器（用于事件触发和 Molang 上下文访问） */
+    /**
+     * 所属发射器（用于事件触发和 Molang 上下文访问）
+     */
     @Nullable
     public ParticleEmitterInstance emitter;
 
-    /** 粒子运行时组件列表 */
+    /**
+     * 粒子运行时组件列表
+     */
     public List<IParticleComponent> updateComponents = List.of();
 
     public ParticleInstance() {
@@ -72,6 +76,7 @@ public class ParticleInstance {
 
     /**
      * 更新粒子位置和年龄。
+     *
      * @param dt 时间步长（秒）
      */
     public void tick(float dt) {

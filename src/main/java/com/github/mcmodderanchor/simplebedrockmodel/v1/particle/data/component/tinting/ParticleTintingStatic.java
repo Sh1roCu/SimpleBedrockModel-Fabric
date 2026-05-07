@@ -8,11 +8,18 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.Particle
 import org.jetbrains.annotations.Nullable;
 
 public record ParticleTintingStatic(MolangExpression r, MolangExpression g, MolangExpression b,
-                                     @Nullable MolangExpression a)
+                                    @Nullable MolangExpression a)
         implements IParticleComponentDefinition, IParticleComponent {
 
-    @Override public int order() { return 210; }
-    @Override public boolean requireUpdate() { return false; }
+    @Override
+    public int order() {
+        return 210;
+    }
+
+    @Override
+    public boolean requireUpdate() {
+        return false;
+    }
 
     @Override
     public void apply(ParticleInstance p) {

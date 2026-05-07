@@ -11,10 +11,12 @@ public interface IParticleComponent extends IComponent {
     /**
      * 粒子 spawn 时调用一次。
      */
-    default void apply(ParticleInstance particle) {}
+    default void apply(ParticleInstance particle) {
+    }
 
     /**
      * 粒子每 tick 调用。
      */
-    default void update(ParticleInstance particle) {}
+    default void update(ParticleInstance particle) {
+    }
 }

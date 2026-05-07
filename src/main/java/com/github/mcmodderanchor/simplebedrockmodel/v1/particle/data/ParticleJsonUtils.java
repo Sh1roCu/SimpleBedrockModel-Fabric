@@ -5,7 +5,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import net.minecraft.resources.ResourceLocation;
-
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -16,7 +15,8 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class ParticleJsonUtils {
 
-    private ParticleJsonUtils() {}
+    private ParticleJsonUtils() {
+    }
 
     /**
      * 从 JsonObject 中提取 Molang 表达式字符串。

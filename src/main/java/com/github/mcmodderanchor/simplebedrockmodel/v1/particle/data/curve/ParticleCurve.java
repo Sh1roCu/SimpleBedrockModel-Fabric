@@ -5,8 +5,8 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.Particle
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-
 import org.jetbrains.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;

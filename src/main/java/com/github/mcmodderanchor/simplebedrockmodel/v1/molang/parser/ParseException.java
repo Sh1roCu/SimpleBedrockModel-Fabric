@@ -65,7 +65,7 @@ public class ParseException extends IOException {
         // default format for exception messages, i.e.
         // "unexpected token: '%'"
         // "    at line 2, column 6"
-        return message + "\n\tat " + cursor.toString();
+        return message + "\n\tat " + cursor;
     }
 
 }

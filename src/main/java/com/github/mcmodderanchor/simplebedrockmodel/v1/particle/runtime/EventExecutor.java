@@ -21,7 +21,8 @@ import java.util.Random;
  */
 public final class EventExecutor {
 
-    private EventExecutor() {}
+    private EventExecutor() {
+    }
 
     /**
      * 事件执行上下文。

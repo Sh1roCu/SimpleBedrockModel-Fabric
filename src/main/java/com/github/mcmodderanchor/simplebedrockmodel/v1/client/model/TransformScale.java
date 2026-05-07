@@ -2,9 +2,8 @@ package com.github.mcmodderanchor.simplebedrockmodel.v1.client.model;
 
 import com.google.gson.annotations.SerializedName;
 import net.minecraft.world.item.ItemDisplayContext;
-import org.joml.Vector3f;
-
 import org.jetbrains.annotations.Nullable;
+import org.joml.Vector3f;
 
 public class TransformScale {
     @SerializedName("thirdperson")

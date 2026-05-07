@@ -2,20 +2,22 @@ package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.render;
 
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.renderer.RenderStateShard;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
  * 继承 RenderType 以访问 protected 的 RenderStateShard 常量。
  */
-@OnlyIn(Dist.CLIENT)
+@Environment(EnvType.CLIENT)
 public abstract class ParticleRenderType extends RenderType {
     // 不会被实例化，仅用于访问 protected 字段
     private ParticleRenderType() {
-        super("dummy", DefaultVertexFormat.POSITION, VertexFormat.Mode.QUADS, 256, false, false, () -> {}, () -> {});
+        super("dummy", DefaultVertexFormat.POSITION, VertexFormat.Mode.QUADS, 256, false, false, () -> {
+        }, () -> {
+        });
     }
 
     public static RenderType additiveParticle(ResourceLocation texture) {

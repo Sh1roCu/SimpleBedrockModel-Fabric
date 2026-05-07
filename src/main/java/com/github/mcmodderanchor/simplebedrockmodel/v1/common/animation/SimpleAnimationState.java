@@ -14,6 +14,7 @@ import java.util.function.Function;
 
 /**
  * A simple state implementation of state machine.
+ *
  * @param <T> The type of the context object.
  */
 public class SimpleAnimationState<T> implements IAnimationState<T> {
@@ -59,9 +60,12 @@ public class SimpleAnimationState<T> implements IAnimationState<T> {
     }
 
     public static class Builder<T> {
-        private BiConsumer<T, IAnimationState<T>> onEnter = (ctx, from) -> {};
-        private BiConsumer<T, IAnimationTransition<T>> onExit = (ctx, transition) -> {};
-        private Consumer<T> onUpdate = (ctx) -> {};
+        private BiConsumer<T, IAnimationState<T>> onEnter = (ctx, from) -> {
+        };
+        private BiConsumer<T, IAnimationTransition<T>> onExit = (ctx, transition) -> {
+        };
+        private Consumer<T> onUpdate = (ctx) -> {
+        };
         private Function<T, Pose> evaluatePose = (ctx) -> DummyPose.INSTANCE;
 
         public Builder<T> onEnter(BiConsumer<T, IAnimationState<T>> onEnter) {

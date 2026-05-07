@@ -5,10 +5,10 @@ import net.fabricmc.fabric.api.event.EventFactory;
 import net.minecraft.server.packs.resources.PreparableReloadListener;
 import net.minecraft.server.packs.resources.ReloadableResourceManager;
 
-public class RegisterClientReloadListenersEvent {
+public class RegisterClientReloadListenersEvent extends BaseEvent {
     private final ReloadableResourceManager resourceManager;
 
-    public static final Event<Callback> CALLBACK = EventFactory.createArrayBacked(Callback.class, callbacks -> event -> {
+    public static final Event<Callback> EVENT = EventFactory.createArrayBacked(Callback.class, callbacks -> event -> {
         for (Callback callback : callbacks) {
             callback.post(event);
         }

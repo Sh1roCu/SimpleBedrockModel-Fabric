@@ -6,7 +6,10 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.Particle
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * 粒子生命周期事件组件。对应 "minecraft:particle_lifetime_events"。
@@ -60,7 +63,10 @@ public record ParticleLifetimeEvents(
             if (timeline.isEmpty()) return;
             int idx = 0;
             for (Map.Entry<Float, List<String>> entry : timeline.entrySet()) {
-                if (idx < lastTimelineIndex) { idx++; continue; }
+                if (idx < lastTimelineIndex) {
+                    idx++;
+                    continue;
+                }
                 if (particle.age >= entry.getKey()) {
                     lastTimelineIndex = idx + 1;
                     fireEvents(entry.getValue(), particle);
@@ -69,7 +75,9 @@ public record ParticleLifetimeEvents(
             }
         }
 
-        /** 触发过期事件 */
+        /**
+         * 触发过期事件
+         */
         void fireExpiration(ParticleInstance particle) {
             fireEvents(expirationEvent, particle);
         }

@@ -230,9 +230,8 @@ public class CaseInsensitiveStringHashMap<V> extends HashMap<String, V> {
         }
 
         private Object convertEntry(Object o) {
-            if (!(o instanceof Map.Entry<?, ?>))
+            if (!(o instanceof Map.Entry<?, ?> e))
                 return o;
-            final Entry<?, ?> e = (Entry<?, ?>) o;
             final Object key = lowercase(e.getKey());
             final Object value = e.getValue();
             return new SimpleEntry<>(key, value);

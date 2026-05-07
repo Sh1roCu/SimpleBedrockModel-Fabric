@@ -1,31 +1,29 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.client.event;
 
-import com.github.mcmodderanchor.simplebedrockmodel.SimpleBedrockModel;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.common.time.AnimationClock;
+import cn.sh1rocu.simplebedrockmodel.api.event.RenderTickEvent;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.animation.PausedClientAnimationClock;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.common.time.AnimationClock;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientPacketListener;
 
-@Mod.EventBusSubscriber(modid = SimpleBedrockModel.MOD_ID, value = Dist.CLIENT)
+@Environment(EnvType.CLIENT)
 public final class ClientAnimationClockTicker {
-    private ClientAnimationClockTicker() {}
+    private ClientAnimationClockTicker() {
+    }
 
     public static AnimationClock getAnimationClock() {
         return PausedClientAnimationClock.getInstance();
     }
 
-    @SubscribeEvent
-    public static void onRenderTick(TickEvent.RenderTickEvent event) {
-        if (event.phase == TickEvent.Phase.START) {
+    public static void onRenderTick(RenderTickEvent event) {
+        if (event.phase == RenderTickEvent.Phase.START) {
             PausedClientAnimationClock.getInstance().update();
         }
     }
 
-    @SubscribeEvent
-    public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
+    public static void onLoggingOut(ClientPacketListener handler, Minecraft client) {
         PausedClientAnimationClock.getInstance().reset();
     }
 }

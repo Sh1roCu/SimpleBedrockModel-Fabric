@@ -7,7 +7,6 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.Particle
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-
 import org.jetbrains.annotations.Nullable;
 
 import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleJsonUtils.*;
@@ -86,14 +85,16 @@ public record ParticleAppearanceBillboard(
             MolangExpression u, MolangExpression v,
             MolangExpression width, MolangExpression height,
             int textureWidth, int textureHeight
-    ) {}
+    ) {
+    }
 
     public record FlipbookConfig(
             MolangExpression[] baseUV, MolangExpression[] sizeUV, MolangExpression[] stepUV,
             float framesPerSecond, MolangExpression maxFrame,
             boolean stretchToLifetime, boolean loop,
             int textureWidth, int textureHeight
-    ) {}
+    ) {
+    }
 
     public static ParticleAppearanceBillboard fromJson(JsonObject obj, ParticleMolangEnvironment molang) {
         String[] sizeStr = getMolangArray(obj, "size", 2, "0.1", "0.1");

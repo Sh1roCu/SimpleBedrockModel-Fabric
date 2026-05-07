@@ -2,7 +2,6 @@ package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangExpression;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.IEmitterComponent;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.IEmitterComponentDefinition;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleMolangEnvironment;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -15,8 +14,15 @@ import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.Part
 public record EmitterRateManual(MolangExpression maxParticles)
         implements RateComponent, IEmitterComponent {
 
-    @Override public int order() { return 530; }
-    @Override public boolean requireUpdate() { return false; }
+    @Override
+    public int order() {
+        return 530;
+    }
+
+    @Override
+    public boolean requireUpdate() {
+        return false;
+    }
 
     public static EmitterRateManual fromJson(String key, JsonElement value, ParticleMolangEnvironment molang) {
         JsonObject obj = value.getAsJsonObject();

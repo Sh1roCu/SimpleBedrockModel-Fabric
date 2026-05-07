@@ -3,7 +3,6 @@ package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangContext;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.MolangExpression;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.IEmitterComponent;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.IEmitterComponentDefinition;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleEmitterInstance;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleMolangEnvironment;
 import com.google.gson.JsonElement;
@@ -16,8 +15,15 @@ import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.Part
  */
 public record EmitterLifetimeOnce(MolangExpression activeTime) implements LifetimeComponent {
 
-    @Override public int order() { return 500; }
-    @Override public boolean requireUpdate() { return true; }
+    @Override
+    public int order() {
+        return 500;
+    }
+
+    @Override
+    public boolean requireUpdate() {
+        return true;
+    }
 
     @Override
     public IEmitterComponent createRuntime() {
@@ -35,7 +41,9 @@ public record EmitterLifetimeOnce(MolangExpression activeTime) implements Lifeti
         private final MolangExpression activeTimeExpr;
         private float emitterAge;
 
-        public Runtime(MolangExpression activeTime) { this.activeTimeExpr = activeTime; }
+        public Runtime(MolangExpression activeTime) {
+            this.activeTimeExpr = activeTime;
+        }
 
         @Override
         public void apply(ParticleEmitterInstance emitter) {

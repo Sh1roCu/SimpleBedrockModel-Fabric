@@ -7,13 +7,14 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.Particle
 import com.google.common.collect.Maps;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
+import net.fabricmc.fabric.api.resource.IdentifiableResourceReloadListener;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
 import net.minecraft.util.profiling.ProfilerFiller;
 import org.jetbrains.annotations.NotNull;
-
 import org.jetbrains.annotations.Nullable;
+
 import javax.annotation.ParametersAreNonnullByDefault;
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,9 +31,11 @@ import java.util.Map;
  * <p>
  * 每个粒子效果定义在加载时使用共享的 {@link ParticleMolangEnvironment} 编译 Molang 表达式。
  */
-public class ParticleDefinitionLoader extends SimplePreparableReloadListener<Map<ResourceLocation, JsonElement>> {
+public class ParticleDefinitionLoader extends SimplePreparableReloadListener<Map<ResourceLocation, JsonElement>> implements IdentifiableResourceReloadListener {
     private static final String DIRECTORY = "particle_definitions";
     private static final ParticleEffectDeserializer DESERIALIZER = new ParticleEffectDeserializer();
+
+    public static final ResourceLocation ID = SimpleBedrockModel.modLoc("particle_definition");
 
     private static ParticleDefinitionLoader INSTANCE;
 
@@ -104,5 +107,10 @@ public class ParticleDefinitionLoader extends SimplePreparableReloadListener<Map
 
     public ParticleMolangEnvironment getMolang() {
         return molang;
+    }
+
+    @Override
+    public ResourceLocation getFabricId() {
+        return ID;
     }
 }

@@ -3,18 +3,19 @@ package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.NumberValue;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleEffectDefinition;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.*;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.lifetime.*;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.motion.*;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.rate.*;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.shape.*;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.motion.ParticleMotionCollision;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.rate.EmitterRateManual;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.shape.EmitterShape;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.curve.ParticleCurve;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.event.IEventNode;
+import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 
-import org.jetbrains.annotations.Nullable;
-
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
 
 public class ParticleEmitterInstance {
     static final int MAX_PARTICLES = 16384;
@@ -186,7 +187,9 @@ public class ParticleEmitterInstance {
         }
     }
 
-    /** 公共入口，供 Runtime 组件调用 */
+    /**
+     * 公共入口，供 Runtime 组件调用
+     */
     public void spawnParticle() {
         spawnParticleInternal();
     }
@@ -243,19 +246,32 @@ public class ParticleEmitterInstance {
             float scale = extractScale(worldTransform);
             p.spawnScale = scale;
             worldTransform.transform(tempSpawnVec.set(p.x, p.y, p.z, 1));
-            p.x = tempSpawnVec.x; p.y = tempSpawnVec.y; p.z = tempSpawnVec.z;
+            p.x = tempSpawnVec.x;
+            p.y = tempSpawnVec.y;
+            p.z = tempSpawnVec.z;
             p.worldSpace = true;
             if (!effectiveLocalRot) transformVelocityByMatrix(p, worldTransform, scale);
-            else { p.vx *= scale; p.vy *= scale; p.vz *= scale; }
+            else {
+                p.vx *= scale;
+                p.vy *= scale;
+                p.vz *= scale;
+            }
         } else if (fpMode) {
             Matrix4f ref = fpToWorld ? worldTransform : emitterTransform;
             float scale = extractScale(ref);
             p.spawnScale = scale;
             ref.transform(tempSpawnVec.set(p.x, p.y, p.z, 1));
-            p.x = tempSpawnVec.x; p.y = tempSpawnVec.y; p.z = tempSpawnVec.z;
-            if (fpToWorld) p.worldSpace = true; else p.fpDetached = true;
+            p.x = tempSpawnVec.x;
+            p.y = tempSpawnVec.y;
+            p.z = tempSpawnVec.z;
+            if (fpToWorld) p.worldSpace = true;
+            else p.fpDetached = true;
             if (!effectiveLocalRot) transformVelocityByMatrix(p, ref, scale);
-            else { p.vx *= scale; p.vy *= scale; p.vz *= scale; }
+            else {
+                p.vx *= scale;
+                p.vy *= scale;
+                p.vz *= scale;
+            }
         } else {
             p.spawnScale = extractScale(emitterTransform);
         }
@@ -298,8 +314,13 @@ public class ParticleEmitterInstance {
         hasTransform = true;
     }
 
-    public Matrix4f getEmitterTransform() { return emitterTransform; }
-    public Matrix4f getWorldTransform() { return worldTransform; }
+    public Matrix4f getEmitterTransform() {
+        return emitterTransform;
+    }
+
+    public Matrix4f getWorldTransform() {
+        return worldTransform;
+    }
 
     public void setLocalSpaceFlags(boolean pos, boolean rot, boolean vel) {
         this.localPosition = pos;
@@ -307,34 +328,92 @@ public class ParticleEmitterInstance {
         this.localVelocity = vel;
     }
 
-    public boolean isLocalPosition() { return localPosition; }
-    public boolean isLocalRotation() { return localRotation; }
-    public boolean isLocalVelocity() { return localVelocity; }
+    public boolean isLocalPosition() {
+        return localPosition;
+    }
 
-    public float getDt() { return currentDt; }
-    public int getParticleCount() { return particles.size(); }
-    public boolean isActive() { return active; }
-    public boolean isFinished() { return removed && particles.isEmpty(); }
+    public boolean isLocalRotation() {
+        return localRotation;
+    }
 
-    public void setRemoved(boolean removed) { this.removed = removed; }
-    public void setActive(boolean active) { this.active = active; }
-    public void setSleeping(boolean sleeping) { this.sleeping = sleeping; }
-    public void setSleepTimer(float t) { this.sleepTimer = t; }
-    public float getSleepTimer() { return sleepTimer; }
+    public boolean isLocalVelocity() {
+        return localVelocity;
+    }
 
-    public float getEmitterAge() { return emitterAge; }
-    public void setEmitterAge(float age) { this.emitterAge = age; }
-    public float getEmitterLifetime() { return emitterLifetime; }
-    public void setEmitterLifetime(float lt) { this.emitterLifetime = lt; }
+    public float getDt() {
+        return currentDt;
+    }
 
-    public void bindContextAndCurves() { bindEmitterContext(); }
+    public int getParticleCount() {
+        return particles.size();
+    }
 
-    public ParticleEffectDefinition getDefinition() { return definition; }
-    public ParticleMolangEnvironment getMolang() { return molang; }
-    public List<ParticleInstance> getParticles() { return particles; }
+    public boolean isActive() {
+        return active;
+    }
 
-    /** 暴露 emitter 级 Runtime 组件列表，供 Loop 重启等场景遍历重置。 */
-    public List<IEmitterComponent> getEmitterUpdateComponents() { return emitterUpdateComponents; }
+    public boolean isFinished() {
+        return removed && particles.isEmpty();
+    }
+
+    public void setRemoved(boolean removed) {
+        this.removed = removed;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
+    public void setSleeping(boolean sleeping) {
+        this.sleeping = sleeping;
+    }
+
+    public void setSleepTimer(float t) {
+        this.sleepTimer = t;
+    }
+
+    public float getSleepTimer() {
+        return sleepTimer;
+    }
+
+    public float getEmitterAge() {
+        return emitterAge;
+    }
+
+    public void setEmitterAge(float age) {
+        this.emitterAge = age;
+    }
+
+    public float getEmitterLifetime() {
+        return emitterLifetime;
+    }
+
+    public void setEmitterLifetime(float lt) {
+        this.emitterLifetime = lt;
+    }
+
+    public void bindContextAndCurves() {
+        bindEmitterContext();
+    }
+
+    public ParticleEffectDefinition getDefinition() {
+        return definition;
+    }
+
+    public ParticleMolangEnvironment getMolang() {
+        return molang;
+    }
+
+    public List<ParticleInstance> getParticles() {
+        return particles;
+    }
+
+    /**
+     * 暴露 emitter 级 Runtime 组件列表，供 Loop 重启等场景遍历重置。
+     */
+    public List<IEmitterComponent> getEmitterUpdateComponents() {
+        return emitterUpdateComponents;
+    }
 
     public void restart() {
         active = true;
@@ -371,14 +450,20 @@ public class ParticleEmitterInstance {
         this.fpToWorld = toWorld;
     }
 
-    public boolean isFPMode() { return fpMode; }
+    public boolean isFPMode() {
+        return fpMode;
+    }
 
     // ==================== 事件系统 ====================
 
-    public void setEventContext(@Nullable EventExecutor.EventContext context) { this.eventContext = context; }
+    public void setEventContext(@Nullable EventExecutor.EventContext context) {
+        this.eventContext = context;
+    }
 
     @Nullable
-    public EventExecutor.EventContext getEventContext() { return eventContext; }
+    public EventExecutor.EventContext getEventContext() {
+        return eventContext;
+    }
 
     public void fireCreationEvents() {
         if (eventContext == null) return;
@@ -421,7 +506,11 @@ public class ParticleEmitterInstance {
 
     public void applyViewerOffset(float dx, float dy, float dz) {
         for (ParticleInstance p : particles) {
-            if (p.worldSpace) { p.x -= dx; p.y -= dy; p.z -= dz; }
+            if (p.worldSpace) {
+                p.x -= dx;
+                p.y -= dy;
+                p.z -= dz;
+            }
         }
     }
 }

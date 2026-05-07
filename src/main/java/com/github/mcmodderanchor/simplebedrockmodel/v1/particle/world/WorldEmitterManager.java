@@ -8,15 +8,12 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.EventExe
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleEmitterInstance;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleInstance;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleMolangEnvironment;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 
@@ -24,8 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 // 用来管理世界中的粒子发射器
-@OnlyIn(Dist.CLIENT)
-@Mod.EventBusSubscriber(modid = SimpleBedrockModel.MOD_ID, value = Dist.CLIENT)
+@Environment(EnvType.CLIENT)
 public class WorldEmitterManager {
     private static final AnimationClock CLOCK = AnimationClocks.client();
 
@@ -84,19 +80,17 @@ public class WorldEmitterManager {
         return emitter;
     }
 
-    @SubscribeEvent
-    public static void onClientTick(TickEvent.ClientTickEvent event) {
-        if (event.phase != TickEvent.Phase.START) {
-            return;
-        }
+    public static void onClientTick(Minecraft client) {
+//        if (event.phase != TickEvent.Phase.START) {
+//            return;
+//        }
         if (!CLOCK.shouldTick()) {
             return;
         }
         getInstance().tick();
     }
 
-    @SubscribeEvent
-    public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
+    public static void onLoggingOut(ClientPacketListener handler, Minecraft client) {
         getInstance().clear();
     }
 

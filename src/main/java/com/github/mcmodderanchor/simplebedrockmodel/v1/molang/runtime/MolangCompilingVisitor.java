@@ -24,11 +24,7 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.parser.ast.*;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.binding.Entity;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.binding.EntityDerivedBinding;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.binding.JavaFieldBinding;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.binding.JavaFunction;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.binding.JavaObjectBinding;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.binding.*;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.Function;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.NumberValue;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.ObjectValue;
@@ -240,12 +236,24 @@ final class MolangCompilingVisitor implements ExpressionVisitor<CompileVisitResu
                 Label endLabel = new Label();
 
                 switch (op) {
-                    case LT:  mv.visitJumpInsn(Opcodes.IFLT, trueLabel); break;
-                    case LTE: mv.visitJumpInsn(Opcodes.IFLE, trueLabel); break;
-                    case GT:  mv.visitJumpInsn(Opcodes.IFGT, trueLabel); break;
-                    case GTE: mv.visitJumpInsn(Opcodes.IFGE, trueLabel); break;
-                    case EQ:  mv.visitJumpInsn(Opcodes.IFEQ, trueLabel); break;
-                    case NEQ: mv.visitJumpInsn(Opcodes.IFNE, trueLabel); break;
+                    case LT:
+                        mv.visitJumpInsn(Opcodes.IFLT, trueLabel);
+                        break;
+                    case LTE:
+                        mv.visitJumpInsn(Opcodes.IFLE, trueLabel);
+                        break;
+                    case GT:
+                        mv.visitJumpInsn(Opcodes.IFGT, trueLabel);
+                        break;
+                    case GTE:
+                        mv.visitJumpInsn(Opcodes.IFGE, trueLabel);
+                        break;
+                    case EQ:
+                        mv.visitJumpInsn(Opcodes.IFEQ, trueLabel);
+                        break;
+                    case NEQ:
+                        mv.visitJumpInsn(Opcodes.IFNE, trueLabel);
+                        break;
                 }
 
                 emitConst0();
@@ -567,12 +575,10 @@ final class MolangCompilingVisitor implements ExpressionVisitor<CompileVisitResu
             }
         });
 
-        if (objectValue instanceof ObjectValue) {
-            final ObjectValue actualObjectValue = (ObjectValue) objectValue;
+        if (objectValue instanceof ObjectValue actualObjectValue) {
 
             // EntityDerivedBinding: load from entity parameter at runtime
-            if (actualObjectValue instanceof EntityDerivedBinding) {
-                final EntityDerivedBinding derived = (EntityDerivedBinding) actualObjectValue;
+            if (actualObjectValue instanceof EntityDerivedBinding derived) {
                 final Method accessor = derived.accessor();
                 final int entityLoadIndex = functionCompileState.entityParameterLoadIndex();
 
@@ -683,15 +689,12 @@ final class MolangCompilingVisitor implements ExpressionVisitor<CompileVisitResu
             }
         });
 
-        if (!(functionValue instanceof Function<?>)) {
+        if (!(functionValue instanceof Function<?> function)) {
             mv.visitInsn(Opcodes.DCONST_0);
             return new CompileVisitResult(Type.DOUBLE_TYPE);
         }
 
-        final Function<?> function = (Function<?>) functionValue;
-
-        if (function instanceof JavaFunction<?>) {
-            final JavaFunction<?> javaFunction = (JavaFunction<?>) function;
+        if (function instanceof JavaFunction<?> javaFunction) {
             final Method nativeMethod = javaFunction.method();
             final Parameter[] parameters = nativeMethod.getParameters();
             final List<Expression> arguments = expression.arguments();

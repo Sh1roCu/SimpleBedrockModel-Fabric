@@ -1,35 +1,36 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.client.handler;
 
-import com.github.mcmodderanchor.simplebedrockmodel.v1.common.time.AnimationClock;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.common.time.AnimationClocks;
+import cn.sh1rocu.simplebedrockmodel.api.event.RenderHandEvent;
+import cn.sh1rocu.simplebedrockmodel.api.event.RenderTickEvent;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.animation.IFPAnimationInstance;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.event.SwapItemWithOffHand;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.renderer.IFPGeoItemRenderer;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.common.time.AnimationClock;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.common.time.AnimationClocks;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.firstperson.FirstPersonParticleSystem;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.render.CameraStateCache;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleEmitterInstance;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
-import net.minecraftforge.client.event.RenderHandEvent;
-import net.minecraftforge.client.extensions.common.IClientItemExtensions;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
 import org.joml.Matrix4f;
 
 import java.util.Optional;
 
-@Mod.EventBusSubscriber(Dist.CLIENT)
+@Environment(EnvType.CLIENT)
 public class FirstPersonRenderHandler {
     private static final AnimationClock CLOCK = AnimationClocks.client();
 
-    /** 全局第一人称粒子系统。所有自定义物品共享此实例，统一管理粒子生命周期和渲染。 */
+    /**
+     * 全局第一人称粒子系统。所有自定义物品共享此实例，统一管理粒子生命周期和渲染。
+     */
     private static final FirstPersonParticleSystem PARTICLE_SYSTEM = new FirstPersonParticleSystem();
     private static long lastParticleTickNanos = 0L;
 
@@ -51,8 +52,7 @@ public class FirstPersonRenderHandler {
 
     private static boolean forceHandSwapFlag = false;
 
-    @SubscribeEvent
-    public static void onPlayerLoggedOut(ClientPlayerNetworkEvent.LoggingOut event) {
+    public static void onPlayerLoggedOut(ClientPacketListener handler, Minecraft client) {
         realSelectedSlot = -1;
         realMainHand = ItemStack.EMPTY;
         transitioning = false;
@@ -68,14 +68,12 @@ public class FirstPersonRenderHandler {
         lastParticleTickNanos = 0L;
     }
 
-    @SubscribeEvent
     public static void onRenderHand(SwapItemWithOffHand event) {
         forceHandSwapFlag = true;
     }
 
-    @SubscribeEvent
-    public static void onClientTick(TickEvent.ClientTickEvent event) {
-        if (event.phase != TickEvent.Phase.START || !CLOCK.shouldTick()) {
+    public static void onClientTick(Minecraft client) {
+        if (/*event.phase != TickEvent.Phase.START ||*/ !CLOCK.shouldTick()) {
             return;
         }
 
@@ -171,9 +169,8 @@ public class FirstPersonRenderHandler {
         }
     }
 
-    @SubscribeEvent
-    public static void tickAnimation(TickEvent.RenderTickEvent event) {
-        if (event.phase != TickEvent.Phase.START || !CLOCK.shouldTick()) {
+    public static void tickAnimation(RenderTickEvent event) {
+        if (event.phase != RenderTickEvent.Phase.START || !CLOCK.shouldTick()) {
             return;
         }
 
@@ -191,7 +188,6 @@ public class FirstPersonRenderHandler {
         }
     }
 
-    @SubscribeEvent
     public static void onRenderHand(RenderHandEvent event) {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null) {
@@ -331,7 +327,7 @@ public class FirstPersonRenderHandler {
         if (stack.isEmpty()) {
             return Optional.empty();
         }
-        if (IClientItemExtensions.of(stack.getItem()).getCustomRenderer() instanceof IFPGeoItemRenderer renderer) {
+        if (BuiltinItemRendererRegistry.INSTANCE.get(stack.getItem()) instanceof IFPGeoItemRenderer renderer) {
             return Optional.of(renderer);
         }
         return Optional.empty();

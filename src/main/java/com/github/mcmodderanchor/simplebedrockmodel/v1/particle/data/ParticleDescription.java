@@ -10,9 +10,13 @@ public class ParticleDescription {
     private final ResourceLocation identifier;
     private final Material material;
     private final ResourceLocation texture;
-    /** flipbook 纹理的列数，0 表示非 flipbook */
+    /**
+     * flipbook 纹理的列数，0 表示非 flipbook
+     */
     private final int textureWidth;
-    /** flipbook 纹理的行数 */
+    /**
+     * flipbook 纹理的行数
+     */
     private final int textureHeight;
 
     public ParticleDescription(ResourceLocation identifier, Material material, ResourceLocation texture,

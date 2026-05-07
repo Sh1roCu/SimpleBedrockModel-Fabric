@@ -1,15 +1,21 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.*;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.lifetime.*;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.motion.*;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.rate.*;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.shape.*;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.tinting.*;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.lifetime.EmitterLifetimeExpression;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.lifetime.EmitterLifetimeLooping;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.lifetime.EmitterLifetimeOnce;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.motion.ParticleMotionCollision;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.motion.ParticleMotionDynamic;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.motion.ParticleMotionParametric;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.rate.EmitterRateInstant;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.rate.EmitterRateManual;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.rate.EmitterRateSteady;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.shape.EmitterShape;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.tinting.ParticleTintingFactory;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleMolangEnvironment;
 import com.google.gson.JsonElement;
-
 import org.jetbrains.annotations.Nullable;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -92,7 +98,8 @@ public final class ParticleComponentRegistry {
                 (key, elem, molang) -> ParticleInitialization.fromJson(elem.getAsJsonObject(), molang));
     }
 
-    private ParticleComponentRegistry() {}
+    private ParticleComponentRegistry() {
+    }
 
     private static void register(String key, ComponentDeserializer deserializer) {
         DESERIALIZERS.put(key, deserializer);

@@ -1,22 +1,21 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.firstperson;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleEffectDefinition;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.EmitterLocalSpace;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.render.ParticleRenderer;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleEmitterInstance;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleInstance;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleMolangEnvironment;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.world.SnowStormParticle;
 import com.mojang.blaze3d.vertex.PoseStack;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
+import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 
-import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,7 +26,7 @@ import java.util.List;
  * 跟随模型空间渲染。世界空间粒子（{@code worldSpace=true}）在生成时立即投递到
  * 原版 {@code ParticleEngine}，由原版管线管理生命周期、渲染和碰撞。
  */
-@OnlyIn(Dist.CLIENT)
+@Environment(EnvType.CLIENT)
 public class FirstPersonParticleSystem {
     private final List<ParticleEmitterInstance> emitters = new ArrayList<>();
     private final ParticleMolangEnvironment molang = new ParticleMolangEnvironment();
@@ -67,8 +66,8 @@ public class FirstPersonParticleSystem {
      * 当 {@code emitter_local_space.velocity=true} 时，还需要叠加摄像机速度。
      */
     private void deliverWorldSpaceParticle(ParticleInstance particle,
-                                            ParticleEffectDefinition definition,
-                                            ParticleEmitterInstance emitter) {
+                                           ParticleEffectDefinition definition,
+                                           ParticleEmitterInstance emitter) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.particleEngine == null) return;
 
@@ -145,10 +144,10 @@ public class FirstPersonParticleSystem {
      * <p>
      * 世界空间粒子由原版 ParticleEngine 渲染，不经过此方法。
      *
-     * @param cameraPitch      摄像机 pitch 角度（弧度）
-     * @param cameraRoll       摄像机 roll 角度（弧度）
-     * @param cameraRotation   摄像机旋转矩阵（世界对齐空间 → 视图空间），
-     *                         用于 fpDetached 粒子的渲染。可为 null（无 fpDetached 粒子时）。
+     * @param cameraPitch    摄像机 pitch 角度（弧度）
+     * @param cameraRoll     摄像机 roll 角度（弧度）
+     * @param cameraRotation 摄像机旋转矩阵（世界对齐空间 → 视图空间），
+     *                       用于 fpDetached 粒子的渲染。可为 null（无 fpDetached 粒子时）。
      */
     public void render(PoseStack poseStack, MultiBufferSource bufferSource, int light, float partialTick,
                        float cameraPitch, float cameraRoll, @Nullable Matrix4f cameraRotation) {

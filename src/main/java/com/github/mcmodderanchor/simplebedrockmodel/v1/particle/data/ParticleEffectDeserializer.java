@@ -1,15 +1,22 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data;
 
-import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.*;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.IComponent;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.curve.ParticleCurve;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.event.*;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleMolangEnvironment;
-import com.google.gson.*;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import net.minecraft.resources.ResourceLocation;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
-import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleJsonUtils.*;
+import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleJsonUtils.getString;
+import static com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleJsonUtils.resolveTexturePath;
 
 /**
  * 基岩版粒子效果 JSON 解析器。
@@ -21,7 +28,7 @@ public class ParticleEffectDeserializer {
     /**
      * 解析粒子效果定义 JSON。
      *
-     * @param json  完整的粒子效果 JSON
+     * @param json   完整的粒子效果 JSON
      * @param molang Molang 编译环境
      * @return 解析后的粒子效果定义
      */

@@ -4,6 +4,7 @@ import com.github.mcmodderanchor.simplebedrockmodel.SimpleBedrockModel;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.model.BedrockModel;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.pojo.BedrockModelPOJO;
 import com.google.common.collect.Maps;
+import net.fabricmc.fabric.api.resource.IdentifiableResourceReloadListener;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
@@ -19,10 +20,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-public class BedrockModelResourceSet extends SimplePreparableReloadListener<Map<ResourceLocation, BedrockModelPOJO>> {
+public class BedrockModelResourceSet extends SimplePreparableReloadListener<Map<ResourceLocation, BedrockModelPOJO>> implements IdentifiableResourceReloadListener {
     private final Map<ResourceLocation, BedrockModelResourceProcessor> processors;
     private final Map<ResourceLocation, BedrockModel> modelCache;
     private final List<Consumer<Map<ResourceLocation, BedrockModel>>> listeners;
+
+    public static final ResourceLocation ID = SimpleBedrockModel.modLoc("bedrock_model_resource_set");
 
     static BedrockModelResourceSet INSTANCE;
 
@@ -51,7 +54,7 @@ public class BedrockModelResourceSet extends SimplePreparableReloadListener<Map<
                     if (pojo != null) {
                         pojoMap.put(location, pojo);
                     }
-                }catch (IOException e) {
+                } catch (IOException e) {
                     SimpleBedrockModel.LOGGER.error("Failed to load model file: {}", path, e);
                 }
             }, () -> SimpleBedrockModel.LOGGER.error("Not found model file: {}", path));
@@ -87,5 +90,10 @@ public class BedrockModelResourceSet extends SimplePreparableReloadListener<Map<
     @UnmodifiableView
     public Map<ResourceLocation, BedrockModel> getAllModels() {
         return Collections.unmodifiableMap(modelCache);
+    }
+
+    @Override
+    public ResourceLocation getFabricId() {
+        return ID;
     }
 }

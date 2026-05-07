@@ -11,7 +11,8 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.molang.runtime.value.Muta
  * 创建和管理 MolangEngine 的工具类。
  */
 public final class MolangEngineHelper {
-    private MolangEngineHelper() {}
+    private MolangEngineHelper() {
+    }
 
     /**
      * 创建一个已绑定 {@link MolangContext} 的 MochaEngine。

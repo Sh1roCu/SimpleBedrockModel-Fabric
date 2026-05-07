@@ -1,5 +1,7 @@
-package com.github.mcmodderanchor.simplebedrockmodel.v1.client.bedrock.model;
+package com.github.mcmodderanchor.simplebedrockmodel.v1.common.model;
 
+import com.maydaymemory.mae.basic.BoneTransform;
+import com.maydaymemory.mae.basic.ZYXRotationView;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -7,60 +9,54 @@ import it.unimi.dsi.fastutil.objects.ObjectList;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.renderer.LightTexture;
-import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
-import java.util.Random;
+import java.util.Map;
 
-@Environment(EnvType.CLIENT)
-public class BedrockPart {
-    private static final Vector3f[] NORMALS = new Vector3f[6];
-    private static final int MAX_LIGHT_TEXTURE = LightTexture.pack(15, 15);
+public class BedrockBone {
+    @Environment(EnvType.CLIENT)
+    private static class ClientConstants {
+        private static final Vector3f[] NORMALS = new Vector3f[6];
+        private static final int MAX_LIGHT_TEXTURE = LightTexture.pack(15, 15);
 
-    public final ObjectList<BedrockCube> cubes = new ObjectArrayList<>();
-    public final ObjectList<BedrockPart> children = new ObjectArrayList<>();
-
-    public float x = 0, y = 0, z = 0;
-    /**
-     * 用来记录 BedrockPart 初始旋转角度，用于动画状态重置
-     */
-    public float initRotX = 0, initRotY = 0, initRotZ = 0;
-    public float xRot = 0, yRot = 0, zRot = 0;
-    public float offsetX = 0, offsetY = 0, offsetZ = 0;
-    public float xScale = 1, yScale = 1, zScale = 1;
-    /**
-     * 可能用于动画旋转的四元数
-     * <p>
-     * BedrockPart 支持两套旋转方式：一种是欧拉角，一种是四元数
-     */
-    public Quaternionf additionalQuaternion = new Quaternionf(0, 0, 0, 1);
-
-    public @Nullable BedrockPart parent = null;
-    public boolean visible = true;
-    public boolean illuminated = false;
-    public boolean mirror = false;
-
-    static {
-        for (int i = 0; i < NORMALS.length; i++) {
-            NORMALS[i] = new Vector3f();
+        static {
+            for (int i = 0; i < ClientConstants.NORMALS.length; i++) {
+                ClientConstants.NORMALS[i] = new Vector3f();
+            }
         }
     }
 
-    public void setPos(float x, float y, float z) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-    }
+    public final ObjectList<BedrockCube> cubes = new ObjectArrayList<>();
+    private final ObjectList<BedrockBone> children = new ObjectArrayList<>();
+    public BedrockBone parent;
+    public int index = -1;
+    public float x;
+    public float y;
+    public float z;
+    public Quaternionf rotation = new Quaternionf();
+    /**
+     * 这个旋转不会应用到渲染，只会用来生成 bind pose。
+     */
+    public Vector3f rotationInEuler = new Vector3f();
+    public float xScale = 1;
+    public float yScale = 1;
+    public float zScale = 1;
+    public boolean visible = true;
+    public boolean illuminated = false;
+    public boolean mirror;
+    private Map<String, LocatorData> locators = Map.of();
 
+    @Environment(EnvType.CLIENT)
     public void render(PoseStack poseStack, VertexConsumer consumer, int lightmap, int overlay) {
         this.render(poseStack, consumer, lightmap, overlay, 1.0F, 1.0F, 1.0F, 1.0F);
     }
 
+    @Environment(EnvType.CLIENT)
     public void render(PoseStack poseStack, VertexConsumer consumer, int lightmap, int overlay, float red, float green, float blue, float alpha) {
-        int cubePackedLight = illuminated ? MAX_LIGHT_TEXTURE : lightmap;
+        int cubePackedLight = illuminated ? ClientConstants.MAX_LIGHT_TEXTURE : lightmap;
         if (this.visible) {
             // 缩放过小时，直接退出渲染
             boolean xNearZero = -1E-5F < xScale && xScale < 1E-5F;
@@ -75,7 +71,7 @@ public class BedrockPart {
                 this.translateAndRotateAndScale(poseStack);
                 this.compile(poseStack.last(), consumer, cubePackedLight, overlay, red, green, blue, alpha);
 
-                for (BedrockPart part : this.children) {
+                for (BedrockBone part : this.children) {
                     part.render(poseStack, consumer, cubePackedLight, overlay, red, green, blue, alpha);
                 }
 
@@ -84,40 +80,32 @@ public class BedrockPart {
         }
     }
 
-    /**
-     * 不带缩放的平移和旋转
-     */
-    @Deprecated
-    @SuppressWarnings("all")
-    public void translateAndRotate(PoseStack poseStack) {
-        poseStack.translate((this.x / 16.0F) + this.offsetX, (this.y / 16.0F) + this.offsetY, (this.z / 16.0F) + this.offsetZ);
-        if (this.xRot != 0.0F || this.yRot != 0.0F || this.zRot != 0.0F) {
-            poseStack.last().pose().rotateZYX(this.zRot, this.yRot, this.xRot);
-            poseStack.last().normal().rotateZYX(this.zRot, this.yRot, this.xRot);
+    public void translateAndRotateAndScale(PoseStack poseStack) {
+        poseStack.translate(this.x / 16.0F, this.y / 16.0F, this.z / 16.0F);
+        poseStack.last().pose().rotate(rotation);
+        poseStack.last().normal().rotate(rotation);
+        if (this.xScale != 0.0F || this.yScale != 0.0F || this.zScale != 0.0F) {
+            poseStack.last().pose().scale(this.xScale, this.yScale, this.zScale);
+            poseStack.last().normal().scale(this.xScale, this.yScale, this.zScale);
         }
     }
 
-    public void translateAndRotateAndScale(PoseStack poseStack) {
-        translateAndRotate(poseStack);
-        poseStack.mulPose(additionalQuaternion);
-        poseStack.scale(xScale, yScale, zScale);
-    }
-
+    @Environment(EnvType.CLIENT)
     private void compile(PoseStack.Pose pose, VertexConsumer consumer, int lightmap, int overlay, float red, float green, float blue, float alpha) {
         Matrix3f normal = pose.normal();
-        NORMALS[0].set(-normal.m10, -normal.m11, -normal.m12);
-        NORMALS[1].set(normal.m10, normal.m11, normal.m12);
-        NORMALS[2].set(-normal.m20, -normal.m21, -normal.m22);
-        NORMALS[3].set(normal.m20, normal.m21, normal.m22);
-        NORMALS[4].set(-normal.m00, -normal.m01, -normal.m02);
-        NORMALS[5].set(normal.m00, normal.m01, normal.m02);
+        ClientConstants.NORMALS[0].set(-normal.m10, -normal.m11, -normal.m12);
+        ClientConstants.NORMALS[1].set(normal.m10, normal.m11, normal.m12);
+        ClientConstants.NORMALS[2].set(-normal.m20, -normal.m21, -normal.m22);
+        ClientConstants.NORMALS[3].set(normal.m20, normal.m21, normal.m22);
+        ClientConstants.NORMALS[4].set(-normal.m00, -normal.m01, -normal.m02);
+        ClientConstants.NORMALS[5].set(normal.m00, normal.m01, normal.m02);
         for (BedrockCube bedrockCube : this.cubes) {
-            bedrockCube.compile(pose, NORMALS, consumer, lightmap, overlay, red, green, blue, alpha);
+            bedrockCube.compile(pose, ClientConstants.NORMALS, consumer, lightmap, overlay, red, green, blue, alpha);
         }
     }
 
-    public BedrockCube getRandomCube(Random random) {
-        return this.cubes.get(random.nextInt(this.cubes.size()));
+    public BoneTransform getBoneTransform() {
+        return new BoneTransform(index, new Vector3f(x, y, z), new ZYXRotationView(rotation), new Vector3f(xScale, yScale, zScale));
     }
 
     public Matrix4f getGlobalTransform() {
@@ -136,31 +124,19 @@ public class BedrockPart {
         return this.cubes.isEmpty();
     }
 
-    public void setInitRotationAngle(float x, float y, float z) {
-        this.initRotX = x;
-        this.initRotY = y;
-        this.initRotZ = z;
-    }
-
-    public float getInitRotX() {
-        return initRotX;
-    }
-
-    public float getInitRotY() {
-        return initRotY;
-    }
-
-    public float getInitRotZ() {
-        return initRotZ;
-    }
-
-    public void addChild(BedrockPart model) {
+    public void addChild(BedrockBone model) {
         this.children.add(model);
-        model.parent = this;
     }
 
-    @Nullable
-    public BedrockPart getParent() {
-        return parent;
+    public ObjectList<BedrockBone> getChildren() {
+        return children;
+    }
+
+    public Map<String, LocatorData> getLocators() {
+        return locators;
+    }
+
+    public void setLocators(Map<String, LocatorData> locators) {
+        this.locators = locators;
     }
 }

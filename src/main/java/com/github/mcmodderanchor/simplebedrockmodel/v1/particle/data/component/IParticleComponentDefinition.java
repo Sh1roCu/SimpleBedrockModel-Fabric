@@ -10,7 +10,9 @@ public interface IParticleComponentDefinition extends IComponent {
      * 是否需要每帧调用运行时的 {@link IParticleComponent#update}。
      * 在 Preset 构建时调用一次。
      */
-    default boolean requireUpdate() { return false; }
+    default boolean requireUpdate() {
+        return false;
+    }
 
     /**
      * 创建此定义组件的运行时实例。
@@ -22,7 +24,11 @@ public interface IParticleComponentDefinition extends IComponent {
         return (IParticleComponent) this;
     }
 
-    /** 排序优先级，值越小越先执行。默认 1000。 */
+    /**
+     * 排序优先级，值越小越先执行。默认 1000。
+     */
     @Override
-    default int order() { return 1000; }
+    default int order() {
+        return 1000;
+    }
 }

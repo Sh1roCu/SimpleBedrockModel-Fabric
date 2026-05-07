@@ -20,6 +20,7 @@ import java.util.function.Supplier;
 
 /**
  * A simple transition implementation of state machine.
+ *
  * @param <T> The type of the context object.
  */
 public class SimpleTransition<T> implements IAnimationTransition<T> {
@@ -98,7 +99,8 @@ public class SimpleTransition<T> implements IAnimationTransition<T> {
         private TransferOutStrategy strategy = TransferOutStrategy.TO_STATE;
         private Predicate<T> predicate = (ctx) -> true;
         private Supplier<IBlendCurve> curve = () -> new EasingBlendCurve(Easing.LINEAR);
-        private Consumer<T> afterTrigger = (state) -> {};
+        private Consumer<T> afterTrigger = (state) -> {
+        };
         private InterpolatedPoseFunction<T> interpolatedPoseFunction = (ctx, fromPose, toPose, progress) ->
                 TRANSITION_BLENDER.blend(fromPose, toPose, progress);
 

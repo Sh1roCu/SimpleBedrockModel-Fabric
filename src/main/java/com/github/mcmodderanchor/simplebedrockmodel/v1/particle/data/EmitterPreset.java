@@ -3,7 +3,7 @@ package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.*;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.lifetime.LifetimeComponent;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.rate.RateComponent;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.shape.*;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.shape.EmitterShape;
 
 import java.util.*;
 
@@ -77,12 +77,16 @@ public final class EmitterPreset {
 
     // ===== 公共 API =====
 
-    /** 全部发射器定义组件（已排序，不可变） */
+    /**
+     * 全部发射器定义组件（已排序，不可变）
+     */
     public List<IEmitterComponentDefinition> components() {
         return components;
     }
 
-    /** requireUpdate()=true 的定义组件子集 */
+    /**
+     * requireUpdate()=true 的定义组件子集
+     */
     public List<IEmitterComponentDefinition> updateComponents() {
         return updateComponents;
     }

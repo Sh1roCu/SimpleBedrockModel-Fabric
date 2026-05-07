@@ -1,15 +1,16 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.event;
 
+import cn.sh1rocu.simplebedrockmodel.api.event.BaseEvent;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.animation.BedrockAnimation;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.model.BedrockModel;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.pojo.BedrockAnimationFile;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.resource.BedrockAnimationResourceProcessor;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.resource.RawResourceLoader;
 import com.google.common.collect.Maps;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.fabric.api.event.Event;
+import net.fabricmc.fabric.api.event.EventFactory;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.eventbus.api.Event;
-import net.minecraftforge.fml.event.IModBusEvent;
 
 import java.util.List;
 import java.util.Map;
@@ -18,13 +19,19 @@ import java.util.function.BiFunction;
 /**
  * Used to register bedrock animations so that loaders can load them.
  */
-public class RegisterBedrockAnimationEvent extends Event implements IModBusEvent {
+public class RegisterBedrockAnimationEvent extends BaseEvent {
     private final Map<ResourceLocation, BedrockAnimationResourceProcessor> animationRegistry;
-    private final Dist dist;
+    private final EnvType envType;
 
-    public RegisterBedrockAnimationEvent(Dist dist) {
+    public static final Event<Callback> EVENT = EventFactory.createArrayBacked(Callback.class, callbacks -> event -> {
+        for (Callback callback : callbacks) {
+            callback.post(event);
+        }
+    });
+
+    public RegisterBedrockAnimationEvent(EnvType envType) {
         this.animationRegistry = Maps.newHashMap();
-        this.dist = dist;
+        this.envType = envType;
     }
 
     public void register(ResourceLocation animationLocation,
@@ -41,11 +48,15 @@ public class RegisterBedrockAnimationEvent extends Event implements IModBusEvent
     }
 
 
-    public Dist getDist() {
-        return dist;
+    public EnvType getEnvType() {
+        return envType;
     }
 
     public Map<ResourceLocation, BedrockAnimationResourceProcessor> getAnimationRegistry() {
         return animationRegistry;
+    }
+
+    public interface Callback {
+        void post(RegisterBedrockAnimationEvent event);
     }
 }
