@@ -220,7 +220,7 @@ public class FirstPersonRenderHandler {
 
 
         IFPGeoItemRenderer renderer = optRenderer.get();
-        if (event.getHand() == InteractionHand.MAIN_HAND && renderer.blockOffhandRender()) {
+        if (event.getHand() == InteractionHand.OFF_HAND && renderer.blockOffhandRender()) {
             event.setCanceled(true);
         }
 
