@@ -18,7 +18,8 @@ import java.util.Map;
 import java.util.Random;
 
 public class ParticleEmitterInstance {
-    static final int MAX_PARTICLES = 16384;
+    public static final int MAX_PARTICLES = 16384;
+    public static final int POOL_SIZE = 16384 / 4;
     private static final Random RANDOM = new Random();
 
     private final ParticleEffectDefinition definition;
@@ -290,9 +291,12 @@ public class ParticleEmitterInstance {
         float s1 = (float) Math.sqrt(c1x * c1x + c1y * c1y + c1z * c1z);
         float s2 = (float) Math.sqrt(c2x * c2x + c2y * c2y + c2z * c2z);
         if (s0 > 1e-6f && s1 > 1e-6f && s2 > 1e-6f) {
-            p.vx = ((c0x / s0) * p.vx + (c1x / s1) * p.vy + (c2x / s2) * p.vz) * scale;
-            p.vy = ((c0y / s0) * p.vx + (c1y / s1) * p.vy + (c2y / s2) * p.vz) * scale;
-            p.vz = ((c0z / s0) * p.vx + (c1z / s1) * p.vy + (c2z / s2) * p.vz) * scale;
+            float rx = (c0x / s0) * p.vx + (c1x / s1) * p.vy + (c2x / s2) * p.vz;
+            float ry = (c0y / s0) * p.vx + (c1y / s1) * p.vy + (c2y / s2) * p.vz;
+            float rz = (c0z / s0) * p.vx + (c1z / s1) * p.vy + (c2z / s2) * p.vz;
+            p.vx = rx * scale;
+            p.vy = ry * scale;
+            p.vz = rz * scale;
         }
     }
 
@@ -303,7 +307,7 @@ public class ParticleEmitterInstance {
     }
 
     private void recycleParticle(ParticleInstance p) {
-        if (pool.size() < 200) pool.add(p);
+        if (pool.size() < POOL_SIZE) pool.add(p);
     }
 
     // ==================== 公共 API ====================
