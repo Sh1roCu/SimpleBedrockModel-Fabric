@@ -25,7 +25,7 @@ public class SimpleBedrockModelClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        NetworkHandler.registerS2CPackets();
+        NetworkHandler.registerS2CReceivers();
         ReloadListenersRegister.BedrockModelClientRegister.onRegisterReloadListener();
 
         ClientSetupEvent.onClientSetup();

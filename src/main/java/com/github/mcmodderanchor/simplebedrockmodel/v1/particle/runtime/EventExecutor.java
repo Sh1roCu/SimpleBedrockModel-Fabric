@@ -106,7 +106,7 @@ public final class EventExecutor {
             }
         }
 
-        ResourceLocation effectId = new ResourceLocation(effect.effect());
+        ResourceLocation effectId = ResourceLocation.parse(effect.effect());
         ParticleEffectDefinition childDef = ParticleDefinitionLoader.getInstance().getDefinition(effectId);
         if (childDef == null) {
             SimpleBedrockModel.LOGGER.debug("Particle effect event references unknown effect: {}", effect.effect());
@@ -122,7 +122,7 @@ public final class EventExecutor {
         if (eventName == null || eventName.isEmpty()) return;
 
         try {
-            ResourceLocation soundId = new ResourceLocation(eventName);
+            ResourceLocation soundId = ResourceLocation.parse(eventName);
             SoundEvent soundEvent = SoundEvent.createVariableRangeEvent(soundId);
             ctx.level.playLocalSound(
                     ctx.position.x, ctx.position.y, ctx.position.z,

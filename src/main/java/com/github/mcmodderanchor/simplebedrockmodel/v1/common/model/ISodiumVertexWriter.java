@@ -1,25 +1,25 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.common.model;
 
 import net.caffeinemc.mods.sodium.api.vertex.buffer.VertexBufferWriter;
-import net.caffeinemc.mods.sodium.api.vertex.format.common.ModelVertex;
+import net.caffeinemc.mods.sodium.api.vertex.format.common.EntityVertex;
 import org.joml.Vector3f;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
 
 public interface ISodiumVertexWriter {
-    int STRIDE = ModelVertex.STRIDE;
+    int STRIDE = EntityVertex.STRIDE;
     int SIZE = 6 * 4;
     long SCRATCH_BUFFER = MemoryUtil.nmemAlignedAlloc(64, SIZE * STRIDE);
 
     int[] NORMALS = new int[6];
 
     default void emitVertex(long ptr, float x, float y, float z, int color, float u, float v, int packedOverlay, int packedLight, int normal) {
-        ModelVertex.write(ptr, x, y, z, color, u, v, packedOverlay, packedLight, normal);
+        EntityVertex.write(ptr, x, y, z, color, u, v, packedOverlay, packedLight, normal);
     }
 
     default void flush(VertexBufferWriter writer, int vertexCount) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
-            writer.push(stack, SCRATCH_BUFFER, vertexCount, ModelVertex.FORMAT);
+            writer.push(stack, SCRATCH_BUFFER, vertexCount, EntityVertex.FORMAT);
         }
     }
 

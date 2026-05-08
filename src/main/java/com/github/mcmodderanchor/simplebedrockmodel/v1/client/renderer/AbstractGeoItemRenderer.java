@@ -1,7 +1,6 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.client.renderer;
 
 import cn.sh1rocu.simplebedrockmodel.api.event.ViewportEvent;
-import cn.sh1rocu.simplebedrockmodel.util.client.MinecraftUtil;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.animation.IFPAnimationInstance;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.model.PositionableModel;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.model.SlotModel;
@@ -106,7 +105,7 @@ public abstract class AbstractGeoItemRenderer<M extends BedrockModel>
         if (ctx.firstPerson()) {
             return;
         }
-        render(stack, ctx, poseStack, bufferSource, light, overlay, MinecraftUtil.getPartialTick());
+        render(stack, ctx, poseStack, bufferSource, light, overlay, Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(true));
     }
 
     protected void render(ItemStack stack, ItemDisplayContext ctx, PoseStack poseStack, MultiBufferSource bufferSource,
@@ -139,14 +138,14 @@ public abstract class AbstractGeoItemRenderer<M extends BedrockModel>
         if (slotTexture != null) {
             poseStack.pushPose();
             poseStack.translate(0.5, 0.5, 0);
-            SLOT_MODEL.renderToBuffer(poseStack, bufferSource.getBuffer(RenderType.entityTranslucent(slotTexture)), light, overlay, 1.0F, 1.0F, 1.0F, 1.0F);
+            SLOT_MODEL.renderToBuffer(poseStack, bufferSource.getBuffer(RenderType.entityTranslucent(slotTexture)), light, overlay, 0xFFFFFFFF);
             poseStack.popPose();
         } else if (modelAndRenderType == null) {
             // 模型和 gui texture 都不存在，渲染 missing texture
             poseStack.pushPose();
             poseStack.translate(0.5, 0.5, 0);
             RenderType renderType1 = RenderType.entityTranslucent(MissingTextureAtlasSprite.getLocation());
-            SLOT_MODEL.renderToBuffer(poseStack, bufferSource.getBuffer(renderType1), light, overlay, 1.0F, 1.0F, 1.0F, 1.0F);
+            SLOT_MODEL.renderToBuffer(poseStack, bufferSource.getBuffer(renderType1), light, overlay, 0xFFFFFFFF);
             poseStack.popPose();
         }
     }

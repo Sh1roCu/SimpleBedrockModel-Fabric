@@ -190,7 +190,7 @@ public class FirstPersonRenderHandler {
         IFPAnimationInstance ani = getActiveAnimationInstance();
         if (ani != null) {
             ani.triggerDraw();
-            ani.tick(event.renderTickTime);
+            ani.tick(event.getTimer().getGameTimeDeltaPartialTick(true));
         }
     }
 

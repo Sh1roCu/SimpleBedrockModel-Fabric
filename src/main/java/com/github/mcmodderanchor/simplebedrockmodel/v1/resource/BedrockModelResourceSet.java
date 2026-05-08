@@ -47,7 +47,7 @@ public class BedrockModelResourceSet extends SimplePreparableReloadListener<Map<
         Map<ResourceLocation, BedrockModelPOJO> pojoMap = Maps.newHashMap();
         processors.forEach((location, processor) -> {
             // 将 ID 转换成实际模型文件路径：<namespace>:models/bedrock/<path>.json
-            ResourceLocation path = new ResourceLocation(location.getNamespace(), "models/bedrock/" + location.getPath() + ".json");
+            ResourceLocation path =  ResourceLocation.fromNamespaceAndPath(location.getNamespace(), "models/bedrock/" + location.getPath() + ".json");
             resourceManager.getResource(path).ifPresentOrElse(resource -> {
                 try (InputStream stream = resource.open()) {
                     BedrockModelPOJO pojo = processor.rawLoader().load(stream, BedrockModelPOJO.class);

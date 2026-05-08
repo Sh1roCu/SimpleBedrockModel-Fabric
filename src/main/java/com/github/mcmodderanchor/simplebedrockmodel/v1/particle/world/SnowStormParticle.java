@@ -285,8 +285,8 @@ public class SnowStormParticle extends TextureSheetParticle {
     private void renderVertex(VertexConsumer buffer, float cx, float cy, float cz,
                               float xOff, float yOff, float u, float v, int light) {
         TEMP_VEC.set(xOff, yOff, 0).rotate(QUATERNION).add(cx, cy, cz);
-        buffer.vertex(TEMP_VEC.x(), TEMP_VEC.y(), TEMP_VEC.z())
-                .uv(u, v).color(rCol, gCol, bCol, alpha).uv2(light).endVertex();
+        buffer.addVertex(TEMP_VEC.x(), TEMP_VEC.y(), TEMP_VEC.z())
+                .setUv(u, v).setColor(rCol, gCol, bCol, alpha).setLight(light);
     }
 
     // 应用朝向模式

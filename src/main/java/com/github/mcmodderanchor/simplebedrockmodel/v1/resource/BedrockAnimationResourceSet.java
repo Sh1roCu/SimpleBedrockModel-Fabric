@@ -49,7 +49,7 @@ public class BedrockAnimationResourceSet extends SimplePreparableReloadListener<
         Map<ResourceLocation, BedrockAnimationFile> pojoMap = new HashMap<>();
         processors.forEach((location, processor) -> {
             // 将 ID 转换成实际动画文件路径： <namespace>:animations/<path>.json
-            ResourceLocation path = new ResourceLocation(location.getNamespace(), "animations/" + location.getPath() + ".json");
+            ResourceLocation path = ResourceLocation.fromNamespaceAndPath(location.getNamespace(), "animations/" + location.getPath() + ".json");
             resourceManager.getResource(path).ifPresentOrElse(resource -> {
                 try (InputStream stream = resource.open()) {
                     BedrockAnimationFile pojo = processor.rawLoader().load(stream, BedrockAnimationFile.class);

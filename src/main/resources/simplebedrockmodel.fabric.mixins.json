@@ -2,7 +2,7 @@
   "required": true,
   "minVersion": "0.8",
   "package": "cn.sh1rocu.simplebedrockmodel.mixin",
-  "compatibilityLevel": "JAVA_17",
+  "compatibilityLevel": "JAVA_21",
   "refmap": "simplebedrockmodel.refmap.json",
   "mixins": [
   ],
@@ -11,8 +11,7 @@
     "client.GameRendererMixin",
     "client.ItemInHandRendererMixin",
     "client.MinecraftMixin",
-    "client.PlayerRendererMixin",
-    "client.accessor.MinecraftAccessor"
+    "client.PlayerRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -61,7 +61,7 @@ public class FirstPersonArmorHandler {
         PoseStack poseStack = event.getPoseStack();
         poseStack.pushPose();
 
-        poseStack.mulPoseMatrix(getGlobalTransform(armBone));
+        poseStack.mulPose(getGlobalTransform(armBone));
 
         armBone.render(poseStack, consumer, event.getPackedLight(), OverlayTexture.NO_OVERLAY);
 

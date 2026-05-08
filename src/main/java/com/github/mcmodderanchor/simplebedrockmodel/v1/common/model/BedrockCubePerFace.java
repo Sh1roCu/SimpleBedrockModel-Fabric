@@ -87,17 +87,21 @@ public class BedrockCubePerFace implements BedrockCube {
 
             // uvs[i]: [右上U, 右上V, 左上U, 左上V, 左下U, 左下V, 右下U, 右下V]
             // 顶点0: 右上, 顶点1: 左上, 顶点2: 左下, 顶点3: 右下
-            consumer.vertex(VERTICES[VERTEX_ORDER[i][0]].x, VERTICES[VERTEX_ORDER[i][0]].y, VERTICES[VERTEX_ORDER[i][0]].z,
-                    r, g, b, a, uvs[i][0], uvs[i][1], overlay, lightmap, normals[i].x, normals[i].y, normals[i].z);
+            consumer.addVertex(VERTICES[VERTEX_ORDER[i][0]].x, VERTICES[VERTEX_ORDER[i][0]].y, VERTICES[VERTEX_ORDER[i][0]].z)
+                    .setColor(r, g, b, a).setUv(uvs[i][0], uvs[i][1])
+                    .setOverlay(overlay).setLight(lightmap).setNormal(normals[i].x, normals[i].y, normals[i].z);
 
-            consumer.vertex(VERTICES[VERTEX_ORDER[i][1]].x, VERTICES[VERTEX_ORDER[i][1]].y, VERTICES[VERTEX_ORDER[i][1]].z,
-                    r, g, b, a, uvs[i][2], uvs[i][3], overlay, lightmap, normals[i].x, normals[i].y, normals[i].z);
+            consumer.addVertex(VERTICES[VERTEX_ORDER[i][1]].x, VERTICES[VERTEX_ORDER[i][1]].y, VERTICES[VERTEX_ORDER[i][1]].z)
+                    .setColor(r, g, b, a).setUv(uvs[i][2], uvs[i][3])
+                    .setOverlay(overlay).setLight(lightmap).setNormal(normals[i].x, normals[i].y, normals[i].z);
 
-            consumer.vertex(VERTICES[VERTEX_ORDER[i][2]].x, VERTICES[VERTEX_ORDER[i][2]].y, VERTICES[VERTEX_ORDER[i][2]].z,
-                    r, g, b, a, uvs[i][4], uvs[i][5], overlay, lightmap, normals[i].x, normals[i].y, normals[i].z);
+            consumer.addVertex(VERTICES[VERTEX_ORDER[i][2]].x, VERTICES[VERTEX_ORDER[i][2]].y, VERTICES[VERTEX_ORDER[i][2]].z)
+                    .setColor(r, g, b, a).setUv(uvs[i][4], uvs[i][5])
+                    .setOverlay(overlay).setLight(lightmap).setNormal(normals[i].x, normals[i].y, normals[i].z);
 
-            consumer.vertex(VERTICES[VERTEX_ORDER[i][3]].x, VERTICES[VERTEX_ORDER[i][3]].y, VERTICES[VERTEX_ORDER[i][3]].z,
-                    r, g, b, a, uvs[i][6], uvs[i][7], overlay, lightmap, normals[i].x, normals[i].y, normals[i].z);
+            consumer.addVertex(VERTICES[VERTEX_ORDER[i][3]].x, VERTICES[VERTEX_ORDER[i][3]].y, VERTICES[VERTEX_ORDER[i][3]].z)
+                    .setColor(r, g, b, a).setUv(uvs[i][6], uvs[i][7])
+                    .setOverlay(overlay).setLight(lightmap).setNormal(normals[i].x, normals[i].y, normals[i].z);
         }
     }
 

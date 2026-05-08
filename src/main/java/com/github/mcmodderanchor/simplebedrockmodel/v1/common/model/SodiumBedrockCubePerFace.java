@@ -4,8 +4,8 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.pojo.Face
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import me.jellysquid.mods.sodium.client.render.vertex.VertexConsumerUtils;
 import net.caffeinemc.mods.sodium.api.vertex.buffer.VertexBufferWriter;
+import net.caffeinemc.mods.sodium.client.render.vertex.VertexConsumerUtils;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 

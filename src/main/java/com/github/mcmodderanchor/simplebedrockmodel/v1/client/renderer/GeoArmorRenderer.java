@@ -11,6 +11,7 @@ import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.FastColor;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
@@ -115,23 +116,27 @@ public class GeoArmorRenderer extends HumanoidModel {
     }
 
     @Override
-    public void renderToBuffer(PoseStack poseStack, @NotNull VertexConsumer buffer, int light, int overlay,
-                               float r, float g, float b, float a) {
+    public void renderToBuffer(PoseStack poseStack, @NotNull VertexConsumer buffer, int packedLight, int packedOverlay, int color) {
         Minecraft mc = Minecraft.getInstance();
         MultiBufferSource bufferSource = mc.renderBuffers().bufferSource();
         var vertexConsumer = bufferSource.getBuffer(this.getRenderType(this.getTexture()));
 
-        float partialTick = mc.getFrameTime();
+        float partialTick = mc.getTimer().getGameTimeDeltaPartialTick(true);
 
         poseStack.pushPose();
         if (this.livingEntity != null && this.equipmentSlot != null && this.original != null) {
             scaleModelForBaby(poseStack, this.livingEntity, partialTick, this.equipmentSlot, this.original);
         }
 
-        model.renderToBuffer(poseStack, vertexConsumer, light, overlay, r, g, b, a);
+        var r = FastColor.ARGB32.red(color) / 255F;
+        var g = FastColor.ARGB32.green(color) / 255F;
+        var b = FastColor.ARGB32.blue(color) / 255F;
+        var a = FastColor.ARGB32.alpha(color) / 255F;
+
+        model.renderToBuffer(poseStack, vertexConsumer, packedLight, packedOverlay, r, g, b, a);
         poseStack.popPose();
 
-        afterRender(poseStack, buffer, light, overlay, r, g, b, a);
+        afterRender(poseStack, buffer, packedLight, packedOverlay, r, g, b, a);
     }
 
     public void afterRender(PoseStack poseStack, VertexConsumer buffer, int light, int overlay,

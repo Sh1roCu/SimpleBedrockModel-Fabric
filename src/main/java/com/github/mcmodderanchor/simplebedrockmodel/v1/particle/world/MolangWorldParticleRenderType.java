@@ -52,7 +52,7 @@ public final class MolangWorldParticleRenderType implements ParticleRenderType {
     }
 
     @Override
-    public void begin(BufferBuilder builder, TextureManager textureManager) {
+    public BufferBuilder begin(Tesselator tesselator, TextureManager textureManager) {
         RenderSystem.enableDepthTest();
         Minecraft.getInstance().gameRenderer.lightTexture().turnOnLightLayer();
         RenderSystem.setShaderTexture(0, texture);
@@ -80,12 +80,7 @@ public final class MolangWorldParticleRenderType implements ParticleRenderType {
         }
 
         RenderSystem.disableCull();
-        builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
-    }
-
-    @Override
-    public void end(Tesselator tesselator) {
-        tesselator.end();
+        return tesselator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
     }
 
     @Override

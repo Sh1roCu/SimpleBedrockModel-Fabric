@@ -1,16 +1,18 @@
 package cn.sh1rocu.simplebedrockmodel.api.event;
 
+import cn.sh1rocu.simplebedrockmodel.api.event.BaseEvent;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 
 @Environment(EnvType.CLIENT)
 public class RenderTickEvent extends BaseEvent {
     private final Minecraft client;
     public final Phase phase;
-    public final float renderTickTime;
+    private final DeltaTracker.Timer timer;
 
     public static final Event<Callback> EVENT = EventFactory.createArrayBacked(Callback.class, callbacks -> event -> {
         for (Callback callback : callbacks) {
@@ -18,14 +20,18 @@ public class RenderTickEvent extends BaseEvent {
         }
     });
 
-    public RenderTickEvent(Minecraft client, Phase phase, float renderTickTime) {
+    public RenderTickEvent(Minecraft client, Phase phase, DeltaTracker.Timer timer) {
         this.client = client;
         this.phase = phase;
-        this.renderTickTime = renderTickTime;
+        this.timer = timer;
     }
 
     public Minecraft getClient() {
         return client;
+    }
+
+    public DeltaTracker.Timer getTimer() {
+        return timer;
     }
 
     public interface Callback {
