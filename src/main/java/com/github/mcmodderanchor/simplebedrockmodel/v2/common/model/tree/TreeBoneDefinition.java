@@ -5,7 +5,6 @@ import com.github.mcmodderanchor.simplebedrockmodel.v2.client.compat.accelerated
 import com.github.mcmodderanchor.simplebedrockmodel.v2.common.model.runtime.BoneDefinition;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraftforge.api.distmarker.Dist;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Quaternionf;
