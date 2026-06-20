@@ -34,6 +34,10 @@ repositories {
         name = "Modrinth"
         url = "https://api.modrinth.com/maven"
     }
+    maven {
+        name = "Fuzs Mod Resources"
+        url = "https://raw.githubusercontent.com/Fuzss/modresources/main/maven/"
+    }
 }
 
 dependencies {
@@ -50,8 +54,10 @@ dependencies {
     annotationProcessor 'com.google.code.findbugs:jsr305:3.0.2'
 
     modImplementation "maven.modrinth:sodium:mc1.20.1-0.5.13-fabric"
+    modImplementation "maven.modrinth:accrelatedrendering-refabricated:1.0.5.1-1.20.1-alpha-fabric.1"
+    modRuntimeOnly "fuzs.forgeconfigapiport:forgeconfigapiport-fabric:8.0.2"
 
-    include(implementation("com.maydaymemory:mae:1.1.1")) {
+    include(implementation("com.maydaymemory:mae:1.1.4")) {
         exclude group: 'com.google.code.findbugs', module: 'jsr305'
         exclude group: 'it.unimi.dsi', module: 'fastutil'
         exclude group: 'org.joml', module: 'joml'

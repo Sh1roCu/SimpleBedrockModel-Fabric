@@ -1,18 +1,15 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.client.handler;
 
 import cn.sh1rocu.simplebedrockmodel.api.event.RenderArmEvent;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.client.renderer.GeoArmorRenderer;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.client.renderer.IFPArmorHandRenderer;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.model.BedrockBone;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.fabricmc.fabric.impl.client.rendering.ArmorRendererRegistryImpl;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.player.AbstractClientPlayer;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.item.ItemStack;
@@ -37,6 +34,7 @@ public class FirstPersonArmorHandler {
         return defaultModel;
     }
 
+    @SuppressWarnings("UnstableApiUsage")
     public static void onRenderArm(RenderArmEvent event) {
         AbstractClientPlayer player = event.getPlayer();
         HumanoidArm arm = event.getArm();
@@ -44,28 +42,11 @@ public class FirstPersonArmorHandler {
         ItemStack chestStack = player.getItemBySlot(EquipmentSlot.CHEST);
         if (chestStack.isEmpty()) return;
 
-        // TODO
-        // IClientItemExtensions ext = IClientItemExtensions.of(chestStack.getItem());
-        // var model = ext.getHumanoidArmorModel(player, chestStack, EquipmentSlot.CHEST, getDefaultModel());
-        var model = getDefaultModel();
-        if (!(model instanceof GeoArmorRenderer geoRenderer)) return;
+        var ext = ArmorRendererRegistryImpl.get(chestStack.getItem());
+        var model = ext == null ? getDefaultModel() : ext;
+        if (!(model instanceof IFPArmorHandRenderer armorRenderer)) return;
 
-        BedrockBone armBone = arm == HumanoidArm.RIGHT
-                ? geoRenderer.getModel().getArmorRightArm()
-                : geoRenderer.getModel().getArmorLeftArm();
-        if (armBone == null) return;
-
-        RenderType renderType = geoRenderer.getRenderType(geoRenderer.getTexture());
-        VertexConsumer consumer = event.getMultiBufferSource().getBuffer(renderType);
-
-        PoseStack poseStack = event.getPoseStack();
-        poseStack.pushPose();
-
-        poseStack.mulPoseMatrix(getGlobalTransform(armBone));
-
-        armBone.render(poseStack, consumer, event.getPackedLight(), OverlayTexture.NO_OVERLAY);
-
-        poseStack.popPose();
+        armorRenderer.renderFirstPersonArmorArm(player, arm, event.getPoseStack(), event.getMultiBufferSource(), event.getPackedLight());
     }
 
     // 取得骨骼除了自身变换以外的全局变换矩阵

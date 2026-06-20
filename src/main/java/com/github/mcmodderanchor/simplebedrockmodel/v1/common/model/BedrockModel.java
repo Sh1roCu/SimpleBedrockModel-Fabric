@@ -1,6 +1,7 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.common.model;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.compat.sodium.SodiumCompat;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.client.renderer.BedrockModelRenderTypes;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.BoneIndexProvider;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.resource.pojo.*;
 import com.google.common.collect.Collections2;
@@ -10,14 +11,19 @@ import com.google.gson.JsonObject;
 import com.maydaymemory.mae.basic.*;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.world.phys.AABB;
-import org.jetbrains.annotations.Nullable;
-import org.joml.*;
+import org.joml.Matrix4f;
+import org.joml.Quaternionf;
+import org.joml.Quaternionfc;
+import org.joml.Vector3f;
+import org.joml.Vector3fc;
 
+import org.jetbrains.annotations.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
-import java.lang.Math;
 import java.util.*;
 
 public class BedrockModel implements Skeleton, BoneIndexProvider {
@@ -132,6 +138,14 @@ public class BedrockModel implements Skeleton, BoneIndexProvider {
         return new BedrockCubePerFace(x, y, z, width, height, depth, delta, texWidth, texHeight, faces);
     }
 
+    protected BedrockMesh createPolyMesh(PolyMeshItem polyMesh, BedrockBone part, float texWidth, float texHeight) {
+        // 这东西有问题，先不用它了
+//        if (SodiumCompat.isSodiumInstalled()) {
+//            return new SodiumBedrockPolyMesh(polyMesh, part, texWidth, texHeight);
+//        }
+        return new BedrockPolyMesh(polyMesh, part, texWidth, texHeight);
+    }
+
     @Environment(EnvType.CLIENT)
     @ParametersAreNonnullByDefault
     public void renderToBuffer(PoseStack poseStack, VertexConsumer buffer, int packedLight, int packedOverlay) {
@@ -142,6 +156,38 @@ public class BedrockModel implements Skeleton, BoneIndexProvider {
     @ParametersAreNonnullByDefault
     public void renderToBuffer(PoseStack poseStack, VertexConsumer buffer, int packedLight, int packedOverlay, float red, float green, float blue, float alpha) {
         root.render(poseStack, buffer, packedLight, packedOverlay, red, green, blue, alpha);
+    }
+
+    /**
+     * 先后渲染 cube 和 poly_mesh
+     *
+     * @param poseStack
+     * @param bufferSource
+     * @param quadRenderType 用于渲染 cube 的 RenderType
+     * @param triangleRenderType 用于渲染 mesh。需要 VertexFormat.Mode 为 TRIANGLES，参见 {@link BedrockModelRenderTypes}
+     * @param packedLight
+     * @param packedOverlay
+     */
+    @Environment(EnvType.CLIENT)
+    @ParametersAreNonnullByDefault
+    public void renderToBuffer(PoseStack poseStack, MultiBufferSource bufferSource, RenderType quadRenderType, RenderType triangleRenderType,
+                               int packedLight, int packedOverlay) {
+        this.renderToBuffer(poseStack, bufferSource, quadRenderType, triangleRenderType, packedLight, packedOverlay,
+                1.0F, 1.0F, 1.0F, 1.0F);
+    }
+
+    @Environment(EnvType.CLIENT)
+    @ParametersAreNonnullByDefault
+    public void renderToBuffer(PoseStack poseStack, MultiBufferSource bufferSource, RenderType quadRenderType, RenderType triangleRenderType,
+                               int packedLight, int packedOverlay, float red, float green, float blue, float alpha) {
+        if (root.hasCubesInTree()) {
+            VertexConsumer quadConsumer = bufferSource.getBuffer(quadRenderType);
+            root.renderCubes(poseStack, quadConsumer, packedLight, packedOverlay, red, green, blue, alpha);
+        }
+        if (root.hasMeshesInTree()) {
+            VertexConsumer triangleConsumer = bufferSource.getBuffer(triangleRenderType);
+            root.renderMeshes(poseStack, triangleConsumer, packedLight, packedOverlay, red, green, blue, alpha);
+        }
     }
 
     public AABB getRenderBoundingBox() {
@@ -211,6 +257,12 @@ public class BedrockModel implements Skeleton, BoneIndexProvider {
             }
             // 塞入 cubes
             part.setLocators(parseLocators(bone, part));
+            if (bone.getPolyMesh() != null) {
+                BedrockMesh polyMesh = createPolyMesh(bone.getPolyMesh(), part, texWidth, texHeight);
+                if (polyMesh != null) {
+                    part.meshes.add(polyMesh);
+                }
+            }
             if (bone.getCubes() != null) {
                 for (CubesItem cube : bone.getCubes()) {
                     float[] uv = cube.getUv();
@@ -269,6 +321,7 @@ public class BedrockModel implements Skeleton, BoneIndexProvider {
                 }
             }
         }
+        root.updateGeometryFlags();
         // 将所有相对 pivot 转换为绝对 pivot，使用 DFS 实现
         convertPivot(root);
     }
@@ -431,8 +484,7 @@ public class BedrockModel implements Skeleton, BoneIndexProvider {
     /**
      * locator 查找结果。
      */
-    public record LocatorResult(BedrockBone bone, LocatorData locator) {
-    }
+    public record LocatorResult(BedrockBone bone, LocatorData locator) {}
 
     private record BindRotationView(Quaternionfc quaternion, Vector3fc euler) implements RotationView {
         private BindRotationView(Quaternionfc quaternion, Vector3fc euler) {

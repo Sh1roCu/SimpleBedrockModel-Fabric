@@ -1,5 +1,6 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.resource;
 
+import com.github.mcmodderanchor.simplebedrockmodel.SimpleBedrockModel;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.event.RegisterBedrockAnimationEvent;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.event.RegisterBedrockAnimationReloadListenerEvent;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.event.RegisterBedrockModelEvent;
@@ -9,6 +10,9 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.minecraft.server.packs.PackType;
+import com.github.mcmodderanchor.simplebedrockmodel.v2.event.RegisterV2BedrockResourcesEvent;
+import com.github.mcmodderanchor.simplebedrockmodel.v2.resource.BedrockAnimationResources;
+import com.github.mcmodderanchor.simplebedrockmodel.v2.resource.BedrockModelResources;
 
 public class ReloadListenersRegister {
     @Environment(EnvType.CLIENT)
@@ -26,9 +30,18 @@ public class ReloadListenersRegister {
             RegisterBedrockAnimationReloadListenerEvent.EVENT.invoker().post(event4);
             BedrockAnimationResourceSet.INSTANCE = new BedrockAnimationResourceSet(event3.getAnimationRegistry(), event4.getListeners());
 
+
+            var event5 = new RegisterV2BedrockResourcesEvent(EnvType.CLIENT);
+            RegisterV2BedrockResourcesEvent.EVENT.invoker().post(event5);
+            BedrockAnimationResources.INSTANCE = new BedrockAnimationResources(event5.getAnimationRegistry());
+            BedrockModelResources.INSTANCE = new BedrockModelResources(event5.getModelRegistry(), event5.getReloadListeners());
+
+
             var registry = ResourceManagerHelper.get(PackType.CLIENT_RESOURCES);
             registry.registerReloadListener(BedrockModelResourceSet.INSTANCE);
             registry.registerReloadListener(BedrockAnimationResourceSet.INSTANCE);
+            registry.registerReloadListener(BedrockAnimationResources.INSTANCE);
+            registry.registerReloadListener(BedrockModelResources.INSTANCE);
             registry.registerReloadListener(ParticleDefinitionLoader.getInstance());
         }
     }
@@ -48,9 +61,17 @@ public class ReloadListenersRegister {
             RegisterBedrockAnimationReloadListenerEvent.EVENT.invoker().post(event4);
             BedrockAnimationResourceSet.INSTANCE = new BedrockAnimationResourceSet(event3.getAnimationRegistry(), event4.getListeners());
 
+
+            var event5 = new RegisterV2BedrockResourcesEvent(EnvType.SERVER);
+            RegisterV2BedrockResourcesEvent.EVENT.invoker().post(event5);
+            BedrockAnimationResources.INSTANCE = new BedrockAnimationResources(event5.getAnimationRegistry());
+            BedrockModelResources.INSTANCE = new BedrockModelResources(event5.getModelRegistry(), event5.getReloadListeners());
+
             var registry = ResourceManagerHelper.get(PackType.SERVER_DATA);
             registry.registerReloadListener(BedrockModelResourceSet.INSTANCE);
             registry.registerReloadListener(BedrockAnimationResourceSet.INSTANCE);
+            registry.registerReloadListener(BedrockAnimationResources.INSTANCE);
+            registry.registerReloadListener(BedrockModelResources.INSTANCE);
         }
     }
 }
