@@ -53,6 +53,7 @@ public abstract class AbstractGeoItemRenderer<M extends BedrockModel>
     /**
      * 应用摄像机动画对世界的变换（只有旋转生效）
      */
+    @Override
     public void applyLevelCameraAnimation(ViewportEvent.ComputeCameraAngles event, ItemStack stack, Quaternionf animateRot, float partialTicks) {
         Quaternionf initialRotation = new Quaternionf().rotateYXZ(-event.getYaw(), -event.getPitch(), -event.getRoll());
         YXZRotationView rotationView = new YXZRotationView(initialRotation.mul(animateRot));
@@ -65,6 +66,7 @@ public abstract class AbstractGeoItemRenderer<M extends BedrockModel>
     /**
      * 应用摄像机动画对手持物品的变换（只有旋转生效）
      */
+    @Override
     public void applyItemInHandCameraAnimation(PoseStack poseStack, ItemStack stack, Quaternionf animateRot, float partialTicks) {
         poseStack.mulPose(animateRot);
     }
@@ -155,6 +157,7 @@ public abstract class AbstractGeoItemRenderer<M extends BedrockModel>
      *
      * @return 是否阻止原版viewBobbing
      */
+    @Override
     public boolean blockViewBobbing() {
         return true;
     }

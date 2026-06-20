@@ -1,5 +1,7 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.common.model;
 
+import com.github.mcmodderanchor.simplebedrockmodel.v1.client.compat.acceleratedrendering.AcceleratedBedrockBoneCache;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.client.compat.acceleratedrendering.AcceleratedRenderingCompat;
 import com.maydaymemory.mae.basic.BoneTransform;
 import com.maydaymemory.mae.basic.ZYXRotationView;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -30,6 +32,7 @@ public class BedrockBone {
     }
 
     public final ObjectList<BedrockCube> cubes = new ObjectArrayList<>();
+    public final ObjectList<BedrockMesh> meshes = new ObjectArrayList<>();
     private final ObjectList<BedrockBone> children = new ObjectArrayList<>();
     public BedrockBone parent;
     public int index = -1;
@@ -48,6 +51,10 @@ public class BedrockBone {
     public boolean illuminated = false;
     public boolean mirror;
     private Map<String, LocatorData> locators = Map.of();
+    private boolean hasCubesInTree;
+    private boolean hasMeshesInTree;
+    @Environment(EnvType.CLIENT)
+    private transient AcceleratedBedrockBoneCache acceleratedCache;
 
     @Environment(EnvType.CLIENT)
     public void render(PoseStack poseStack, VertexConsumer consumer, int lightmap, int overlay) {
@@ -56,28 +63,80 @@ public class BedrockBone {
 
     @Environment(EnvType.CLIENT)
     public void render(PoseStack poseStack, VertexConsumer consumer, int lightmap, int overlay, float red, float green, float blue, float alpha) {
-        int cubePackedLight = illuminated ? ClientConstants.MAX_LIGHT_TEXTURE : lightmap;
-        if (this.visible) {
-            // 缩放过小时，直接退出渲染
-            boolean xNearZero = -1E-5F < xScale && xScale < 1E-5F;
-            boolean yNearZero = -1E-5F < yScale && yScale < 1E-5F;
-            boolean zNearZero = -1E-5F < zScale && zScale < 1E-5F;
-            if ((xNearZero && yNearZero) || (xNearZero && zNearZero) || (yNearZero && zNearZero)) {
-                return;
+        this.renderGeometryPass(poseStack, consumer, lightmap, overlay, red, green, blue, alpha, false);
+    }
+
+    @Environment(EnvType.CLIENT)
+    public void renderCubes(PoseStack poseStack, VertexConsumer quadConsumer, int lightmap, int overlay,
+                            float red, float green, float blue, float alpha) {
+        this.renderGeometryPass(poseStack, quadConsumer, lightmap, overlay, red, green, blue, alpha, false);
+    }
+
+    @Environment(EnvType.CLIENT)
+    public void renderMeshes(PoseStack poseStack, VertexConsumer triangleConsumer, int lightmap, int overlay,
+                             float red, float green, float blue, float alpha) {
+        this.renderGeometryPass(poseStack, triangleConsumer, lightmap, overlay, red, green, blue, alpha, true);
+    }
+
+    @Environment(EnvType.CLIENT)
+    private void renderGeometryPass(PoseStack poseStack, VertexConsumer consumer, int lightmap, int overlay,
+                                    float red, float green, float blue, float alpha, boolean meshesPass) {
+        if (!this.hasGeometryInTree(meshesPass)) {
+            return;
+        }
+        if (!this.visible || isScaleTooSmallToRender()) {
+            return;
+        }
+
+        int packedLight = illuminated ? ClientConstants.MAX_LIGHT_TEXTURE : lightmap;
+        poseStack.pushPose();
+        this.translateAndRotateAndScale(poseStack);
+        PoseStack.Pose pose = poseStack.last();
+
+        if (meshesPass) {
+            if (!this.meshes.isEmpty() && !AcceleratedRenderingCompat.renderMeshes(this, pose, consumer, packedLight, overlay, red, green, blue, alpha)) {
+                this.compileMeshes(pose, consumer, packedLight, overlay, red, green, blue, alpha);
             }
+        } else if (!this.cubes.isEmpty() && !AcceleratedRenderingCompat.renderCubes(this, pose, consumer, packedLight, overlay, red, green, blue, alpha)) {
+            this.compile(pose, consumer, packedLight, overlay, red, green, blue, alpha);
+        }
 
-            if (!this.cubes.isEmpty() || !this.children.isEmpty()) {
-                poseStack.pushPose();
-                this.translateAndRotateAndScale(poseStack);
-                this.compile(poseStack.last(), consumer, cubePackedLight, overlay, red, green, blue, alpha);
-
-                for (BedrockBone part : this.children) {
-                    part.render(poseStack, consumer, cubePackedLight, overlay, red, green, blue, alpha);
-                }
-
-                poseStack.popPose();
+        for (BedrockBone child : this.children) {
+            if (child.hasGeometryInTree(meshesPass)) {
+                child.renderGeometryPass(poseStack, consumer, packedLight, overlay, red, green, blue, alpha, meshesPass);
             }
         }
+
+        poseStack.popPose();
+    }
+
+    private boolean isScaleTooSmallToRender() {
+        boolean xNearZero = -1E-5F < xScale && xScale < 1E-5F;
+        boolean yNearZero = -1E-5F < yScale && yScale < 1E-5F;
+        boolean zNearZero = -1E-5F < zScale && zScale < 1E-5F;
+        return (xNearZero && yNearZero) || (xNearZero && zNearZero) || (yNearZero && zNearZero);
+    }
+
+    public void updateGeometryFlags() {
+        this.hasCubesInTree = !this.cubes.isEmpty();
+        this.hasMeshesInTree = !this.meshes.isEmpty();
+        for (BedrockBone child : this.children) {
+            child.updateGeometryFlags();
+            this.hasCubesInTree |= child.hasCubesInTree();
+            this.hasMeshesInTree |= child.hasMeshesInTree();
+        }
+    }
+
+    private boolean hasGeometryInTree(boolean meshesPass) {
+        return meshesPass ? hasMeshesInTree : hasCubesInTree;
+    }
+
+    public boolean hasCubesInTree() {
+        return hasCubesInTree;
+    }
+
+    public boolean hasMeshesInTree() {
+        return hasMeshesInTree;
     }
 
     public void translateAndRotateAndScale(PoseStack poseStack) {
@@ -91,6 +150,14 @@ public class BedrockBone {
     }
 
     @Environment(EnvType.CLIENT)
+    public AcceleratedBedrockBoneCache getAcceleratedCache() {
+        if (acceleratedCache == null) {
+            acceleratedCache = new AcceleratedBedrockBoneCache();
+        }
+        return acceleratedCache;
+    }
+
+    @Environment(EnvType.CLIENT)
     private void compile(PoseStack.Pose pose, VertexConsumer consumer, int lightmap, int overlay, float red, float green, float blue, float alpha) {
         Matrix3f normal = pose.normal();
         ClientConstants.NORMALS[0].set(-normal.m10, -normal.m11, -normal.m12);
@@ -101,6 +168,13 @@ public class BedrockBone {
         ClientConstants.NORMALS[5].set(normal.m00, normal.m01, normal.m02);
         for (BedrockCube bedrockCube : this.cubes) {
             bedrockCube.compile(pose, ClientConstants.NORMALS, consumer, lightmap, overlay, red, green, blue, alpha);
+        }
+    }
+
+    @Environment(EnvType.CLIENT)
+    private void compileMeshes(PoseStack.Pose pose, VertexConsumer consumer, int lightmap, int overlay, float red, float green, float blue, float alpha) {
+        for (BedrockMesh mesh : this.meshes) {
+            mesh.compileTriangles(pose, consumer, lightmap, overlay, red, green, blue, alpha);
         }
     }
 
@@ -121,7 +195,7 @@ public class BedrockBone {
     }
 
     public boolean isEmpty() {
-        return this.cubes.isEmpty();
+        return this.cubes.isEmpty() && this.meshes.isEmpty() && this.children.isEmpty();
     }
 
     public void addChild(BedrockBone model) {

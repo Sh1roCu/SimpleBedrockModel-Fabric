@@ -4,11 +4,17 @@ import net.fabricmc.loader.api.FabricLoader;
 
 public class EpicFightCompat {
     private static final String EPIC_FIGHT = "epicfight";
+    private static boolean LOADED = false;
 
     public static void init() {
         if (FabricLoader.getInstance().isModLoaded(EPIC_FIGHT)) {
+            LOADED = true;
             EpicFightRegister.register();
         }
+    }
+
+    public static boolean isLoaded() {
+        return LOADED;
     }
 
     public static class EpicFightRegister {
