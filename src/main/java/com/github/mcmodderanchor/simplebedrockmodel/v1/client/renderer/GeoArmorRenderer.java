@@ -1,6 +1,5 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.client.renderer;
 
-import com.github.mcmodderanchor.simplebedrockmodel.v1.client.handler.FirstPersonArmorHandler;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.model.BedrockArmorModel;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.model.BedrockBone;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -21,9 +20,10 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.joml.Matrix4f;
 
 // 说是模型，实际上是一个适配器，用来敷衍原版的）
-public class GeoArmorRenderer extends HumanoidModel implements IFPArmorHandRenderer {
+public class GeoArmorRenderer extends HumanoidModel implements IFPArmorHandRenderer, ICustomArmorRenderer {
     protected final BedrockArmorModel model;
     private final ResourceLocation texture;
 
@@ -100,51 +100,53 @@ public class GeoArmorRenderer extends HumanoidModel implements IFPArmorHandRende
 
     public void scaleModelForBaby(PoseStack poseStack, LivingEntity livingEntity, float partialTick, EquipmentSlot slot,
                                   HumanoidModel<?> original) {
-        if (!this.young)
+        if (!this.young) {
             return;
+        }
 
         if (slot == EquipmentSlot.HEAD) {
             if (original.scaleHead) {
                 float headScale = 1.5f / original.babyHeadScale;
-
                 poseStack.scale(headScale, headScale, headScale);
             }
 
             poseStack.translate(0, original.babyYHeadOffset / 16f, original.babyZHeadOffset / 16f);
         } else {
             float bodyScale = 1 / original.babyBodyScale;
-
             poseStack.scale(bodyScale, bodyScale, bodyScale);
             poseStack.translate(0, original.bodyYOffset / 16f, 0);
         }
     }
 
+    /**
+     * 非原版盔甲层直接调用时使用的后备渲染路径。
+     */
     @Override
     public void renderToBuffer(PoseStack poseStack, @NotNull VertexConsumer buffer, int packedLight, int packedOverlay, int color) {
-        Minecraft mc = Minecraft.getInstance();
-        MultiBufferSource bufferSource = mc.renderBuffers().bufferSource();
-        var vertexConsumer = bufferSource.getBuffer(this.getRenderType(this.getTexture()));
+        float red = FastColor.ARGB32.red(color) / 255.0F;
+        float green = FastColor.ARGB32.green(color) / 255.0F;
+        float blue = FastColor.ARGB32.blue(color) / 255.0F;
+        float alpha = FastColor.ARGB32.alpha(color) / 255.0F;
+        renderArmorToBuffer(poseStack, Minecraft.getInstance().renderBuffers().bufferSource(), packedLight, packedOverlay, red, green, blue, alpha);
+        afterRender(poseStack, buffer, packedLight, packedOverlay, red, green, blue, alpha);
+    }
 
-        float partialTick = mc.getTimer().getGameTimeDeltaPartialTick(true);
+    @Override
+    public void renderArmorToBuffer(PoseStack poseStack, MultiBufferSource bufferSource, int light, int overlay,
+                                    float red, float green, float blue, float alpha) {
+        VertexConsumer vertexConsumer = bufferSource.getBuffer(getRenderType(getTexture()));
+        float partialTick = Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(true);
 
         poseStack.pushPose();
         if (this.livingEntity != null && this.equipmentSlot != null && this.original != null) {
             scaleModelForBaby(poseStack, this.livingEntity, partialTick, this.equipmentSlot, this.original);
         }
-
-        var r = FastColor.ARGB32.red(color) / 255F;
-        var g = FastColor.ARGB32.green(color) / 255F;
-        var b = FastColor.ARGB32.blue(color) / 255F;
-        var a = FastColor.ARGB32.alpha(color) / 255F;
-
-        model.renderToBuffer(poseStack, vertexConsumer, packedLight, packedOverlay, r, g, b, a);
+        model.renderToBuffer(poseStack, vertexConsumer, light, overlay, red, green, blue, alpha);
         poseStack.popPose();
-
-        afterRender(poseStack, buffer, packedLight, packedOverlay, r, g, b, a);
     }
 
     public void afterRender(PoseStack poseStack, VertexConsumer buffer, int light, int overlay,
-                            float r, float g, float b, float a) {
+                            float red, float green, float blue, float alpha) {
         this.livingEntity = null;
         this.itemStack = null;
         this.equipmentSlot = null;
@@ -164,9 +166,19 @@ public class GeoArmorRenderer extends HumanoidModel implements IFPArmorHandRende
         VertexConsumer consumer = bufferSource.getBuffer(getRenderType(getTexture()));
 
         poseStack.pushPose();
-        poseStack.mulPose(FirstPersonArmorHandler.getGlobalTransform(armBone));
+        poseStack.mulPose(getGlobalTransform(armBone));
         armBone.render(poseStack, consumer, packedLight, OverlayTexture.NO_OVERLAY);
         poseStack.popPose();
+    }
+
+    private static Matrix4f getGlobalTransform(@NotNull BedrockBone targetBone) {
+        Matrix4f matrix = new Matrix4f();
+        for (BedrockBone bone = targetBone.parent; bone != null; bone = bone.parent) {
+            matrix.scaleLocal(bone.xScale, bone.yScale, bone.zScale);
+            matrix.rotateLocal(bone.rotation);
+            matrix.translateLocal(bone.x / 16.0F, bone.y / 16.0F, bone.z / 16.0F);
+        }
+        return matrix;
     }
 
     public RenderType getRenderType(ResourceLocation texture) {

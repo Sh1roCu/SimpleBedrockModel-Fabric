@@ -31,7 +31,7 @@ public class SimpleBedrockModelClient implements ClientModInitializer {
         ClientSetupEvent.onClientSetup();
 
         ClientPlayConnectionEvents.DISCONNECT.register(ClientAnimationClockTicker::onLoggingOut);
-        RenderTickEvent.EVENT.register(ClientAnimationClockTicker::onRenderTick);
+        RenderFrameEvent.EVENT.register(ClientAnimationClockTicker::onRenderTick);
 
         RenderItemInHandBobEvent.BOB_VIEW.register(CameraEventHandler::cancelItemInHandViewBobbing);
         ViewportEvent.CAMERA.register(CameraEventHandler::applyLevelCameraAnimation);
@@ -42,7 +42,7 @@ public class SimpleBedrockModelClient implements ClientModInitializer {
         ClientPlayConnectionEvents.DISCONNECT.register(FirstPersonRenderHandler::onPlayerLoggedOut);
         SwapItemWithOffHand.EVENT.register(FirstPersonRenderHandler::onRenderHand);
         ClientTickEvents.START_CLIENT_TICK.register(FirstPersonRenderHandler::onClientTick);
-        RenderTickEvent.EVENT.register(FirstPersonRenderHandler::tickAnimation);
+        RenderFrameEvent.EVENT.register(FirstPersonRenderHandler::tickAnimation);
         RenderHandEvent.EVENT.register(FirstPersonRenderHandler::onRenderHand);
 
         ClientCommandRegistrationCallback.EVENT.register(ParticleDebugCommand::onRegisterClientCommands);

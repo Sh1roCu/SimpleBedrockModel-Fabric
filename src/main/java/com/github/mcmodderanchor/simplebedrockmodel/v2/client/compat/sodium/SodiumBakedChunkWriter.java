@@ -14,7 +14,7 @@ import org.joml.Matrix4f;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
 
-public class SodiumBakedChunkWriter implements ISodiumVertexWriter {
+public class SodiumBakedChunkWriter implements ISodiumVertexWriter, ChunkVertexWriter {
     private static final int MAX_VERTICES_PER_BATCH = 256;
     private static final long SCRATCH = MemoryUtil.nmemAlignedAlloc(64, (long) MAX_VERTICES_PER_BATCH * STRIDE);
 

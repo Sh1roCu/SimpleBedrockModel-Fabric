@@ -1,6 +1,5 @@
 package cn.sh1rocu.simplebedrockmodel.api.event;
 
-import cn.sh1rocu.simplebedrockmodel.api.event.BaseEvent;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.event.Event;
@@ -9,7 +8,7 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 
 @Environment(EnvType.CLIENT)
-public class RenderTickEvent extends BaseEvent {
+public class RenderFrameEvent extends BaseEvent {
     private final Minecraft client;
     public final Phase phase;
     private final DeltaTracker.Timer timer;
@@ -20,7 +19,7 @@ public class RenderTickEvent extends BaseEvent {
         }
     });
 
-    public RenderTickEvent(Minecraft client, Phase phase, DeltaTracker.Timer timer) {
+    public RenderFrameEvent(Minecraft client, Phase phase, DeltaTracker.Timer timer) {
         this.client = client;
         this.phase = phase;
         this.timer = timer;
@@ -35,7 +34,7 @@ public class RenderTickEvent extends BaseEvent {
     }
 
     public interface Callback {
-        void post(RenderTickEvent event);
+        void post(RenderFrameEvent event);
     }
 
     public enum Phase {

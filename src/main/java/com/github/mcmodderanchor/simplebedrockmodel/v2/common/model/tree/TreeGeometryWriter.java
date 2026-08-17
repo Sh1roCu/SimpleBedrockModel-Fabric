@@ -3,6 +3,7 @@ package com.github.mcmodderanchor.simplebedrockmodel.v2.common.model.tree;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.common.model.BedrockCube;
 import com.github.mcmodderanchor.simplebedrockmodel.v2.client.compat.sodium.SodiumCompat;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.util.FastColor;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -49,8 +50,7 @@ public final class TreeGeometryWriter {
     public static void writeCubes(ICube[] cubes, VertexConsumer consumer, Matrix4f poseMatrix, Matrix3f normalMatrix,
                                   int light, int overlay, float red, float green, float blue, float alpha,
                                   boolean skipNormalVisibilityCull) {
-        if (writeCubesSodium(cubes, consumer, poseMatrix, normalMatrix, light, overlay, red, green, blue, alpha, skipNormalVisibilityCull))
-            return;
+        if (writeCubesSodium(cubes, consumer, poseMatrix, normalMatrix, light, overlay, red, green, blue, alpha, skipNormalVisibilityCull)) return;
         writeCubesFallback(cubes, consumer, poseMatrix, normalMatrix, light, overlay, red, green, blue, alpha, skipNormalVisibilityCull);
     }
 
@@ -82,8 +82,7 @@ public final class TreeGeometryWriter {
 
     public static void writePolyMeshes(PolyMesh[] polyMeshes, VertexConsumer consumer, Matrix4f poseMatrix, Matrix3f normalMatrix,
                                        int light, int overlay, float red, float green, float blue, float alpha) {
-        if (writePolyMeshesSodium(polyMeshes, consumer, poseMatrix, normalMatrix, light, overlay, red, green, blue, alpha))
-            return;
+        if (writePolyMeshesSodium(polyMeshes, consumer, poseMatrix, normalMatrix, light, overlay, red, green, blue, alpha)) return;
         writePolyMeshesFallback(polyMeshes, consumer, poseMatrix, normalMatrix, light, overlay, red, green, blue, alpha);
     }
 
@@ -179,11 +178,17 @@ public final class TreeGeometryWriter {
         float x = position.x;
         float y = position.y;
         float z = position.z;
+        int color = FastColor.ARGB32.color(
+                (int) (alpha * 255.0F),
+                (int) (red * 255.0F),
+                (int) (green * 255.0F),
+                (int) (blue * 255.0F)
+        );
         consumer.addVertex(
                 poseMatrix.m00() * x + poseMatrix.m10() * y + poseMatrix.m20() * z + poseMatrix.m30(),
                 poseMatrix.m01() * x + poseMatrix.m11() * y + poseMatrix.m21() * z + poseMatrix.m31(),
                 poseMatrix.m02() * x + poseMatrix.m12() * y + poseMatrix.m22() * z + poseMatrix.m32(),
-                color(red, green, blue, alpha), u, v, overlay, light, CUBE_NORMAL.x, CUBE_NORMAL.y, CUBE_NORMAL.z
+                color, u, v, overlay, light, CUBE_NORMAL.x, CUBE_NORMAL.y, CUBE_NORMAL.z
         );
     }
 
@@ -202,15 +207,17 @@ public final class TreeGeometryWriter {
             ny *= invLength;
             nz *= invLength;
         }
+        int color = FastColor.ARGB32.color(
+                (int) (alpha * 255.0F),
+                (int) (red * 255.0F),
+                (int) (green * 255.0F),
+                (int) (blue * 255.0F)
+        );
         consumer.addVertex(
                 poseMatrix.m00() * x + poseMatrix.m10() * y + poseMatrix.m20() * z + poseMatrix.m30(),
                 poseMatrix.m01() * x + poseMatrix.m11() * y + poseMatrix.m21() * z + poseMatrix.m31(),
                 poseMatrix.m02() * x + poseMatrix.m12() * y + poseMatrix.m22() * z + poseMatrix.m32(),
-                color(red, green, blue, alpha), vertex.u(), vertex.v(), overlay, light, nx, ny, nz
+                color, vertex.u(), vertex.v(), overlay, light, nx, ny, nz
         );
-    }
-
-    private static int color(float red, float green, float blue, float alpha) {
-        return (int) (alpha * 255.0f) << 24 | (int) (blue * 255.0f) << 16 | (int) (green * 255.0f) << 8 | (int) (red * 255.0f);
     }
 }

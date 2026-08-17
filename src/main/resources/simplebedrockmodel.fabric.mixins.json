@@ -5,6 +5,7 @@
   "compatibilityLevel": "JAVA_21",
   "refmap": "simplebedrockmodel.refmap.json",
   "mixins": [
+    "common.FabricItemMixin"
   ],
   "client": [
     "client.CameraMixin",

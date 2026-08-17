@@ -3,11 +3,10 @@ package com.github.mcmodderanchor.simplebedrockmodel.v1.client.handler;
 import cn.sh1rocu.simplebedrockmodel.api.event.ViewportEvent;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.event.BeforeRenderHandEvent;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.event.RenderItemInHandBobEvent;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.client.renderer.AbstractGeoItemRenderer;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.client.renderer.IFPGeoItemRenderer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry;
-import com.github.mcmodderanchor.simplebedrockmodel.v1.client.renderer.IFPGeoItemRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import org.joml.*;
@@ -55,7 +54,7 @@ public class CameraEventHandler {
             }
         }
 
-        return  euler;
+        return euler;
     }
 
     public static Vector3fc asEulerAngle(Quaternionf quaternion) {
@@ -71,7 +70,7 @@ public class CameraEventHandler {
         if (player == null) {
             return;
         }
-        var instance = FirstPersonRenderHandler.getActiveAnimationInstance();
+        var instance = FirstPersonRenderHandler.getActiveAnimationInstanceForCamera();
 
         if (instance != null && BuiltinItemRendererRegistry.INSTANCE.get(instance.currentItem().getItem()) instanceof IFPGeoItemRenderer renderer) {
             event.setCanceled(renderer.blockViewBobbing());
@@ -86,7 +85,7 @@ public class CameraEventHandler {
         if (player == null) {
             return;
         }
-        var instance = FirstPersonRenderHandler.getActiveAnimationInstance();
+        var instance = FirstPersonRenderHandler.getActiveAnimationInstanceForCamera();
 
         if (instance != null && BuiltinItemRendererRegistry.INSTANCE.get(instance.currentItem().getItem()) instanceof IFPGeoItemRenderer renderer) {
             renderer.applyLevelCameraAnimation(event, instance.currentItem(), instance.getCameraRotation(), (float) event.getPartialTick());
@@ -101,7 +100,7 @@ public class CameraEventHandler {
         if (player == null) {
             return;
         }
-        var instance = FirstPersonRenderHandler.getActiveAnimationInstance();
+        var instance = FirstPersonRenderHandler.getActiveAnimationInstanceForCamera();
 
         if (instance != null && BuiltinItemRendererRegistry.INSTANCE.get(instance.currentItem().getItem()) instanceof IFPGeoItemRenderer renderer) {
             renderer.applyItemInHandCameraAnimation(event.getPoseStack(), instance.currentItem(), instance.getCameraRotation(), event.getPartialTick());

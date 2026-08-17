@@ -8,6 +8,8 @@ import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 
 public final class SodiumCompat {
+    private static final ChunkVertexWriter WRITER = selectWriter();
+
     private SodiumCompat() {
     }
 
@@ -19,14 +21,12 @@ public final class SodiumCompat {
     public static boolean writeQuads(BakedGeometryChunk chunk, VertexConsumer consumer, int lightmap, int overlay,
                                      float red, float green, float blue, float alpha, Matrix4f finalPose, Matrix3f finalNormal,
                                      boolean skipNormalVisibilityCull) {
-        return com.github.mcmodderanchor.simplebedrockmodel.v1.client.compat.sodium.SodiumCompat.isSodiumInstalled()
-                && BackendHolder.WRITER.writeQuads(chunk, consumer, lightmap, overlay, red, green, blue, alpha, finalPose, finalNormal, skipNormalVisibilityCull);
+        return WRITER.writeQuads(chunk, consumer, lightmap, overlay, red, green, blue, alpha, finalPose, finalNormal, skipNormalVisibilityCull);
     }
 
     public static boolean writeVertices(BakedGeometryChunk chunk, VertexConsumer consumer, int lightmap, int overlay,
                                         float red, float green, float blue, float alpha, Matrix4f finalPose, Matrix3f finalNormal) {
-        return com.github.mcmodderanchor.simplebedrockmodel.v1.client.compat.sodium.SodiumCompat.isSodiumInstalled()
-                && BackendHolder.WRITER.writeVertices(chunk, consumer, lightmap, overlay, red, green, blue, alpha, finalPose, finalNormal);
+        return WRITER.writeVertices(chunk, consumer, lightmap, overlay, red, green, blue, alpha, finalPose, finalNormal);
     }
 
     public static boolean writeCubes(ICube[] cubes, VertexConsumer consumer, int lightmap, int overlay,
@@ -37,18 +37,41 @@ public final class SodiumCompat {
     public static boolean writeCubes(ICube[] cubes, VertexConsumer consumer, int lightmap, int overlay,
                                      float red, float green, float blue, float alpha, Matrix4f finalPose, Matrix3f finalNormal,
                                      boolean skipNormalVisibilityCull) {
-        return com.github.mcmodderanchor.simplebedrockmodel.v1.client.compat.sodium.SodiumCompat.isSodiumInstalled()
-                && BackendHolder.TREE_WRITER.writeCubes(cubes, consumer, lightmap, overlay, red, green, blue, alpha, finalPose, finalNormal, skipNormalVisibilityCull);
+        if (com.github.mcmodderanchor.simplebedrockmodel.v1.client.compat.sodium.SodiumCompat.isSodiumInstalled()) {
+            return SodiumTreeWriterHolder.WRITER.writeCubes(cubes, consumer, lightmap, overlay, red, green, blue, alpha, finalPose, finalNormal, skipNormalVisibilityCull);
+        }
+//        if (com.github.mcmodderanchor.simplebedrockmodel.v1.client.compat.embeddium.EmbeddiumCompat.isEmbeddiumInstalled()) {
+//            return EmbeddiumTreeWriterHolder.WRITER.writeCubes(cubes, consumer, lightmap, overlay, red, green, blue, alpha, finalPose, finalNormal, skipNormalVisibilityCull);
+//        }
+        return false;
     }
 
     public static boolean writePolyMeshes(PolyMesh[] polyMeshes, VertexConsumer consumer, int lightmap, int overlay,
                                           float red, float green, float blue, float alpha, Matrix4f finalPose, Matrix3f finalNormal) {
-        return com.github.mcmodderanchor.simplebedrockmodel.v1.client.compat.sodium.SodiumCompat.isSodiumInstalled()
-                && BackendHolder.TREE_WRITER.writePolyMeshes(polyMeshes, consumer, lightmap, overlay, red, green, blue, alpha, finalPose, finalNormal);
+        if (com.github.mcmodderanchor.simplebedrockmodel.v1.client.compat.sodium.SodiumCompat.isSodiumInstalled()) {
+            return SodiumTreeWriterHolder.WRITER.writePolyMeshes(polyMeshes, consumer, lightmap, overlay, red, green, blue, alpha, finalPose, finalNormal);
+        }
+//        if (com.github.mcmodderanchor.simplebedrockmodel.v1.client.compat.embeddium.EmbeddiumCompat.isEmbeddiumInstalled()) {
+//            return EmbeddiumTreeWriterHolder.WRITER.writePolyMeshes(polyMeshes, consumer, lightmap, overlay, red, green, blue, alpha, finalPose, finalNormal);
+//        }
+        return false;
     }
 
-    private static final class BackendHolder {
-        private static final SodiumBakedChunkWriter WRITER = new SodiumBakedChunkWriter();
-        private static final SodiumTreeGeometryWriter TREE_WRITER = new SodiumTreeGeometryWriter();
+    private static ChunkVertexWriter selectWriter() {
+        if (com.github.mcmodderanchor.simplebedrockmodel.v1.client.compat.sodium.SodiumCompat.isSodiumInstalled()) {
+            return new SodiumBakedChunkWriter();
+        }
+//        if (com.github.mcmodderanchor.simplebedrockmodel.v1.client.compat.embeddium.EmbeddiumCompat.isEmbeddiumInstalled()) {
+//            return new EmbeddiumBakedChunkWriter();
+//        }
+        return ChunkVertexWriter.NOOP;
     }
+
+    private static final class SodiumTreeWriterHolder {
+        private static final SodiumTreeGeometryWriter WRITER = new SodiumTreeGeometryWriter();
+    }
+
+//    private static final class EmbeddiumTreeWriterHolder {
+//        private static final EmbeddiumTreeGeometryWriter WRITER = new EmbeddiumTreeGeometryWriter();
+//    }
 }

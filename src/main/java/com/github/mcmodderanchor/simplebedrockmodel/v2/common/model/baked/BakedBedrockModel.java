@@ -34,6 +34,8 @@ public class BakedBedrockModel implements BoneIndexProvider {
     private final BakedGeometryChunk[] chunkByBone;
     @Nullable
     private final BakedGeometryChunk rootChunk;
+    private final boolean retainsCubeGeometry;
+    private final BakedCubeGeometry[] cubeGeometry;
 
     // 定位器，以及退化骨骼的信息；因为退化了，所以没有实际的boneIndex了
     private final BoneLocator[] locators;
@@ -49,12 +51,23 @@ public class BakedBedrockModel implements BoneIndexProvider {
                              BoneLocator[] locators, Map<String, BoneLocator> locatorByName,
                              QueryTransform[] queryTransforms, Map<String, QueryTransform> queryTransformByName,
                              Pose bindPose, AABB renderBoundingBox) {
+        this(bones, boneIndexByName, chunks, new BakedCubeGeometry[0], false, locators, locatorByName,
+                queryTransforms, queryTransformByName, bindPose, renderBoundingBox);
+    }
+
+    public BakedBedrockModel(BakedBoneDefinition[] bones, Map<String, Integer> boneIndexByName, BakedGeometryChunk[] chunks,
+                             BakedCubeGeometry[] cubeGeometry, boolean retainsCubeGeometry,
+                             BoneLocator[] locators, Map<String, BoneLocator> locatorByName,
+                             QueryTransform[] queryTransforms, Map<String, QueryTransform> queryTransformByName,
+                             Pose bindPose, AABB renderBoundingBox) {
         this.bones = bones.clone();
         this.boneIndexByName = Map.copyOf(boneIndexByName);
         this.chunks = chunks.clone();
         ChunkIndex chunkIndex = indexChunks(this.chunks, bones.length);
         this.chunkByBone = chunkIndex.chunkByBone();
         this.rootChunk = chunkIndex.rootChunk();
+        this.retainsCubeGeometry = retainsCubeGeometry;
+        this.cubeGeometry = cubeGeometry.clone();
         this.locators = locators.clone();
         this.locatorByName = Map.copyOf(locatorByName);
         this.queryTransforms = queryTransforms.clone();
@@ -89,6 +102,14 @@ public class BakedBedrockModel implements BoneIndexProvider {
 
     public BakedGeometryChunk[] chunks() {
         return chunks.clone();
+    }
+
+    public boolean retainsCubeGeometry() {
+        return retainsCubeGeometry;
+    }
+
+    public BakedCubeGeometry[] cubeGeometry() {
+        return cubeGeometry.clone();
     }
 
     public BakedGeometryChunk[] cubeChunks() {
@@ -226,15 +247,15 @@ public class BakedBedrockModel implements BoneIndexProvider {
 
     @Environment(EnvType.CLIENT)
     public void renderChunkForPass(BakedGeometryChunk chunk, PoseStack poseStack, VertexConsumer consumer,
-                                    int lightmap, int overlay, float red, float green, float blue, float alpha,
-                                    boolean quadsPass) {
+                                   int lightmap, int overlay, float red, float green, float blue, float alpha,
+                                   boolean quadsPass) {
         renderChunkForPass(chunk, poseStack, consumer, lightmap, overlay, red, green, blue, alpha, quadsPass, false);
     }
 
     @Environment(EnvType.CLIENT)
     public void renderChunkForPass(BakedGeometryChunk chunk, PoseStack poseStack, VertexConsumer consumer,
-                                    int lightmap, int overlay, float red, float green, float blue, float alpha,
-                                    boolean quadsPass, boolean skipNormalVisibilityCull) {
+                                   int lightmap, int overlay, float red, float green, float blue, float alpha,
+                                   boolean quadsPass, boolean skipNormalVisibilityCull) {
         if (quadsPass) {
             BakedGeometryChunkRenderer.INSTANCE.renderQuadChunk(chunk, poseStack, consumer, lightmap, overlay, red, green, blue, alpha, skipNormalVisibilityCull);
         } else {

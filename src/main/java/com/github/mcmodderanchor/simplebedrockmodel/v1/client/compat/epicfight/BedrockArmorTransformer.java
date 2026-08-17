@@ -23,12 +23,12 @@
 //import net.minecraft.world.entity.EquipmentSlot;
 //import net.minecraft.world.phys.AABB;
 //import net.minecraft.world.phys.Vec3;
-//import net.minecraftforge.client.extensions.common.IClientItemExtensions;
+//import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
 //import org.joml.Matrix3f;
 //import org.joml.Matrix4f;
 //import org.joml.Quaternionf;
 //import org.joml.Vector3f;
-//import yesman.epicfight.api.client.forgeevent.AnimatedArmorTextureEvent;
+//import yesman.epicfight.api.client.event.types.render.AnimatedArmorTextureEvent;
 //import yesman.epicfight.api.client.model.Mesh;
 //import yesman.epicfight.api.client.model.MeshPartDefinition;
 //import yesman.epicfight.api.client.model.SingleGroupVertexBuilder;
@@ -43,24 +43,22 @@
 //import java.util.Map;
 //import java.util.function.Supplier;
 //
-///**
+/// **
 // * Transforms BedrockArmorModel into EpicFight SkinnedMesh.
 // * Based on EpicFight's GeoModelTransformer for GeckoLib armor.
 // */
 //public class BedrockArmorTransformer extends HumanoidModelTransformer {
 //
 //    public static void getBedrockArmorTexturePath(AnimatedArmorTextureEvent event) {
-//        IClientItemExtensions customRenderProperties = IClientItemExtensions.of(event.getItemstack());
+//        IClientItemExtensions customRenderProperties = IClientItemExtensions.of(event.getItemStack());
 //
-//        if (customRenderProperties != null) {
-//            HumanoidModel<?> extensionRenderer = customRenderProperties.getHumanoidArmorModel(
-//                    event.getLivingEntity(), event.getItemstack(), event.getEquipmentSlot(), event.getOriginalModel());
+//        HumanoidModel<?> extensionRenderer = customRenderProperties.getHumanoidArmorModel(
+//                event.getLivingEntity(), event.getItemStack(), event.getEquipmentSlot(), event.getOriginalModel());
 //
-//            if (extensionRenderer instanceof GeoArmorRenderer geoArmorRenderer) {
-//                event.setResultLocation(geoArmorRenderer.getTexture());
-//            } else if (extensionRenderer instanceof GeoArmorRendererV2 geoArmorRenderer) {
-//                event.setResultLocation(geoArmorRenderer.getTexture());
-//            }
+//        if (extensionRenderer instanceof GeoArmorRenderer geoArmorRenderer) {
+//            event.setResultLocation(geoArmorRenderer.getTexture());
+//        } else if (extensionRenderer instanceof GeoArmorRendererV2 geoArmorRenderer) {
+//            event.setResultLocation(geoArmorRenderer.getTexture());
 //        }
 //    }
 //
