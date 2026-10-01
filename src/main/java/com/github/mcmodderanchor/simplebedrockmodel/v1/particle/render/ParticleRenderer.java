@@ -1,19 +1,23 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.particle.render;
 
+import com.github.mcmodderanchor.simplebedrockmodel.v1.client.compat.acceleratedrendering.AcceleratedRenderingCompat;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.ParticleDescription;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.ParticleAppearanceBillboard;
+import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.data.component.ParticleAppearanceLighting;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleEmitterInstance;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.runtime.ParticleInstance;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.renderer.LightTexture;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
-import org.jetbrains.annotations.Nullable;
+import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 
+import org.jetbrains.annotations.Nullable;
 import java.util.List;
 
 /**
@@ -24,8 +28,7 @@ import java.util.List;
 @Environment(EnvType.CLIENT)
 public final class ParticleRenderer {
 
-    private ParticleRenderer() {
-    }
+    private ParticleRenderer() {}
 
     /**
      * 渲染一个发射器的所有局部空间粒子。
@@ -39,9 +42,9 @@ public final class ParticleRenderer {
      *                       用于 fpDetached 粒子。可为 null。
      */
     public static void render(ParticleEmitterInstance emitter, PoseStack poseStack,
-                              MultiBufferSource bufferSource, int light, float partialTick,
-                              float cameraPitch, float cameraRoll,
-                              @Nullable Matrix4f cameraRotation) {
+                               MultiBufferSource bufferSource, int light, float partialTick,
+                               float cameraPitch, float cameraRoll,
+                               @Nullable Matrix4f cameraRotation) {
         List<ParticleInstance> particles = emitter.getParticles();
         if (particles.isEmpty()) return;
 
@@ -62,9 +65,23 @@ public final class ParticleRenderer {
         Matrix4f emitterTransform = emitter.getEmitterTransform();
         boolean localPos = emitter.isLocalPosition();
         boolean localRot = emitter.isLocalRotation();
+        Matrix4f pose = poseStack.last().pose();
+        Matrix3f normal = poseStack.last().normal();
+
+        // 光照：存在 particle_appearance_lighting 组件时按环境光照（传入 light）着色，否则自发光恒满亮度
+        boolean hasLighting = definition.findComponent(ParticleAppearanceLighting.class) != null;
+        int particleLight = hasLighting ? light : LightTexture.FULL_BRIGHT;
 
         for (ParticleInstance particle : particles) {
-            BillboardHelper.renderBillboard(particle, poseStack, consumer, light, mode,
+            Matrix4f effectivePose = (localPos && !particle.fpDetached)
+                    ? new Matrix4f(pose).mul(emitterTransform)
+                    : pose;
+            // 加速渲染：粒子以局部坐标 + beginTransform 提交成 mesh，才与枪体同加速层被模板剔除
+            if (AcceleratedRenderingCompat.isLoaded()
+                    && AcceleratedRenderingCompat.renderParticleBillboard(consumer, particle, effectivePose, normal, particleLight)) {
+                continue;
+            }
+            BillboardHelper.renderBillboard(particle, poseStack, consumer, particleLight, mode,
                     emitterTransform, localPos, localRot, cameraPitch, cameraRoll, cameraRotation);
         }
     }
@@ -78,6 +95,8 @@ public final class ParticleRenderer {
             case PARTICLES_ALPHA -> RenderType.entityTranslucent(texture);
             case PARTICLES_BLEND -> RenderType.entityTranslucent(texture);
             case PARTICLES_ADD -> ParticleRenderType.additiveParticle(texture);
+            case ENERGY_SWIRL -> RenderType.energySwirl(texture, 1, 1);
+            case PARTICLES_EMISSIVE -> ParticleRenderType.emissiveParticle(texture);
         };
     }
 }

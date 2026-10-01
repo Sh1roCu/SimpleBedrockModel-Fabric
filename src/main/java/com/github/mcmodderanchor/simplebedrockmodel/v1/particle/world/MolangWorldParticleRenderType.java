@@ -53,7 +53,6 @@ public final class MolangWorldParticleRenderType implements ParticleRenderType {
 
     @Override
     public void begin(BufferBuilder builder, TextureManager textureManager) {
-        RenderSystem.enableDepthTest();
         Minecraft.getInstance().gameRenderer.lightTexture().turnOnLightLayer();
         RenderSystem.setShaderTexture(0, texture);
 
@@ -77,9 +76,13 @@ public final class MolangWorldParticleRenderType implements ParticleRenderType {
                 RenderSystem.enableBlend();
                 RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
             }
+            case ENERGY_SWIRL, PARTICLES_EMISSIVE -> {
+                RenderSystem.depthMask(false);
+                RenderSystem.enableBlend();
+                RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+            }
         }
 
-        RenderSystem.disableCull();
         builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
     }
 

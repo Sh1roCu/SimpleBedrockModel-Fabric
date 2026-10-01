@@ -15,6 +15,7 @@ import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.debug.ParticleDe
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.render.CameraStateCache;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.particle.world.WorldEmitterManager;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.resource.ReloadListenersRegister;
+import com.github.mcmodderanchor.simplebedrockmodel.v2.client.world.WorldMeshRenderer;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -50,9 +51,12 @@ public class SimpleBedrockModelClient implements ClientModInitializer {
         WorldRenderEvents.AFTER_TRANSLUCENT.register(ParticleDebugRenderer::onRenderLevelStage);
 
         ViewportEvent.CAMERA.register(BaseEvent.LOWEST, CameraStateCache::onComputeCameraAngles);
+        ViewportEvent.FOV.register(BaseEvent.LOWEST, CameraStateCache::onComputeFov);
 
         ClientTickEvents.START_CLIENT_TICK.register(WorldEmitterManager::onClientTick);
         ClientPlayConnectionEvents.DISCONNECT.register(WorldEmitterManager::onLoggingOut);
+
+        ClientTickEvents.END_CLIENT_TICK.register(WorldMeshRenderer::onClientTick);
 
     }
 }

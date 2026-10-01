@@ -1,1 +1,1 @@
-An unofficial Fabric port of [SimpleBedrockModel](https://github.com/MCModderAnchor/SimpleBedrockModel)
+An unofficial Fabric port of [SimpleBedrockModel](https://github.com/MCModderAnchor/SimpleBedrockModel), requires [Forge Config API Port](https://modrinth.com/mod/forge-config-api-port)

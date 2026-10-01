@@ -11,8 +11,10 @@
     "client.CameraMixin",
     "client.GameRendererMixin",
     "client.ItemInHandRendererMixin",
+    "client.LevelRendererMixin",
     "client.MinecraftMixin",
     "client.PlayerRendererMixin",
+    "client.RenderTypeMixin",
     "client.accessor.MinecraftAccessor"
   ],
   "injectors": {
