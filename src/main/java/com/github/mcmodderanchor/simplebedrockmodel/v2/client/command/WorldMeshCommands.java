@@ -1,8 +1,8 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v2.client.command;
 
-import com.github.mcmodderanchor.simplebedrockmodel.v2.client.world.StrategyOverride;
-import com.github.mcmodderanchor.simplebedrockmodel.v2.client.world.WorldMeshGroupStats;
-import com.github.mcmodderanchor.simplebedrockmodel.v2.client.world.WorldMeshRenderer;
+import com.github.mcmodderanchor.simplebedrockmodel.v2.client.mesh.world.StrategyOverride;
+import com.github.mcmodderanchor.simplebedrockmodel.v2.client.mesh.world.WorldMeshGroupStats;
+import com.github.mcmodderanchor.simplebedrockmodel.v2.client.mesh.world.WorldMeshRenderer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.minecraft.network.chat.Component;

@@ -1,6 +1,6 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v2.client.config;
 
-import com.github.mcmodderanchor.simplebedrockmodel.v2.client.world.StrategyOverride;
+import com.github.mcmodderanchor.simplebedrockmodel.v2.client.mesh.world.StrategyOverride;
 import net.minecraftforge.common.ForgeConfigSpec;
 
 /**

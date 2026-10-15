@@ -1,6 +1,6 @@
 package cn.sh1rocu.simplebedrockmodel.mixin.client;
 
-import com.github.mcmodderanchor.simplebedrockmodel.v2.client.world.WorldMeshRenderer;
+import com.github.mcmodderanchor.simplebedrockmodel.v2.client.mesh.world.WorldMeshRenderer;
 import com.llamalad7.mixinextras.sugar.Local;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;

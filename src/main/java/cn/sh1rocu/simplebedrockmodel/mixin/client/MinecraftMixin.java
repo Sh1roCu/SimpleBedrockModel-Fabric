@@ -3,8 +3,8 @@ package cn.sh1rocu.simplebedrockmodel.mixin.client;
 import cn.sh1rocu.simplebedrockmodel.api.event.RegisterClientReloadListenersEvent;
 import cn.sh1rocu.simplebedrockmodel.api.event.RenderTickEvent;
 import cn.sh1rocu.simplebedrockmodel.util.client.MinecraftUtil;
-import com.github.mcmodderanchor.simplebedrockmodel.v2.client.world.ImmediateStaticMeshRenderer;
-import com.github.mcmodderanchor.simplebedrockmodel.v2.client.world.WorldMeshRenderer;
+import com.github.mcmodderanchor.simplebedrockmodel.v2.client.mesh.cache.StaticMeshCache;
+import com.github.mcmodderanchor.simplebedrockmodel.v2.client.mesh.world.WorldMeshRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -46,7 +46,7 @@ public class MinecraftMixin {
     private void sbm$setLevel(ClientLevel levelClient, CallbackInfo ci) {
         if (this.level != null) {
             WorldMeshRenderer.onLevelUnload(this.level);
-            ImmediateStaticMeshRenderer.onLevelUnload(this.level);
+            StaticMeshCache.onLevelUnload(this.level);
         }
     }
 
@@ -57,7 +57,7 @@ public class MinecraftMixin {
     private void sbm$clearLevel(Screen screen, CallbackInfo ci) {
         if (this.level != null) {
             WorldMeshRenderer.onLevelUnload(this.level);
-            ImmediateStaticMeshRenderer.onLevelUnload(this.level);
+            StaticMeshCache.onLevelUnload(this.level);
         }
     }
 }
