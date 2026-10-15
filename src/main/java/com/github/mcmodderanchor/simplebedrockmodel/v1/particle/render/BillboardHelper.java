@@ -7,9 +7,9 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import org.jetbrains.annotations.Nullable;
+import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -26,7 +26,8 @@ public final class BillboardHelper {
     private static final Vector3f TEMP_AXIS_X = new Vector3f();
     private static final Vector3f TEMP_AXIS_Y = new Vector3f();
     private static final Vector3f TEMP_DIR = new Vector3f();
-    private static final PoseStack IDENTITY_STACK = new PoseStack();
+    private static final Matrix4f IDENTITY_POSE = new Matrix4f();
+    private static final Matrix3f IDENTITY_NORMAL = new Matrix3f();
 
     private BillboardHelper() {
     }
@@ -97,24 +98,24 @@ public final class BillboardHelper {
         float cx = TEMP_VIEW_POS.x, cy = TEMP_VIEW_POS.y, cz = TEMP_VIEW_POS.z;
 
         // 使用 identity pose，顶点已经在视图空间中
-        IDENTITY_STACK.setIdentity();
+        IDENTITY_POSE.identity();
+        IDENTITY_NORMAL.identity();
 
-        var identityPose = IDENTITY_STACK.last();
-        vertex(consumer, identityPose,
+        vertex(consumer, IDENTITY_POSE, IDENTITY_NORMAL,
                 cx - axisX.x * hw - axisY.x * hh, cy - axisX.y * hw - axisY.y * hh, cz - axisX.z * hw - axisY.z * hh,
                 particle.u0, particle.v1, particle, light);
-        vertex(consumer, identityPose,
+        vertex(consumer, IDENTITY_POSE, IDENTITY_NORMAL,
                 cx - axisX.x * hw + axisY.x * hh, cy - axisX.y * hw + axisY.y * hh, cz - axisX.z * hw + axisY.z * hh,
                 particle.u0, particle.v0, particle, light);
-        vertex(consumer, identityPose,
+        vertex(consumer, IDENTITY_POSE, IDENTITY_NORMAL,
                 cx + axisX.x * hw + axisY.x * hh, cy + axisX.y * hw + axisY.y * hh, cz + axisX.z * hw + axisY.z * hh,
                 particle.u1, particle.v0, particle, light);
-        vertex(consumer, identityPose,
+        vertex(consumer, IDENTITY_POSE, IDENTITY_NORMAL,
                 cx + axisX.x * hw - axisY.x * hh, cy + axisX.y * hw - axisY.y * hh, cz + axisX.z * hw - axisY.z * hh,
                 particle.u1, particle.v1, particle, light);
     }
 
-    private static void vertex(VertexConsumer consumer, PoseStack.Pose pose,
+    private static void vertex(VertexConsumer consumer, Matrix4f pose, Matrix3f normal,
                                float x, float y, float z,
                                float u, float v,
                                ParticleInstance particle, int light) {
@@ -122,8 +123,8 @@ public final class BillboardHelper {
                 .setColor(particle.r, particle.g, particle.b, particle.a)
                 .setUv(u, v)
                 .setOverlay(OverlayTexture.NO_OVERLAY)
-                .setLight(LightTexture.FULL_BRIGHT)
-                .setNormal(pose, 0, 1, 0);
+                .setLight(light)
+                .setNormal(0, 1, 0);
     }
 
     /**

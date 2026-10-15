@@ -13,6 +13,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.particle.ParticleRenderType;
 import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.resources.ResourceLocation;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -51,9 +52,9 @@ public final class MolangWorldParticleRenderType implements ParticleRenderType {
         CACHE.clear();
     }
 
+    @Nullable
     @Override
     public BufferBuilder begin(Tesselator tesselator, TextureManager textureManager) {
-        RenderSystem.enableDepthTest();
         Minecraft.getInstance().gameRenderer.lightTexture().turnOnLightLayer();
         RenderSystem.setShaderTexture(0, texture);
 
@@ -77,11 +78,16 @@ public final class MolangWorldParticleRenderType implements ParticleRenderType {
                 RenderSystem.enableBlend();
                 RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
             }
+            case ENERGY_SWIRL, PARTICLES_EMISSIVE -> {
+                RenderSystem.depthMask(false);
+                RenderSystem.enableBlend();
+                RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+            }
         }
 
-        RenderSystem.disableCull();
         return tesselator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
     }
+
 
     @Override
     public String toString() {

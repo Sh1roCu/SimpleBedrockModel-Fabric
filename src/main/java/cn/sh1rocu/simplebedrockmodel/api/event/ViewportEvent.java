@@ -20,9 +20,9 @@ public abstract class ViewportEvent extends BaseEvent {
         this.partialTick = partialTick;
     }
 
-    public static final Event<FovCallback> FOV = EventFactory.createArrayBacked(FovCallback.class, callbacks -> event -> {
+    public static final Event<FovCallback> FOV = EventFactory.createWithPhases(FovCallback.class, callbacks -> event -> {
         for (FovCallback callback : callbacks) callback.post(event);
-    });
+    }, HIGHEST, HIGH, Event.DEFAULT_PHASE, LOW, LOWEST);
 
     public static final Event<CameraCallback> CAMERA = EventFactory.createWithPhases(CameraCallback.class, callbacks -> event -> {
         for (CameraCallback post : callbacks) post.post(event);
