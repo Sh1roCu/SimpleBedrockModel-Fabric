@@ -1,9 +1,6 @@
 package cn.sh1rocu.simplebedrockmodel;
 
-import cn.sh1rocu.simplebedrockmodel.api.event.BaseEvent;
-import cn.sh1rocu.simplebedrockmodel.api.event.RegisterClientReloadListenersEvent;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.resource.ReloadListenersRegister;
-import com.github.mcmodderanchor.simplebedrockmodel.v2.client.mesh.MeshLifecycle;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
@@ -16,7 +13,5 @@ public class SimpleBedrockModel implements ModInitializer {
         if (FabricLoader.getInstance().getEnvironmentType() == EnvType.SERVER) {
             ReloadListenersRegister.BedrockModelServerRegister.onRegisterReloadListener();
         }
-
-        RegisterClientReloadListenersEvent.EVENT.register(BaseEvent.HIGHEST, MeshLifecycle::registerReloadListener);
     }
 }
