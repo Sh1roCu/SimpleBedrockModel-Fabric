@@ -3,6 +3,8 @@ package com.github.mcmodderanchor.simplebedrockmodel.v2.client.command;
 import com.github.mcmodderanchor.simplebedrockmodel.v2.client.mesh.world.StrategyOverride;
 import com.github.mcmodderanchor.simplebedrockmodel.v2.client.mesh.world.WorldMeshGroupStats;
 import com.github.mcmodderanchor.simplebedrockmodel.v2.client.mesh.world.WorldMeshRenderer;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.minecraft.network.chat.Component;
@@ -14,6 +16,7 @@ import java.util.Locale;
  * 库随包提供的客户端配置快捷入口，与 example 压测命令独立。
  */
 @ApiStatus.Internal
+@Environment(EnvType.CLIENT)
 public final class WorldMeshCommands {
     private WorldMeshCommands() {
     }
