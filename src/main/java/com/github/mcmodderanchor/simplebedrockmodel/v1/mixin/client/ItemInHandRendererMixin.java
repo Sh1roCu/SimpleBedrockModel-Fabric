@@ -1,5 +1,6 @@
 package com.github.mcmodderanchor.simplebedrockmodel.v1.mixin.client;
 
+import cn.sh1rocu.simplebedrockmodel.mixin.client.FabricItemMixin;
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.handler.FirstPersonRenderHandler;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
@@ -50,7 +51,7 @@ public class ItemInHandRendererMixin {
      * 非自定义物品回退到 Forge 原判定。
      * <p>
      * Fabric:
-     * @see cn.sh1rocu.simplebedrockmodel.mixin.common.FabricItemMixin
+     * @see FabricItemMixin
      */
 //    @WrapOperation(
 //            method = "tick",
