@@ -1,4 +1,4 @@
-package cn.sh1rocu.simplebedrockmodel.mixin.common;
+package cn.sh1rocu.simplebedrockmodel.mixin.client;
 
 import com.github.mcmodderanchor.simplebedrockmodel.v1.client.handler.FirstPersonRenderHandler;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
