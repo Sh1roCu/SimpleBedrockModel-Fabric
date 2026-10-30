@@ -8,7 +8,6 @@ import com.github.mcmodderanchor.simplebedrockmodel.v2.client.mesh.gpu.WorldMesh
 import com.github.mcmodderanchor.simplebedrockmodel.v2.client.mesh.gpu.WorldMeshPart;
 import com.github.mcmodderanchor.simplebedrockmodel.v2.client.mesh.render.MeshBatchRenderer;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -258,7 +257,7 @@ public class WorldMeshRenderer {
     }
 
     @ApiStatus.Internal
-    public static void onRenderStage(Camera camera, Frustum frustum, PoseStack poseStack, Matrix4f projection) {
+    public static void onRenderStage(Camera camera, Frustum frustum, Matrix4f baseView, Matrix4f projection) {
         if (MESH_GROUPS.isEmpty() /*|| event.getStage() != RenderLevelStageEvent.Stage.AFTER_BLOCK_ENTITIES*/) {
             return;
         }
@@ -280,7 +279,7 @@ public class WorldMeshRenderer {
         // Camera camera = event.getCamera();
         Vec3 cameraPosition = camera.getPosition();
         // Frustum frustum = event.getFrustum();
-        Matrix4f baseView = poseStack.last().pose();
+        // Matrix4f baseView = event.getModelViewMatrix();
         // Matrix4f projection = event.getProjectionMatrix();
 
         collectedCount = 0;
