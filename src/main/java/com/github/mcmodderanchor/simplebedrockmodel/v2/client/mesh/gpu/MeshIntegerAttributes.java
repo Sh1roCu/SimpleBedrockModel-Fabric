@@ -9,13 +9,17 @@ import com.mojang.blaze3d.vertex.VertexFormatElement;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import org.lwjgl.BufferUtils;
-import org.lwjgl.opengl.*;
+import org.lwjgl.opengl.ARBInstancedArrays;
+import org.lwjgl.opengl.GL;
+import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL15;
+import org.lwjgl.opengl.GL20;
+import org.lwjgl.opengl.GL33;
+import org.lwjgl.opengl.GLCapabilities;
 
 import java.nio.IntBuffer;
 
-/**
- * 网格后端持有的整数参数表；临时网格读取 light／overlay，世界网格仅读取实例 light。
- */
+/** 网格后端持有的整数参数表；临时网格读取 light／overlay，世界网格仅读取实例 light。 */
 @Environment(EnvType.CLIENT)
 public class MeshIntegerAttributes {
     static final int COORDINATES = 256;
@@ -30,11 +34,9 @@ public class MeshIntegerAttributes {
     private long generation;
     private boolean failed;
 
-    public enum Backend {UNSUPPORTED, CORE, ARB}
+    public enum Backend { UNSUPPORTED, CORE, ARB }
 
-    /**
-     * 世界网格只替换 UV2；UV1 继续读取几何，状态随句柄和 VAO 的生命周期保存。
-     */
+    /** 世界网格只替换 UV2；UV1 继续读取几何，状态随句柄和 VAO 的生命周期保存。 */
     public static class LightState {
         private VertexFormat format;
         private int geometryBuffer = -1;
@@ -44,9 +46,7 @@ public class MeshIntegerAttributes {
         private long lightOffset = -1;
         private boolean attached;
 
-        public void invalidate() {
-            attached = false;
-        }
+        public void invalidate() { attached = false; }
 
         public boolean prepareLayout(VertexBuffer geometry, int maxAttributes) {
             VertexFormat uploaded = geometry.getFormat();
@@ -62,15 +62,13 @@ public class MeshIntegerAttributes {
     }
 
     public static Backend selectBackend(boolean gl30, long integerPointer, boolean gl33, long corePointer,
-                                        boolean arbInstancing, long arbPointer) {
+                                 boolean arbInstancing, long arbPointer) {
         if (!gl30 || integerPointer == 0) return Backend.UNSUPPORTED;
         if (gl33 && corePointer != 0) return Backend.CORE;
         return arbInstancing && arbPointer != 0 ? Backend.ARB : Backend.UNSUPPORTED;
     }
 
-    /**
-     * 状态由各 Part 持有，不放入全局光照／偏移缓存；新 Part 的属性来源初始为未挂载。
-     */
+    /** 状态由各 Part 持有，不放入全局光照／偏移缓存；新 Part 的属性来源初始为未挂载。 */
     public static class PartState {
         private VertexFormat format;
         private int geometryBuffer = -1;
@@ -86,9 +84,7 @@ public class MeshIntegerAttributes {
         private long lightOffset = -1;
         private boolean attached;
 
-        public void invalidate() {
-            attached = false;
-        }
+        public void invalidate() { attached = false; }
 
         public boolean prepareLayout(VertexBuffer geometry, int maxAttributes) {
             VertexFormat uploaded = geometry.getFormat();
@@ -133,9 +129,7 @@ public class MeshIntegerAttributes {
         return supported && !failed && parameterOffset(packedLight) >= 0 && parameterOffset(packedOverlay) >= 0;
     }
 
-    /**
-     * 检查两个完整的无符号 16 位分量，不截断，也不钳制数值。
-     */
+    /** 检查两个完整的无符号 16 位分量，不截断，也不钳制数值。 */
     public static long parameterOffset(int packed) {
         int u = packed & 0xFFFF;
         int v = packed >>> 16;
@@ -156,9 +150,7 @@ public class MeshIntegerAttributes {
         return state.prepareLayout(geometry, maxAttributes);
     }
 
-    /**
-     * 分配／上传失败记录并停用后端，直到明确的生命周期重置。
-     */
+    /** Java 异常时记录并停用后端，直到明确的生命周期重置。 */
     public boolean ensureReady() {
         RenderSystem.assertOnRenderThread();
         if (buffer >= 0) return true;
@@ -173,13 +165,6 @@ public class MeshIntegerAttributes {
             fillParameters(pairs);
             pairs.flip();
             GL15.glBufferData(GL15.GL_ARRAY_BUFFER, pairs, GL15.GL_STATIC_DRAW);
-            // AMD 驱动存在在此 GL_BUFFER_SIZE 查询中发生原生访问违规的报告，Java 无法捕获。
-            // 用 GL 错误检查拒绝失败的上传，避免额外查询缓冲对象参数。
-            int error = GL11.glGetError();
-            if (error != GL11.GL_NO_ERROR) {
-                throw new IllegalStateException("Integer attribute buffer upload error 0x"
-                        + Integer.toHexString(error));
-            }
             buffer = created;
             created = -1;
             generation++;
@@ -204,9 +189,7 @@ public class MeshIntegerAttributes {
         GlStateManager._glBindBuffer(GL15.GL_ARRAY_BUFFER, previous);
     }
 
-    /**
-     * 在已绑定的世界网格 VAO 上设置实例 UV2，保持几何 overlay 和调用方 ARRAY_BUFFER 绑定。
-     */
+    /** 在已绑定的世界网格 VAO 上设置实例 UV2，保持几何 overlay 和调用方 ARRAY_BUFFER 绑定。 */
     public void setupLight(LightState state, long lightOffset) {
         if (!state.attached || state.parameterBuffer != buffer || state.parameterGeneration != generation) {
             state.invalidate();
